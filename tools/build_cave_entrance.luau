@@ -306,9 +306,17 @@ for z = 6, -LENGTH + 10, -9 do
 	for _, s in ipairs({ -1, 1 }) do
 		local d = wallDist(z, y, s)
 		if d < 40 then
+			-- 벽 고정판 → 쇠 팔 → 링에 꽂힌 나무 막대 → 천 감개 + 불 (막대 끝이 벽 반대쪽으로 기울어짐)
 			local x = s * (d - 1.3)
-			part("TorchBracket", Vector3.new(0.6, 3, 0.6), x, y - 1.2, z, woodDark, Enum.Material.Wood, nil, CFrame.Angles(0, 0, math.rad(s * 20)))
-			local head = part("TorchHead", Vector3.new(1, 1, 1), x - s * 0.5, y + 0.6, z, Color3.fromRGB(255, 150, 60), Enum.Material.Neon)
+			local metal = Color3.fromRGB(58, 61, 64)
+			part("TorchPlate", Vector3.new(0.3, 1.8, 1.1), s * (d - 0.15), y - 0.6, z, metal, Enum.Material.Metal)
+			part("TorchArm", Vector3.new(1.1, 0.25, 0.25), s * (d - 0.75), y - 1.1, z, metal, Enum.Material.Metal)
+			part("TorchRing", Vector3.new(0.3, 0.7, 0.7), x, y - 1.1, z, metal, Enum.Material.Metal, Enum.PartType.Cylinder, CFrame.Angles(0, 0, math.rad(90)))
+			local stick = part("TorchStick", Vector3.new(0.35, 3, 0.35), x, y - 0.6, z, Color3.fromRGB(110, 71, 42), Enum.Material.Wood, nil, CFrame.Angles(0, 0, math.rad(s * 15)))
+			local cloth = part("TorchCloth", Vector3.new(0.6, 0.8, 0.6), x, y, z, Color3.fromRGB(214, 194, 158), Enum.Material.Fabric)
+			cloth.CFrame = stick.CFrame * CFrame.new(0, 1.55, 0)
+			local head = part("TorchHead", Vector3.new(0.45, 0.3, 0.45), x, y, z, Color3.fromRGB(255, 150, 60), Enum.Material.Neon)
+			head.CFrame = stick.CFrame * CFrame.new(0, 2.05, 0)
 			if TH.fire then
 				local f = Instance.new("Fire")
 				f.Size, f.Heat = 2.5, 6
