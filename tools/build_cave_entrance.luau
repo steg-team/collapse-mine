@@ -299,31 +299,66 @@ for _, z in ipairs({ -FIELD_DEPTH + 10, -FIELD_DEPTH + 2 }) do
 	part("GateBrace", Vector3.new(2, 9, 2), px - 3, g + ph - 3.2, z, woodDark, Enum.Material.WoodPlanks, nil, CFrame.Angles(0, 0, math.rad(40)))
 end
 
--- 벽 횃불: 실제 벽에서 조금 띄워서 (나무 받침 + 불)
+-- 벽 횃불: 벽에 박힌 고정판(리벳 4개) → 가로 팔 + 대각 버팀대 → 링에 꽂힌 손잡이 → 천 감개 4겹 + 불
+-- 원점 = 벽 표면, 로컬 +X = 벽에서 동굴 쪽. 부품은 모두 충돌 끔 (지나가다 걸리지 않게)
+local function buildTorch(origin)
+	local m = Instance.new("Model"); m.Name = "WallTorch"
+	local METAL = Color3.fromRGB(62, 58, 56)
+	local RIVET = Color3.fromRGB(95, 92, 88)
+	local WOOD = Color3.fromRGB(92, 58, 34)
+	local VERT = CFrame.Angles(0, 0, math.rad(90)) -- 원통 축을 세로로
+	local function mk(name, size, cf, color, mat, shape)
+		local p = Instance.new("Part")
+		p.Name = name
+		if shape then p.Shape = shape end
+		p.Size, p.CFrame = size, cf
+		p.Anchored, p.CanCollide, p.CastShadow = true, false, false
+		p.Color, p.Material = color, mat
+		p.Parent = m
+		return p
+	end
+	local o = origin
+	mk("Plate", Vector3.new(0.25, 2.4, 1.2), o * CFrame.new(0.12, 0, 0), METAL, Enum.Material.Metal)
+	for _, yy in ipairs({ -0.95, 0.95 }) do
+		for _, zz in ipairs({ -0.4, 0.4 }) do
+			mk("Rivet", Vector3.new(0.12, 0.22, 0.22), o * CFrame.new(0.3, yy, zz), RIVET, Enum.Material.Metal, Enum.PartType.Cylinder)
+		end
+	end
+	mk("Arm", Vector3.new(1.4, 0.2, 0.2), o * CFrame.new(0.95, 0.55, 0), METAL, Enum.Material.Metal)
+	local a, b = Vector3.new(0.3, -0.75, 0), Vector3.new(1.25, 0.45, 0)
+	mk("Brace", Vector3.new(0.16, 0.16, (b - a).Magnitude), o * CFrame.lookAt((a + b) / 2, b), METAL, Enum.Material.Metal)
+	mk("Ring", Vector3.new(0.22, 0.85, 0.85), o * CFrame.new(1.75, 0.55, 0) * VERT, METAL, Enum.Material.Metal, Enum.PartType.Cylinder)
+	-- 손잡이: 아래가 가늘고 위가 굵게, 살짝 바깥으로 기울임
+	local base = o * CFrame.new(1.75, -0.9, 0) * CFrame.Angles(0, 0, math.rad(-8))
+	mk("HandleLow", Vector3.new(1.6, 0.26, 0.26), base * VERT, WOOD, Enum.Material.Wood, Enum.PartType.Cylinder)
+	mk("HandleHigh", Vector3.new(1.6, 0.34, 0.34), base * CFrame.new(0, 1.5, 0) * VERT, WOOD, Enum.Material.Wood, Enum.PartType.Cylinder)
+	-- 천 감개: 굵기·각도가 조금씩 다른 띠를 겹쳐 감은 느낌
+	local top = base * CFrame.new(0, 2.35, 0)
+	for i = 0, 3 do
+		local wrap = top * CFrame.new(0, i * 0.2, 0) * CFrame.Angles(math.rad((i % 2 == 0) and 6 or -6), i * 0.7, 0) * VERT
+		local c = (i % 2 == 0) and Color3.fromRGB(205, 186, 150) or Color3.fromRGB(180, 160, 125)
+		mk("Cloth", Vector3.new(0.24, 0.62 - i * 0.03, 0.62 - i * 0.03), wrap, c, Enum.Material.Fabric, Enum.PartType.Cylinder)
+	end
+	local head = mk("Ember", Vector3.new(0.12, 0.5, 0.5), top * CFrame.new(0, 0.75, 0) * VERT, Color3.fromRGB(255, 140, 50), Enum.Material.Neon, Enum.PartType.Cylinder)
+	if TH.fire then
+		local f = Instance.new("Fire")
+		f.Size, f.Heat = 2.5, 7
+		f.Color, f.SecondaryColor = TH.light, Color3.fromRGB(255, 220, 120)
+		f.Parent = head
+	end
+	light(head, 22, 1.6)
+	m.Parent = model
+	return m
+end
+
 for z = 6, -LENGTH + 10, -9 do
 	local g = floorY(0, z)
-	local y = g + 8
+	local y = g + 7
 	for _, s in ipairs({ -1, 1 }) do
 		local d = wallDist(z, y, s)
 		if d < 40 then
-			-- 벽 고정판 → 쇠 팔 → 링에 꽂힌 나무 막대 → 천 감개 + 불 (막대 끝이 벽 반대쪽으로 기울어짐)
-			local x = s * (d - 1.3)
-			local metal = Color3.fromRGB(58, 61, 64)
-			part("TorchPlate", Vector3.new(0.3, 1.8, 1.1), s * (d - 0.15), y - 0.6, z, metal, Enum.Material.Metal)
-			part("TorchArm", Vector3.new(1.1, 0.25, 0.25), s * (d - 0.75), y - 1.1, z, metal, Enum.Material.Metal)
-			part("TorchRing", Vector3.new(0.3, 0.7, 0.7), x, y - 1.1, z, metal, Enum.Material.Metal, Enum.PartType.Cylinder, CFrame.Angles(0, 0, math.rad(90)))
-			local stick = part("TorchStick", Vector3.new(0.35, 3, 0.35), x, y - 0.6, z, Color3.fromRGB(110, 71, 42), Enum.Material.Wood, nil, CFrame.Angles(0, 0, math.rad(s * 15)))
-			local cloth = part("TorchCloth", Vector3.new(0.6, 0.8, 0.6), x, y, z, Color3.fromRGB(214, 194, 158), Enum.Material.Fabric)
-			cloth.CFrame = stick.CFrame * CFrame.new(0, 1.55, 0)
-			local head = part("TorchHead", Vector3.new(0.45, 0.3, 0.45), x, y, z, Color3.fromRGB(255, 150, 60), Enum.Material.Neon)
-			head.CFrame = stick.CFrame * CFrame.new(0, 2.05, 0)
-			if TH.fire then
-				local f = Instance.new("Fire")
-				f.Size, f.Heat = 2.5, 6
-				f.Color, f.SecondaryColor = TH.light, Color3.fromRGB(255, 220, 120)
-				f.Parent = head
-			end
-			light(head, 22, 1.6)
+			local out = ROT:VectorToWorldSpace(Vector3.new(-s, 0, 0))
+			buildTorch(CFrame.fromMatrix(W(s * d, y, z), out, Vector3.yAxis))
 		end
 	end
 end
