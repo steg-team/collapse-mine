@@ -1,0 +1,17 @@
+# 플레이스 파일은 커밋하지 않음 (맵은 팀 크리에이트에서 관리)
+*.rbxl
+*.rbxlx
+*.rbxl.lock
+*.rbxlx.lock
+*.rbxm
+*.rbxmx
+
+# Rojo / 도구
+sourcemap.json
+roblox.toml
+
+# OS / 에디터
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json

@@ -1,0 +1,3 @@
+# rokit install 로 아래 도구가 설치됩니다.
+[tools]
+rojo = "rojo-rbx/rojo@7.4.4"
