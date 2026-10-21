@@ -94,7 +94,7 @@ docs/        기획서, 결정 기록 (동기화 안 됨)
 - 광산 여러 개 구조 (`docs/decisions.md` D-006). 광산 목록·위치·지층·광물표는 **`src/shared/Config/Mines.luau`가 원본**. 숫자를 코드에 따로 적지 말고 이 설정을 읽습니다.
 - 지상 허브: `Workspace.CollapseMine.Hub` (광장, 상점, 제작소, 리더보드, 스폰 `MineSpawn`, 광산 입구 `MinePortals/Portal_<id>`)
   - 허브는 사방이 절벽(높이 40~56)으로 둘러싸인 분지. 절벽 위 바깥쪽에 투명 경계벽(`Hub/Boundary`)이 있어 밖으로 떨어지지 않는다. `tools/build_hub_cliffs.luau`로 생성 (분지 중심 (0,0,90), 안쪽 반폭 88×52)
-  - 광산 입구는 절벽 벽에 뚫린 갱도 입구(폭 24, 높이 20). `tools/build_cave_entrance.luau`로 생성. 기본 광산 입구는 남쪽 벽 (0, 0, 40)
+  - 광산 입구는 입구마다 뒤에 거대한 산(눈 덮인 봉우리)을 두고 앞면 절벽에 깔때기 모양 동굴 아가리(앞 46×56)를 뚫는 방식. 입구가 웅장해야 다음 광산에 가고 싶어진다는 방향 (D-008). `tools/build_cave_entrance.luau`로 생성, `THEME`으로 광산별 분위기(basic, lava). 기본 광산 입구는 남쪽 (0, 0, 38)
   - 새 입구를 낼 때 경계벽이 입구 안쪽을 가로막지 않는지 확인 (경계벽은 절벽 안쪽 면에서 약 37 뒤)
 - 광산: `Workspace.Mines.<id>` — `tools/generate_mine.luau`로 생성
   - `Ores/` 광석 (태그 `Ore`, 속성 `MineId`, `Ore`, `DisplayName`, `Grade`, `OreValue`, `Hardness`, `Layer`, 채굴 중 `HP`)
