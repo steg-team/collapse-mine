@@ -4,6 +4,11 @@
 # 기본 (공용 설정, 문서)
 *                       @leewoojin12
 
+# 기획 문서 — 3명 모두 리뷰 (세 번째 팀원 아이디가 정해지면 추가)
+/docs/                  @leewoojin12 @091012
+/AGENTS.md              @leewoojin12 @091012
+/CLAUDE.md              @leewoojin12 @091012
+
 # A · 채굴 코어 — 광산 생성, 채굴 판정, 광물 확률·무게·압력, 카나리아, 곡괭이
 /src/server/Mining/     @leewoojin12
 /src/client/Mining/     @leewoojin12
