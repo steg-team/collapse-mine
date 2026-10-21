@@ -73,5 +73,13 @@ Rojo로 동기화되지 않습니다. Studio **보기 → 명령창**에 내용�
 
 | 파일 | 하는 일 |
 |---|---|
-| `generate_ant_cave.luau` | 개미굴 동굴 맵(입구, 허브 방, 나선 대각선 굴 5갈래, 옆방·끝방, 광석, 방 구역, 램프) 생성. `SEED`만 바꾸면 다른 모양 |
+| `generate_mine.luau` | `src/shared/Config/Mines.luau`의 광산 설정 하나를 읽어 개미굴 광산을 지정 위치에 생성. 맨 위 `MINE_ID`만 바꿔서 실행 |
+| `build_mine_portal.luau` | 허브에 광산 포탈(입구 아치) 생성. `MINE_ID`, 위치를 바꿔 광산마다 실행 |
 | `build_pickaxe_model.luau` | `StarterPack.Pickaxe` 모델과 `ReplicatedStorage.Remotes.MineHit` 생성 |
+
+### 새 광산 추가 순서
+
+1. `src/shared/Config/Mines.luau`에 항목 추가 (위치는 다른 광산·허브와 겹치지 않게) → PR
+2. Rojo로 Studio에 반영된 상태에서 `tools/generate_mine.luau`의 `MINE_ID`를 바꿔 실행
+3. `tools/build_mine_portal.luau`로 허브에 포탈 배치
+4. `docs/game-design.md` 광산 구성 표 갱신

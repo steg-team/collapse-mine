@@ -91,15 +91,17 @@ docs/        기획서, 결정 기록 (동기화 안 됨)
 
 ## 맵 사실관계 (현재 플레이스 기준)
 
-- 맵 루트: `Workspace.CollapseMine`
-  - `Ores/` 광석 파트. 속성: `Vein`, `Ore`, `OreValue`, `Layer`, `Hardness`, (`HP` 채굴 중 남은 체력)
-  - `Rooms/` 투명 방 구역 파트. 속성: `Room`, `RoomType`(Hub/Side/End), `Layer`, `CollapseRisk`
-  - `Lights/` 램프, `Hub/` 지상 광장(상점, 제작소, 리더보드, `MineSpawn`)
-  - `AntNestInfo` (Configuration): 지층별 경도 `L1~L5_Hardness`, 생성 `Seed`
-- 땅은 Terrain, 굴은 개미굴 모양(입구 경사로 → 허브 방 → 나선 대각선 굴 5갈래, 옆방·끝방). 수직 구멍은 만들지 않습니다 (걸어서 올라올 수 있어야 함).
-- 지층(y 기준): 1 흙 -4~-24 / 2 바위 -24~-48 / 3 수정 -48~-72 / 4 심층암 -72~-96 / 5 용암 -96~-152
-- 지표(y > -4)는 채굴 불가.
-- 이전 버전 맵 백업: `ServerStorage.OldPitBackup`, `ServerStorage.HangingNestBackup`
+- 광산 여러 개 구조 (`docs/decisions.md` D-006). 광산 목록·위치·지층·광물표는 **`src/shared/Config/Mines.luau`가 원본**. 숫자를 코드에 따로 적지 말고 이 설정을 읽습니다.
+- 지상 허브: `Workspace.CollapseMine.Hub` (광장, 상점, 제작소, 리더보드, 스폰 `MineSpawn`, 광산 포탈 `MinePortals/Portal_<id>`)
+- 광산: `Workspace.Mines.<id>` — `tools/generate_mine.luau`로 생성
+  - `Ores/` 광석 (태그 `Ore`, 속성 `MineId`, `Ore`, `DisplayName`, `Grade`, `OreValue`, `Hardness`, `Layer`, 채굴 중 `HP`)
+  - `Rooms/` 투명 방 구역 (속성 `RoomType`=Entrance/Hub/Side/End, `Layer`, `CollapseRisk`)
+  - `Lights/` 램프, `Entrance` 도착 지점, `ExitPoint` 출구 발판 (태그 `MineExit`)
+- 이동: 포탈(태그 `MinePortal`, 속성 `MineId`) → 광산 입구, 출구 발판 → 허브 스폰. 플레이어 속성 `PickaxeTier`가 광산의 `requiredPickaxe` 이상이어야 입장.
+- 땅은 Terrain, 굴은 개미굴 모양(입구 방 → 허브 방 → 완만히 내려가며 퍼지는 굴, 옆방·끝방). 수직 구멍은 만들지 않습니다 (걸어서 올라올 수 있어야 함).
+- 현재 광산: `basic` 기본 광산 — 중심 (0, 0, -900), 반경 350, 지층 흙(-4~-50)·바위(-50~-125)
+- 지표(광산 `top` 위)와 허브는 채굴 불가.
+- 이전 맵 백업: `ServerStorage.OldPitBackup`, `HangingNestBackup`, `FirstCaveBackup`
 
 ## Git 흐름
 
