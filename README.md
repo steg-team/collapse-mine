@@ -74,12 +74,13 @@ Rojo로 동기화되지 않습니다. Studio **보기 → 명령창**에 내용�
 | 파일 | 하는 일 |
 |---|---|
 | `generate_mine.luau` | `src/shared/Config/Mines.luau`의 광산 설정 하나를 읽어 개미굴 광산을 지정 위치에 생성. 맨 위 `MINE_ID`만 바꿔서 실행 |
-| `build_cave_entrance.luau` | 허브에 광산 동굴 입구 생성: U자 절벽 + 갱도 입구 + 표지판·등불, 입구 안쪽에 이동 판정. `MINE_ID`, `MOUTH`(위치), `FACING`(방향)을 바꿔 광산마다 실행 |
+| `build_hub_cliffs.luau` | 시작 지점(허브)을 둘러싼 절벽 링 + 절벽 위 보이지 않는 경계벽 (낙사 방지). 입구보다 먼저 실행 |
+| `build_cave_entrance.luau` | 허브 절벽 벽에 광산 동굴 입구(폭 24, 높이 20)를 뚫고 지지대·레일·등불·표지판 배치, 입구 안쪽에 이동 판정. `MINE_ID`, `MOUTH`(위치), `FACING`(방향)을 바꿔 광산마다 실행 |
 | `build_pickaxe_model.luau` | `StarterPack.Pickaxe` 모델과 `ReplicatedStorage.Remotes.MineHit` 생성 |
 
 ### 새 광산 추가 순서
 
 1. `src/shared/Config/Mines.luau`에 항목 추가 (위치는 다른 광산·허브와 겹치지 않게) → PR
 2. Rojo로 Studio에 반영된 상태에서 `tools/generate_mine.luau`의 `MINE_ID`를 바꿔 실행
-3. `tools/build_cave_entrance.luau`로 허브에 동굴 입구 배치 (다른 입구·광장과 겹치지 않게 위치 지정)
+3. `tools/build_cave_entrance.luau`로 허브 절벽 벽에 동굴 입구 배치 (다른 입구와 겹치지 않게 위치·방향 지정)
 4. `docs/game-design.md` 광산 구성 표 갱신
