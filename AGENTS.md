@@ -1,0 +1,108 @@
+# AGENTS.md — 붕괴 광산 (Collapse Mine)
+
+AI 코딩 에이전트(Claude Code, Codex, Cursor, Copilot 등)가 이 레포에서 작업할 때 따르는 규칙입니다.
+사람 팀원도 같은 규칙을 따릅니다. 설치·작업 흐름은 `README.md`를 보세요.
+
+## 게임 한 줄 요약
+
+서버 전체가 함께 광산을 파 내려가다, 붕괴 카운트다운이 시작되면 "더 캘까, 지금 탈출할까"를 고르는 로블록스 채굴 게임.
+기획서: https://claude.ai/artifact/CiZVh2TG9FXDNpoJmYJdUQ
+
+## 관리 방식 (가장 중요)
+
+| 대상 | 어디서 관리 | 비고 |
+|---|---|---|
+| 스크립트(코드) | 이 레포 `src/` → Rojo로 Studio에 동기화 | 진실의 원천은 레포 |
+| 맵(지형, 허브, 광석, 방, 램프), 곡괭이 모델, `ReplicatedStorage.Remotes` | Studio 팀 크리에이트 플레이스 | Rojo가 건드리지 않음 |
+| 맵·모델을 만드는 스크립트 | `tools/` | Rojo 동기화 대상 아님. Studio 명령창에서 실행 |
+
+- Rojo는 **레포 → Studio 단방향**입니다. Studio에서 스크립트를 직접 고치면 다음 동기화 때 덮어써집니다. 코드는 반드시 `src/`에서 고치세요.
+- `default.project.json`이 매핑하는 곳 밖(`Workspace`, `StarterPack` 등)에 스크립트를 만들지 마세요. 필요하면 매핑을 먼저 추가합니다.
+- `.rbxl`, `.rbxlx`, `.rbxm` 파일은 커밋하지 않습니다.
+
+## 폴더 구조와 Rojo 매핑
+
+```
+src/server/  → ServerScriptService.Server
+  Core/        공용 기반 코드 (B)
+  Mining/      채굴 코어 (A)
+  Economy/     경제·성장 (B)
+  Social/      소셜·이벤트 (C)
+src/client/  → StarterPlayer.StarterPlayerScripts.Client
+  Mining/ Economy/ Social/
+src/shared/  → ReplicatedStorage.Shared
+  Events.luau  기능 간 이벤트 계약
+tools/       Studio 명령창용 생성 스크립트 (동기화 안 됨)
+```
+
+파일 이름 규칙 (Rojo)
+- `*.server.luau` → Script
+- `*.client.luau` → LocalScript
+- 그 외 `*.luau` → ModuleScript
+- 폴더 안의 `init.luau` / `init.server.luau` / `init.client.luau` → 폴더 자체가 그 스크립트가 됨
+
+## 담당과 경계
+
+| 담당 | 기능 | 폴더 |
+|---|---|---|
+| A | 채굴 코어: 광산 생성, 레이어, 채굴 판정, 광물 확률·무게·압력 등급, 광산 카나리아, 곡괭이 제작, 희귀 광물 연출 | `Mining/` |
+| B | 경제·성장: 판매, 상점, 광맥 재생, 리버스, 게임패스·결제, 데이터 저장, 공용 코드 | `Economy/`, `Core/`, `shared/` |
+| C | 소셜·이벤트: 서버 공지, 리더보드, 광맥 붕괴 이벤트, 출석·퀘스트, 튜토리얼, 친구 초대 | `Social/` |
+
+- 다른 담당 폴더의 코드를 직접 고치지 마세요. 필요하면 이슈나 PR 코멘트로 요청합니다.
+- 기능끼리는 **`src/shared/Events.luau`의 이벤트로만** 주고받습니다. 이벤트를 추가·변경하면 관련 담당 모두에게 리뷰를 받습니다.
+- 리뷰어는 `.github/CODEOWNERS`에 지정돼 있습니다.
+
+현재 이벤트 계약
+
+| 이벤트 | 방향 | 담는 정보 |
+|---|---|---|
+| `OreMined` | A → B | 광물 종류, 무게, 압력 등급 |
+| `LegendaryFound` | A → C | 플레이어, 광물, 깊이 |
+| `PickaxeUpgraded` | B → A | 플레이어, 곡괭이 등급 |
+| `CollapseStarted` / `CollapseEnded` | C → A, B | 남은 시간, 탈출 여부 |
+| `BoostPurchased` | B → C | 구매자, 부스트 종류 |
+
+## 보안 규칙 (어기면 PR 반려)
+
+- 확률, 판매가, 보상, 결제 검증은 **서버에서만** 계산합니다. 클라이언트가 보낸 값(위치, 대상, 수량)은 모두 검증합니다: 타입, 거리, 쿨다운, 소유 여부.
+- RemoteEvent 핸들러는 첫 줄에서 인자 타입부터 확인합니다 (`typeof(x) ~= "Vector3" then return end` 식).
+- 플레이어끼리 로벅스나 현금 가치가 있는 거래를 만들지 않습니다 (로블록스 규정 위반).
+- 랜덤 상품을 팔면 확률을 공개합니다.
+
+## 코드 규칙
+
+- 언어: Luau. 새 파일은 맨 위에 `--!strict`를 권장합니다 (기존 파일은 점진적으로).
+- 서비스는 `game:GetService("이름")`으로 가져오고 파일 맨 위에 모읍니다.
+- 들여쓰기는 탭. 상수는 `UPPER_SNAKE_CASE`, 지역 변수·함수는 `camelCase`, 모듈 테이블은 `PascalCase`.
+- 주석은 한국어로, "왜"를 적습니다.
+- `wait()`, `spawn()`, `delay()` 대신 `task.wait()`, `task.spawn()`, `task.delay()`.
+- 반복 루프나 무거운 생성 작업에는 `task.wait()`를 넣어 Studio·서버가 멈추지 않게 합니다.
+- 밸런스 숫자(확률, 가격, 경도)는 코드에 흩뿌리지 말고 `shared/` 아래 데이터 모듈로 모읍니다.
+
+## 맵 사실관계 (현재 플레이스 기준)
+
+- 맵 루트: `Workspace.CollapseMine`
+  - `Ores/` 광석 파트. 속성: `Vein`, `Ore`, `OreValue`, `Layer`, `Hardness`, (`HP` 채굴 중 남은 체력)
+  - `Rooms/` 투명 방 구역 파트. 속성: `Room`, `RoomType`(Hub/Side/End), `Layer`, `CollapseRisk`
+  - `Lights/` 램프, `Hub/` 지상 광장(상점, 제작소, 리더보드, `MineSpawn`)
+  - `AntNestInfo` (Configuration): 지층별 경도 `L1~L5_Hardness`, 생성 `Seed`
+- 땅은 Terrain, 굴은 개미굴 모양(입구 경사로 → 허브 방 → 나선 대각선 굴 5갈래, 옆방·끝방). 수직 구멍은 만들지 않습니다 (걸어서 올라올 수 있어야 함).
+- 지층(y 기준): 1 흙 -4~-24 / 2 바위 -24~-48 / 3 수정 -48~-72 / 4 심층암 -72~-96 / 5 용암 -96~-152
+- 지표(y > -4)는 채굴 불가.
+- 이전 버전 맵 백업: `ServerStorage.OldPitBackup`, `ServerStorage.HangingNestBackup`
+
+## Git 흐름
+
+- `main`은 보호 브랜치. 직접 push하지 않고 PR로만 머지합니다.
+- 개인 작업 브랜치(예: `leewoojin`) 또는 기능 브랜치(`feat/기능이름`, `fix/버그이름`)에서 작업합니다.
+- 커밋 메시지는 한국어, 첫 줄에 무엇을 했는지 요약. 필요하면 빈 줄 뒤에 이유를 적습니다.
+- PR은 다른 담당자 1명 이상의 리뷰를 받고 머지합니다.
+
+## 하지 말 것
+
+- Studio에서 스크립트를 직접 수정하고 끝내기 (레포에 반영 안 됨)
+- 같은 팀 크리에이트 플레이스에 두 사람이 동시에 `rojo serve` 연결
+- 다른 담당 폴더 코드 직접 수정
+- 클라이언트에서 보상·확률 계산
+- 플레이스 파일, 개인 설정 파일 커밋
