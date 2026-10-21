@@ -2,6 +2,9 @@
 
 로블록스 채굴 게임. 코드는 **Rojo + Git**, 맵은 **Studio 팀 크리에이트**로 관리합니다.
 
+- 기획서: [`docs/game-design.md`](docs/game-design.md) · 결정 기록: [`docs/decisions.md`](docs/decisions.md)
+- AI 에이전트 규칙: [`AGENTS.md`](AGENTS.md), [`CLAUDE.md`](CLAUDE.md)
+
 ## 폴더 구조
 
 ```
