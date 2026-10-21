@@ -16,6 +16,8 @@
 
 	주의: 허브 경계벽(Hub/Boundary)은 절벽 안쪽 면에서 약 37 뒤에 있다.
 	      이동 판정은 그보다 앞(FIELD_DEPTH)에 둬야 걸어 들어갈 수 있다.
+	BUILD_TERRAIN  false면 지형(산·입구)은 그대로 두고 장식만 다시 배치한다.
+	장식은 레이로 실제 바닥·벽을 찾아 그 위에 붙인다 (지형 표면 높이는 칸 단위라 계산값과 다르다).
 	같은 MINE_ID로 다시 실행하면 지형은 덮어쓰고 장식 파트는 다시 만든다.
 ]]
 
@@ -25,6 +27,7 @@ local FACING = 0
 local THEME = "basic"
 local PEAK = 220
 local SEED = 21
+local BUILD_TERRAIN = true
 
 local THEMES = {
 	basic = {
@@ -67,9 +70,11 @@ local MW, MH = 46, 56       -- 앞 아가리 폭·높이
 local TW, TH2 = 26, 22      -- 안쪽 갱도 폭·높이
 local LENGTH = 56           -- 입구 깊이
 local FIELD_DEPTH = 30      -- 이동 판정 위치 (경계벽보다 앞)
+local RAIL_X = -9           -- 레일·광차는 한쪽으로 (가운데는 사람이 지나가는 길)
 
 local rec = CHS:TryBeginRecording("BuildMineMountain " .. MINE_ID)
 
+if BUILD_TERRAIN then
 -- 1) 봉우리 배치 -------------------------------------------------------------
 local peaks = { { x = rng:NextNumber(-15, 15), z = -95, h = PEAK, r = 150 } }
 for i = 1, 7 do
@@ -160,6 +165,8 @@ for i = 1, 8 do
 end
 task.wait()
 
+end
+
 -- 5) 장식 ---------------------------------------------------------------------
 local hub = workspace.CollapseMine.Hub
 local portals = hub:FindFirstChild("MinePortals") or Instance.new("Folder")
@@ -168,6 +175,30 @@ local old = portals:FindFirstChild("Portal_" .. MINE_ID)
 if old then old:Destroy() end
 local model = Instance.new("Model")
 model.Name = "Portal_" .. MINE_ID
+
+-- 지형만 맞는 레이 (장식 파트는 무시)
+local terrainOnly = RaycastParams.new()
+terrainOnly.FilterType = Enum.RaycastFilterType.Include
+terrainOnly.FilterDescendantsInstances = { T }
+-- 바닥 높이(로컬 y): 위에서 아래로 쏴서 첫 지형
+local function floorY(x, z, from)
+	local o = W(x, from or 14, z)
+	local h = workspace:Raycast(o, Vector3.new(0, -60, 0), terrainOnly)
+	return h and (h.Position.Y - MOUTH.Y) or 0
+end
+-- 입구 중심선에서 옆(side=±1)으로 쏴서 벽까지 거리
+local function wallDist(z, y, side)
+	local o = W(0, y, z)
+	local dir = ROT:VectorToWorldSpace(Vector3.new(side, 0, 0))
+	local h = workspace:Raycast(o, dir * 60, terrainOnly)
+	return h and h.Distance or 30
+end
+-- 바닥에서 위로 쏴서 천장 높이(로컬 y)
+local function ceilY(x, z, fromY)
+	local o = W(x, fromY, z)
+	local h = workspace:Raycast(o, Vector3.new(0, 120, 0), terrainOnly)
+	return h and (h.Position.Y - MOUTH.Y) or 200
+end
 
 local function part(name, size, x, y, z, color, mat, shape, extraRot)
 	local p = Instance.new("Part")
@@ -193,114 +224,143 @@ local function light(p, range, bright)
 	l.Parent = p
 end
 
--- 화로 (입구 양옆)
+-- 화로 (입구 양옆): 자리를 비우고 바닥 위에 세움
 for _, s in ipairs({ -1, 1 }) do
-	local x = s * (MW / 2 + 7)
-	part("BrazierBase", Vector3.new(6, 4, 6), x, 2, 9, stone, Enum.Material.Cobblestone)
-	part("BrazierPillar", Vector3.new(3, 9, 3), x, 8.5, 9, stone, Enum.Material.Cobblestone)
-	part("BrazierBowl", Vector3.new(3, 7, 7), x, 14, 9, iron, Enum.Material.Metal, Enum.PartType.Cylinder, CFrame.Angles(0, 0, math.rad(90)))
-	local coal = part("Embers", Vector3.new(5.5, 1, 5.5), x, 15.2, 9, Color3.fromRGB(255, 120, 40), Enum.Material.Neon)
+	local x, z = s * (MW / 2 + 9), 10
+	local g0 = floorY(x, z, 40)
+	T:FillCylinder(CFrame.new(W(x, g0 + 14, z)), 26, 6, Enum.Material.Air)
+	local g = floorY(x, z, 40)
+	part("BrazierBase", Vector3.new(6, 4, 6), x, g + 2, z, stone, Enum.Material.Cobblestone)
+	part("BrazierPillar", Vector3.new(3, 9, 3), x, g + 8.5, z, stone, Enum.Material.Cobblestone)
+	part("BrazierBowl", Vector3.new(3, 7, 7), x, g + 14, z, iron, Enum.Material.Metal, Enum.PartType.Cylinder, CFrame.Angles(0, 0, math.rad(90)))
+	local coal = part("Embers", Vector3.new(5.5, 1, 5.5), x, g + 15.2, z, Color3.fromRGB(255, 120, 40), Enum.Material.Neon)
 	if TH.fire then
 		local f = Instance.new("Fire")
-		f.Size, f.Heat = 9, 12
+		f.Size, f.Heat = 10, 14
 		f.Color, f.SecondaryColor = TH.light, Color3.fromRGB(255, 220, 120)
 		f.Parent = coal
 	end
-	light(coal, 50, 2.2)
+	light(coal, 55, 2.4)
 end
 
--- 안쪽 갱도 문틀 2세트 (좁아진 곳)
+-- 레일 + 침목: 4스터드 토막마다 바닥 높이에 맞춤 (안쪽으로 갈수록 좁아지는 벽에 닿지 않게 x를 당김)
+for z = 24, -LENGTH + 4, -4 do
+	local g = floorY(RAIL_X, z)
+	local maxX = wallDist(z, g + 2, RAIL_X < 0 and -1 or 1) - 5
+	local rx = math.sign(RAIL_X) * math.min(math.abs(RAIL_X), maxX)
+	for _, dx in ipairs({ -2.2, 2.2 }) do
+		part("Rail", Vector3.new(0.5, 0.5, 4.3), rx + dx, g + 0.55, z, Color3.fromRGB(95, 95, 102), Enum.Material.Metal)
+	end
+	part("Sleeper", Vector3.new(6.4, 0.4, 1.2), rx, g + 0.2, z, woodDark, Enum.Material.Wood)
+	part("Sleeper", Vector3.new(6.4, 0.4, 1.2), rx, g + 0.2, z - 2, woodDark, Enum.Material.Wood)
+end
+
+-- 광차
+do
+	local z0 = 17
+	local g = floorY(RAIL_X, z0)
+	local cart = Instance.new("Model"); cart.Name = "MineCart"; cart.Parent = model
+	local function cp(name, size, x, y, z, color, mat, shape)
+		local p = part(name, size, x, g + y, z, color, mat, shape); p.Parent = cart; return p
+	end
+	cp("CartBody", Vector3.new(5, 3, 7), RAIL_X, 3.1, z0, Color3.fromRGB(95, 70, 50), Enum.Material.WoodPlanks)
+	cp("CartRim", Vector3.new(5.4, 0.5, 7.4), RAIL_X, 4.7, z0, iron, Enum.Material.Metal)
+	for _, x in ipairs({ RAIL_X - 2.5, RAIL_X + 2.5 }) do
+		for _, dz in ipairs({ -2, 2 }) do
+			cp("Wheel", Vector3.new(0.6, 2, 2), x, 1.5, z0 + dz, iron, Enum.Material.Metal, Enum.PartType.Cylinder)
+		end
+	end
+	for _ = 1, 5 do
+		local o = cp("CartOre", Vector3.new(1.6, 1.4, 1.6), RAIL_X + rng:NextNumber(-1.5, 1.5), 5.1, z0 + rng:NextNumber(-2.5, 2.5), Color3.fromRGB(200, 115, 60), Enum.Material.Metal)
+		o.CFrame *= CFrame.Angles(rng:NextNumber(0, 3), rng:NextNumber(0, 3), 0)
+	end
+end
+
+-- 안쪽 갱도 문틀 2세트: 실제 벽 안쪽, 천장 아래에 맞춤
 for _, z in ipairs({ -FIELD_DEPTH + 10, -FIELD_DEPTH + 2 }) do
-	local t = math.clamp(-z / LENGTH, 0, 1) ^ 0.6
-	local w = MW + (TW - MW) * t
-	local px = w / 2 - 2.5
-	local ph = math.min(MH + (TH2 - MH) * t - 4, 30)
-	part("GatePost", Vector3.new(3, ph, 3), -px, ph / 2, z, wood, Enum.Material.WoodPlanks)
-	part("GatePost", Vector3.new(3, ph, 3), px, ph / 2, z, wood, Enum.Material.WoodPlanks)
-	part("GateBeam", Vector3.new(px * 2 + 5, 3, 3.4), 0, ph + 1.2, z, woodDark, Enum.Material.WoodPlanks)
-	part("GateBrace", Vector3.new(2, 10, 2), -px + 3, ph - 3.5, z, woodDark, Enum.Material.WoodPlanks, nil, CFrame.Angles(0, 0, math.rad(-40)))
-	part("GateBrace", Vector3.new(2, 10, 2), px - 3, ph - 3.5, z, woodDark, Enum.Material.WoodPlanks, nil, CFrame.Angles(0, 0, math.rad(40)))
+	local g = floorY(0, z)
+	local px = math.min(wallDist(z, g + 6, -1), wallDist(z, g + 6, 1)) - 2.2
+	local top = math.min(ceilY(-px, z, g + 2), ceilY(px, z, g + 2))
+	local ph = math.clamp(top - g - 3, 8, 30)
+	part("GatePost", Vector3.new(3, ph, 3), -px, g + ph / 2, z, wood, Enum.Material.WoodPlanks)
+	part("GatePost", Vector3.new(3, ph, 3), px, g + ph / 2, z, wood, Enum.Material.WoodPlanks)
+	part("GateBeam", Vector3.new(px * 2 + 3, 3, 3.4), 0, g + ph + 1.2, z, woodDark, Enum.Material.WoodPlanks)
+	part("GateBrace", Vector3.new(2, 9, 2), -px + 3, g + ph - 3.2, z, woodDark, Enum.Material.WoodPlanks, nil, CFrame.Angles(0, 0, math.rad(-40)))
+	part("GateBrace", Vector3.new(2, 9, 2), px - 3, g + ph - 3.2, z, woodDark, Enum.Material.WoodPlanks, nil, CFrame.Angles(0, 0, math.rad(40)))
 end
 
--- 레일 + 광차
-for _, x in ipairs({ -2.2, 2.2 }) do
-	part("Rail", Vector3.new(0.5, 0.5, LENGTH + 24), x, 0.25, (24 - LENGTH) / 2, Color3.fromRGB(90, 90, 96), Enum.Material.Metal)
-end
-for z = 24, -LENGTH + 4, -3 do
-	part("Sleeper", Vector3.new(6.4, 0.35, 1.2), 0, 0.05, z, woodDark, Enum.Material.Wood)
-end
-local cart = Instance.new("Model"); cart.Name = "MineCart"; cart.Parent = model
-local function cp(name, size, x, y, z, color, mat)
-	local p = part(name, size, x, y, z, color, mat); p.Parent = cart; return p
-end
-cp("CartBody", Vector3.new(5, 3, 7), 0, 2.6, 17, Color3.fromRGB(95, 70, 50), Enum.Material.WoodPlanks)
-cp("CartRim", Vector3.new(5.4, 0.5, 7.4), 0, 4.2, 17, iron, Enum.Material.Metal)
-for _, x in ipairs({ -2.5, 2.5 }) do
-	for _, z in ipairs({ 15, 19 }) do
-		local wh = part("Wheel", Vector3.new(0.6, 2, 2), x, 1, z, iron, Enum.Material.Metal, Enum.PartType.Cylinder)
-		wh.Parent = cart
-	end
-end
-for i = 1, 5 do
-	local o = cp("CartOre", Vector3.new(1.6, 1.4, 1.6), rng:NextNumber(-1.5, 1.5), 4.6, 17 + rng:NextNumber(-2.5, 2.5), Color3.fromRGB(200, 115, 60), Enum.Material.Metal)
-	o.CFrame *= CFrame.Angles(rng:NextNumber(0, 3), rng:NextNumber(0, 3), 0)
-end
-
--- 벽 등불 (입구 → 안쪽)
-for z = 2, -LENGTH + 8, -9 do
-	local t = math.clamp(-z / LENGTH, 0, 1) ^ 0.6
-	local w = MW + (TW - MW) * t
+-- 벽 횃불: 실제 벽에서 조금 띄워서 (나무 받침 + 불)
+for z = 6, -LENGTH + 10, -9 do
+	local g = floorY(0, z)
+	local y = g + 8
 	for _, s in ipairs({ -1, 1 }) do
-		local lamp = part("WallLantern", Vector3.new(1.8, 2.4, 1.8), s * (w / 2 - 1.5), 9, z, Color3.fromRGB(255, 190, 110), Enum.Material.Neon)
-		light(lamp, 20, 1.4)
+		local d = wallDist(z, y, s)
+		if d < 40 then
+			local x = s * (d - 1.3)
+			part("TorchBracket", Vector3.new(0.6, 3, 0.6), x, y - 1.2, z, woodDark, Enum.Material.Wood, nil, CFrame.Angles(0, 0, math.rad(s * 20)))
+			local head = part("TorchHead", Vector3.new(1, 1, 1), x - s * 0.5, y + 0.6, z, Color3.fromRGB(255, 150, 60), Enum.Material.Neon)
+			if TH.fire then
+				local f = Instance.new("Fire")
+				f.Size, f.Heat = 2.5, 6
+				f.Color, f.SecondaryColor = TH.light, Color3.fromRGB(255, 220, 120)
+				f.Parent = head
+			end
+			light(head, 22, 1.6)
+		end
 	end
 end
 
--- 사슬에 매단 대형 표지판 (아치 꼭대기 아래)
-local signY = MH - 16
-local sign = part("Sign", Vector3.new(28, 7, 1), 0, signY, 6, wood, Enum.Material.WoodPlanks)
-part("SignFrame", Vector3.new(29.5, 8.5, 0.6), 0, signY, 5.3, woodDark, Enum.Material.WoodPlanks)
-for _, x in ipairs({ -10, 10 }) do
-	local top = MH - 4
-	local len = top - (signY + 3.5)
-	part("Chain", Vector3.new(0.5, len, 0.5), x, signY + 3.5 + len / 2, 6, iron, Enum.Material.DiamondPlate)
+-- 사슬에 매단 대형 표지판 (아가리 천장 아래)
+do
+	local g = floorY(0, 6)
+	local top = ceilY(0, 6, g + 4)
+	local signY = math.min(MH - 16, top - 10)
+	local sign = part("Sign", Vector3.new(28, 7, 1), 0, signY, 6, wood, Enum.Material.WoodPlanks)
+	part("SignFrame", Vector3.new(29.5, 8.5, 0.6), 0, signY, 5.3, woodDark, Enum.Material.WoodPlanks)
+	for _, x in ipairs({ -10, 10 }) do
+		local cTop = ceilY(x, 6, signY + 4)
+		local len = math.max(1, cTop - (signY + 3.5))
+		part("Chain", Vector3.new(0.5, len, 0.5), x, signY + 3.5 + len / 2, 6, iron, Enum.Material.DiamondPlate)
+	end
+	local sg = Instance.new("SurfaceGui")
+	sg.Face = Enum.NormalId.Back
+	sg.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	sg.PixelsPerStud = 30
+	local tl = Instance.new("TextLabel")
+	tl.Size = UDim2.fromScale(1, 0.66)
+	tl.BackgroundTransparency = 1
+	tl.TextScaled = true
+	tl.Font = Enum.Font.GothamBlack
+	tl.TextColor3 = Color3.fromRGB(255, 228, 180)
+	tl.TextStrokeTransparency = 0.6
+	tl.Text = M.name
+	tl.Parent = sg
+	local sub = Instance.new("TextLabel")
+	sub.Position = UDim2.fromScale(0, 0.64)
+	sub.Size = UDim2.fromScale(1, 0.3)
+	sub.BackgroundTransparency = 1
+	sub.TextScaled = true
+	sub.Font = Enum.Font.GothamBold
+	sub.TextColor3 = Color3.fromRGB(230, 200, 160)
+	sub.Text = "곡괭이 " .. M.requiredPickaxe .. "단계 이상"
+	sub.Parent = sg
+	sg.Parent = sign
 end
-local sg = Instance.new("SurfaceGui")
-sg.Face = Enum.NormalId.Back
-sg.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-sg.PixelsPerStud = 30
-local tl = Instance.new("TextLabel")
-tl.Size = UDim2.fromScale(1, 0.66)
-tl.BackgroundTransparency = 1
-tl.TextScaled = true
-tl.Font = Enum.Font.GothamBlack
-tl.TextColor3 = Color3.fromRGB(255, 228, 180)
-tl.TextStrokeTransparency = 0.6
-tl.Text = M.name
-tl.Parent = sg
-local sub = Instance.new("TextLabel")
-sub.Position = UDim2.fromScale(0, 0.64)
-sub.Size = UDim2.fromScale(1, 0.3)
-sub.BackgroundTransparency = 1
-sub.TextScaled = true
-sub.Font = Enum.Font.GothamBold
-sub.TextColor3 = Color3.fromRGB(230, 200, 160)
-sub.Text = "곡괭이 " .. M.requiredPickaxe .. "단계 이상"
-sub.Parent = sg
-sg.Parent = sign
 
 -- 이동 판정 + 어둠
 do
-	local t = (FIELD_DEPTH / LENGTH) ^ 0.6
-	local w = MW + (TW - MW) * t
-	local h = MH + (TH2 - MH) * t
-	local field = part("Field", Vector3.new(w, h, 2), 0, h / 2, -FIELD_DEPTH, Color3.new(0, 0, 0), Enum.Material.SmoothPlastic)
+	local g = floorY(0, -FIELD_DEPTH)
+	local wl, wr = wallDist(-FIELD_DEPTH, g + 4, -1), wallDist(-FIELD_DEPTH, g + 4, 1)
+	local w = wl + wr + 2
+	local h = ceilY(0, -FIELD_DEPTH, g + 2) - g + 1
+	local field = part("Field", Vector3.new(w, h, 2), (wr - wl) / 2, g + h / 2, -FIELD_DEPTH, Color3.new(0, 0, 0), Enum.Material.SmoothPlastic)
 	field.Transparency = 1
 	field.CanCollide = false
 	field:SetAttribute("MineId", MINE_ID)
 	CS:AddTag(field, "MinePortal")
 	model.PrimaryPart = field
-	local veil = part("Darkness", Vector3.new(TW + 4, TH2 + 4, 1), 0, TH2 / 2, -LENGTH + 1, Color3.fromRGB(4, 4, 6), Enum.Material.SmoothPlastic)
+	local gv = floorY(0, -LENGTH + 1)
+	local veil = part("Darkness", Vector3.new(TW + 6, TH2 + 6, 1), 0, gv + TH2 / 2, -LENGTH + 1, Color3.fromRGB(4, 4, 6), Enum.Material.SmoothPlastic)
 	veil.CanCollide = false
 end
 
