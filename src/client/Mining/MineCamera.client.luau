@@ -33,13 +33,15 @@ end
 
 RunService:BindToRenderStep("MineCamera", Enum.RenderPriority.Camera.Value + 1, function()
 	local char = player.Character
-	local head = char and char:FindFirstChild("Head") :: BasePart?
-	if not head then return end
+	-- 머리 대신 몸통 중심에서 레이를 쏜다. 좁은 틈에서는 머리가 천장 지형 속에 들어가는데,
+	-- 레이 시작점이 지형 속이면 벽을 못 잡아 카메라가 바위 속으로 들어간다.
+	local root = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
+	if not root then return end
 
-	setInMine(Mines.findAt(head.Position) ~= nil)
+	setInMine(Mines.findAt(root.Position) ~= nil)
 	if not inMine then return end
 
-	local from = head.Position
+	local from = root.Position
 	local to = camera.CFrame.Position
 	local offset = to - from
 	if offset.Magnitude < 0.5 then return end -- 1인칭
