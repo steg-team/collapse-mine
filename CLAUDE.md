@@ -20,7 +20,9 @@
 - 변경은 `ChangeHistoryService:TryBeginRecording` / `FinishRecording`으로 감싸 Ctrl+Z로 되돌릴 수 있게 합니다.
 - 큰 루프나 대량 생성은 청크마다 `task.wait()`. 한 번에 큰 서브트리를 `Parent`에 붙이지 않습니다.
 - 지우기 전에 백업합니다 (`ServerStorage`로 이동). 사용자 확인 없이 맵을 통째로 삭제하지 않습니다.
-- 결과 확인은 `screen_capture`로 합니다. 지하는 잘 안 보이므로 복사본을 하늘(예: +1000, +600, 0)에 띄워 찍고, 확인 후 지웁니다.
+- 결과 확인은 `screen_capture`로 합니다. **`camera_position` 인자는 화면이 엉뚱하게 찍히는 경우가 있으니**, `execute_luau`로 `workspace.CurrentCamera.CFrame`을 먼저 옮긴 뒤 인자 없이 찍습니다.
+- 지하·넓은 맵은 화면으로 잘 안 보이고 렌더 거리 제한도 있으니, 좌표를 뽑아 평면도로 그리거나(방·램프 위치) 레이캐스트·`ReadVoxels`로 확인합니다. `ReadVoxels`는 칸 경계에 맞춘 영역(4스터드 격자)으로 읽어야 정확합니다.
+- 플레이 중 `HumanoidRootPart.CFrame`을 바꾸는 테스트는 출구 발판 같은 Touched 판정을 건드릴 수 있으니 위치를 잘 고릅니다.
 - 작업 후 사용자에게 Ctrl+S 저장을 안내합니다.
 
 ### Git

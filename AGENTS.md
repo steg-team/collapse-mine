@@ -92,7 +92,8 @@ docs/        기획서, 결정 기록 (동기화 안 됨)
 ## 맵 사실관계 (현재 플레이스 기준)
 
 - 광산 여러 개 구조 (`docs/decisions.md` D-006). 광산 목록·위치·지층·광물표는 **`src/shared/Config/Mines.luau`가 원본**. 숫자를 코드에 따로 적지 말고 이 설정을 읽습니다.
-- 지상 허브: `Workspace.CollapseMine.Hub` (광장, 상점, 제작소, 리더보드, 스폰 `MineSpawn`, 광산 포탈 `MinePortals/Portal_<id>`)
+- 지상 허브: `Workspace.CollapseMine.Hub` (광장, 상점, 제작소, 리더보드, 스폰 `MineSpawn`, 광산 입구 `MinePortals/Portal_<id>`)
+  - 광산 입구는 U자 절벽(지형) 안쪽의 갱도 입구 모양. `tools/build_cave_entrance.luau`로 생성. 기본 광산 입구는 스폰 남쪽 (0, 0, 40)
 - 광산: `Workspace.Mines.<id>` — `tools/generate_mine.luau`로 생성
   - `Ores/` 광석 (태그 `Ore`, 속성 `MineId`, `Ore`, `DisplayName`, `Grade`, `OreValue`, `Hardness`, `Layer`, 채굴 중 `HP`)
   - `Rooms/` 투명 방 구역 (속성 `RoomType`=Entrance/Hub/Side/End, `Layer`, `CollapseRisk`)
@@ -101,7 +102,7 @@ docs/        기획서, 결정 기록 (동기화 안 됨)
 - 땅은 Terrain, 굴은 개미굴 모양(입구 방 → 허브 방 → 완만히 내려가며 퍼지는 굴, 옆방·끝방). 수직 구멍은 만들지 않습니다 (걸어서 올라올 수 있어야 함).
 - 현재 광산: `basic` 기본 광산 — 중심 (0, 0, -900), 반경 350, 지층 흙(-4~-50)·바위(-50~-125)
 - 지표(광산 `top` 위)와 허브는 채굴 불가.
-- 이전 맵 백업: `ServerStorage.OldPitBackup`, `HangingNestBackup`, `FirstCaveBackup`
+- 이전 맵 백업: `ServerStorage.OldPitBackup`, `HangingNestBackup`, `FirstCaveBackup`, `OldPortalBackup`(나무 아치 포탈)
 
 ## Git 흐름
 
