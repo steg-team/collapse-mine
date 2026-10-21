@@ -70,7 +70,8 @@ local MW, MH = 46, 56       -- 앞 아가리 폭·높이
 local TW, TH2 = 26, 22      -- 안쪽 갱도 폭·높이
 local LENGTH = 56           -- 입구 깊이
 local FIELD_DEPTH = 30      -- 이동 판정 위치 (경계벽보다 앞)
-local RAIL_X = -9           -- 레일·광차는 한쪽으로 (가운데는 사람이 지나가는 길)
+local RAIL_X = -4           -- 레일·광차는 문틀 기둥 사이 왼쪽으로 (오른쪽은 사람이 지나가는 길)
+local FLOOR = 2             -- 동굴 바닥 높이 (허브 땅 높이와 같게)
 
 local rec = CHS:TryBeginRecording("BuildMineMountain " .. MINE_ID)
 
@@ -158,6 +159,15 @@ for z = 12, -LENGTH, -2 do
 end
 -- 바닥 (흙길)
 T:FillBlock(CFrame.new(W(0, -3, (14 - LENGTH) / 2)) * ROT, Vector3.new(MW + 6, 6, LENGTH + 14), TH.floor)
+-- 동굴 안 바닥을 입구 앞 땅 높이(FLOOR)로 평평하게 다짐 (칸 단위 지형이 군데군데 솟아 레일이 끊겨 보였음)
+for z = 12, -LENGTH, -2 do
+	local t = math.clamp(-z / LENGTH, 0, 1) ^ 0.6
+	local w = MW + (TW - MW) * t - 4
+	-- 땅 블록 윗면을 FLOOR-2에 두어야 실제 지형 표면이 FLOOR에 맞음 (4스터드 칸 반쯤 채워진 칸이 표면이 됨)
+	T:FillBlock(CFrame.new(W(0, FLOOR + 5, z)) * ROT, Vector3.new(w, 14, 2.5), Enum.Material.Air)
+	T:FillBlock(CFrame.new(W(0, FLOOR - 5, z)) * ROT, Vector3.new(w + 4, 6, 2.5), TH.floor)
+	tick()
+end
 -- 아가리 앞 바닥에 흩어진 바위
 for i = 1, 8 do
 	local s = (i % 2 == 0) and 1 or -1
@@ -243,22 +253,22 @@ for _, s in ipairs({ -1, 1 }) do
 	light(coal, 55, 2.4)
 end
 
--- 레일 + 침목: 4스터드 토막마다 바닥 높이에 맞춤 (안쪽으로 갈수록 좁아지는 벽에 닿지 않게 x를 당김)
-for z = 24, -LENGTH + 4, -4 do
-	local g = floorY(RAIL_X, z)
-	local maxX = wallDist(z, g + 2, RAIL_X < 0 and -1 or 1) - 5
-	local rx = math.sign(RAIL_X) * math.min(math.abs(RAIL_X), maxX)
-	for _, dx in ipairs({ -2.2, 2.2 }) do
-		part("Rail", Vector3.new(0.5, 0.5, 4.3), rx + dx, g + 0.55, z, Color3.fromRGB(95, 95, 102), Enum.Material.Metal)
+-- 레일 + 침목: 평평하게 다진 바닥 위에 한 줄로 곧게
+do
+	local z1, z2 = 24, -LENGTH + 4
+	local len = z1 - z2
+	for _, dx in ipairs({ -2, 2 }) do
+		part("Rail", Vector3.new(0.5, 0.5, len), RAIL_X + dx, FLOOR + 0.65, (z1 + z2) / 2, Color3.fromRGB(95, 95, 102), Enum.Material.Metal)
 	end
-	part("Sleeper", Vector3.new(6.4, 0.4, 1.2), rx, g + 0.2, z, woodDark, Enum.Material.Wood)
-	part("Sleeper", Vector3.new(6.4, 0.4, 1.2), rx, g + 0.2, z - 2, woodDark, Enum.Material.Wood)
+	for z = z1, z2, -2.5 do
+		part("Sleeper", Vector3.new(5.6, 0.4, 1.2), RAIL_X, FLOOR + 0.2, z, woodDark, Enum.Material.Wood)
+	end
 end
 
 -- 광차
 do
 	local z0 = 17
-	local g = floorY(RAIL_X, z0)
+	local g = FLOOR
 	local cart = Instance.new("Model"); cart.Name = "MineCart"; cart.Parent = model
 	local function cp(name, size, x, y, z, color, mat, shape)
 		local p = part(name, size, x, g + y, z, color, mat, shape); p.Parent = cart; return p
