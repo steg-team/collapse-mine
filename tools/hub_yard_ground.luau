@@ -12,7 +12,7 @@ local T = workspace.Terrain
 local rec = CHS:TryBeginRecording("HubYardNoGrass")
 local yard = Region3.new(Vector3.new(-92, -12, 36), Vector3.new(92, 8, 146)):ExpandToGrid(4)
 T:ReplaceMaterial(yard, 4, Enum.Material.Grass, Enum.Material.Ground)
-local plaza = Region3.new(Vector3.new(-56, -12, 60), Vector3.new(56, 8, 112)):ExpandToGrid(4)
+local plaza = Region3.new(Vector3.new(-72, -12, 60), Vector3.new(72, 8, 128)):ExpandToGrid(4) -- 건물 셋이 둘러싼 광장
 T:ReplaceMaterial(plaza, 4, Enum.Material.Ground, Enum.Material.Cobblestone)
 if rec then CHS:FinishRecording(rec, Enum.FinishRecordingOperation.Commit) end
 print("[HubYard] 마당 풀 제거 완료")

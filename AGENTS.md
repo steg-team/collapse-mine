@@ -93,7 +93,8 @@ docs/        기획서, 결정 기록 (동기화 안 됨)
 
 - 광산 여러 개 구조 (`docs/decisions.md` D-006). 광산 목록·위치·지층·광물표는 **`src/shared/Config/Mines.luau`가 원본**. 숫자를 코드에 따로 적지 말고 이 설정을 읽습니다.
 - 지상 허브: `Workspace.CollapseMine.Hub` (광장, 판매소 `Shop`, 제작소 `Workshop`, 랭킹판 `Leaderboard`, 스폰 `MineSpawn`, 광산 입구 `MinePortals/Portal_<id>`)
-  - 건물 3개는 `tools/build_hub_buildings.luau`로 생성. 상호작용(판매·제작)은 각 건물의 `Counter` 파트에, 랭킹 표시는 `Leaderboard/Board_BestHaul`·`Board_BestOre`·`Board_TotalEarned`의 SurfaceGui `Rows/Row1~5` 텍스트를 서버에서 바꿔서 붙인다
+  - 배치: 스폰 `MineSpawn` (0, 1.5, 84)을 가운데 두고 제작소(0, 116, 남향)·판매소(-58, 90, 동향)·랭킹판(58, 90, 서향)이 돌바닥 광장을 ㄷ자로 둘러싼다. 광산 입구는 남쪽 (0, 0, 38)
+  - 건물 3개는 `tools/build_hub_buildings.luau`(파트 버전) 또는 `tools/blender/build_*.py` + `tools/import_hub_mesh.luau`(블렌더 메시 버전, 현재 사용 중)로 생성. 상호작용(판매·제작)은 각 건물의 `Counter` 파트에, 랭킹 표시는 `Leaderboard/Board_BestHaul`·`Board_BestOre`·`Board_TotalEarned`의 SurfaceGui `Rows/Row1~5` 텍스트를 서버에서 바꿔서 붙인다
   - 허브는 사방이 절벽(높이 40~56)으로 둘러싸인 분지. 절벽 위 바깥쪽에 투명 경계벽(`Hub/Boundary`)이 있어 밖으로 떨어지지 않는다. `tools/build_hub_cliffs.luau`로 생성 (분지 중심 (0,0,90), 안쪽 반폭 88×52)
   - 광산 입구는 입구마다 뒤에 거대한 산(눈 덮인 봉우리)을 두고 앞면 절벽에 깔때기 모양 동굴 아가리(앞 46×56)를 뚫는 방식. 입구가 웅장해야 다음 광산에 가고 싶어진다는 방향 (D-008). `tools/build_cave_entrance.luau`로 생성, `THEME`으로 광산별 분위기(basic, lava). 기본 광산 입구는 남쪽 (0, 0, 38)
   - 새 입구를 낼 때 경계벽이 입구 안쪽을 가로막지 않는지 확인 (경계벽은 절벽 안쪽 면에서 약 37 뒤)

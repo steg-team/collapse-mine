@@ -12,15 +12,19 @@
 	  `Row1`~`Row5` TextLabel이 있다. 서버에서 Text만 바꾸면 된다.
 
 	다시 실행하면 기존 건물은 ServerStorage.OldHubBuildingsBackup 으로 옮기고 새로 짓는다.
-	허브 광장(Plaza) 윗면 y=1 기준. 건물 앞면은 -Z(스폰·광산 입구 쪽).
+	허브 바닥 y=1 기준. 건물 로컬 앞면은 -Z이고, ORIGINS의 회전으로 광장을 바라보게 놓는다.
 ]]
 
 local CHS = game:GetService("ChangeHistoryService")
 local SS = game:GetService("ServerStorage")
 
 local hub = workspace.CollapseMine.Hub
-local GROUND = 1
-local ROW_Z = 96
+-- 건물 자리 (바닥 중앙, 앞면이 바라보는 방향). 셋이 광장을 ㄷ자로 둘러싸고 스폰·광산 입구 쪽을 본다
+local ORIGINS = {
+	Workshop = CFrame.new(0, 1, 116),                                         -- 안쪽 가운데, 남쪽(입구)을 봄
+	Shop = CFrame.new(-58, 1, 90) * CFrame.Angles(0, math.rad(-90), 0),       -- 서쪽, 광장(+X)을 봄
+	Leaderboard = CFrame.new(58, 1, 90) * CFrame.Angles(0, math.rad(90), 0),  -- 동쪽, 광장(-X)을 봄
+}
 
 -- 색
 local WOOD = Color3.fromRGB(122, 84, 52)
@@ -138,15 +142,15 @@ local function crate(parent, base, x, z, s, oreColor)
 	end
 end
 
-local function newModel(name, cx)
+local function newModel(name)
 	local m = Instance.new("Model")
 	m.Name = name
-	return m, CFrame.new(cx, GROUND, ROW_Z)
+	return m, ORIGINS[name]
 end
 
 ------------------------------------------------------------------ 판매소
 do
-	local m, b = newModel("Shop", -36)
+	local m, b = newModel("Shop")
 	part(m, "Floor", Vector3.new(24, 1, 16), b * CFrame.new(0, 0.5, 0), WOOD, Enum.Material.WoodPlanks)
 	part(m, "BackWall", Vector3.new(24, 11, 1), b * CFrame.new(0, 6.5, 7.5), WOOD, Enum.Material.WoodPlanks)
 	for _, x in ipairs({ -11.4, 11.4 }) do
@@ -204,7 +208,7 @@ task.wait()
 
 ------------------------------------------------------------------ 제작소 (가운데, 가장 큼)
 do
-	local m, b = newModel("Workshop", 0)
+	local m, b = newModel("Workshop")
 	part(m, "Floor", Vector3.new(28, 1, 18), b * CFrame.new(0, 0.5, 0), STONE, Enum.Material.Cobblestone)
 	-- 뒷벽: 아래는 돌, 위는 나무
 	part(m, "BackWallStone", Vector3.new(28, 5, 1.4), b * CFrame.new(0, 3.5, 8.3), STONE_DARK, Enum.Material.Cobblestone)
@@ -273,7 +277,7 @@ task.wait()
 
 ------------------------------------------------------------------ 랭킹판
 do
-	local m, b = newModel("Leaderboard", 36)
+	local m, b = newModel("Leaderboard")
 	part(m, "Plinth", Vector3.new(26, 1.6, 8), b * CFrame.new(0, 0.8, 2), STONE, Enum.Material.Cobblestone)
 	part(m, "PlinthStep", Vector3.new(22, 0.8, 2.4), b * CFrame.new(0, 0.4, -3.2), STONE, Enum.Material.Cobblestone)
 

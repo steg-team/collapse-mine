@@ -70,7 +70,7 @@ end
 local BUILDINGS = {
 	Workshop = {
 		prefix = "WS",
-		origin = CFrame.new(0, 1, 96),
+		origin = CFrame.new(0, 1, 116),
 		keep = { Counter = true, CounterTop = true, Blueprint = true, Sign = true, SignFrame = true,
 			Brazier = true, BrazierArm = true, BrazierEmber = true, SmokeSource = true, ForgeCoals = true },
 		after = function(model, mesh, origin)
@@ -93,7 +93,7 @@ local BUILDINGS = {
 	},
 	Shop = {
 		prefix = "SH",
-		origin = CFrame.new(-36, 1, 96),
+		origin = CFrame.new(-58, 1, 90) * CFrame.Angles(0, math.rad(-90), 0),
 		keep = { Counter = true, CounterTop = true, Sign = true, SignFrame = true, Lantern = true },
 		after = function(model, mesh, origin)
 			-- 등불: 메시 등불 유리(Neon) 자리로 옮기고 원래 네모 불빛은 숨김
@@ -121,7 +121,7 @@ local BUILDINGS = {
 	},
 	Leaderboard = {
 		prefix = "LB",
-		origin = CFrame.new(36, 1, 96),
+		origin = CFrame.new(58, 1, 90) * CFrame.Angles(0, math.rad(90), 0),
 		keep = { Board_BestHaul = true, Board_BestOre = true, Board_TotalEarned = true, Sign = true, SignFrame = true, TorchEmber = true },
 		after = function(model, mesh, origin)
 			for _, p in model:GetChildren() do
