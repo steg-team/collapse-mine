@@ -63,3 +63,12 @@ src/
 | C | 소셜·이벤트 | `Social/` |
 
 폴더별 리뷰어는 `.github/CODEOWNERS`에서 지정합니다.
+
+## tools/ (Studio에서 직접 실행하는 스크립트)
+
+Rojo로 동기화되지 않습니다. Studio **보기 → 명령창**에 내용을 붙여넣어 실행하세요. 실행 전 Ctrl+S 권장, Ctrl+Z로 되돌릴 수 있습니다.
+
+| 파일 | 하는 일 |
+|---|---|
+| `generate_ant_cave.luau` | 개미굴 동굴 맵(입구, 허브 방, 나선 대각선 굴 5갈래, 옆방·끝방, 광석, 방 구역, 램프) 생성. `SEED`만 바꾸면 다른 모양 |
+| `build_pickaxe_model.luau` | `StarterPack.Pickaxe` 모델과 `ReplicatedStorage.Remotes.MineHit` 생성 |
