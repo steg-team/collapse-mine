@@ -84,4 +84,4 @@ AI 에이전트는 구현 전에 이 문서와 `game-design.md`를 읽고, 둘�
 - 결정: 밤하늘·운석 테마 광산 "별이 떨어진 곳"을 후보로 두고, 광석 6종의 모델을 먼저 만든다. 운석 파편 · 별가루 원석 · 성운석 · 혜성 핵 · 별빛 결정 · 떨어진 별. 가치 임시값(낮은 순): 330M · 530M · 830M · 2B · 5B · 17B.
 - 이유: 빛나는 광석은 멀리서도 눈에 띄어 "저기 가 보고 싶다"는 동기를 만든다. 모델을 먼저 만들어 두면 광산을 지을 때 바로 쓸 수 있다.
 - 영향: `tools/blender/build_starfall_ores.py`, `tools/import_starfall_ores.luau`, `ServerStorage.OreModels.Starfall`. 광산 위치·지층·광물표는 광산을 지을 때 `src/shared/Config/Mines.luau`에 추가. 광석이 Part가 아니라 모델이라 광산 생성기·채굴 판정(`Hitbox` 파트 기준)도 그때 맞춘다. 가치 단위(M, B)는 경제 설계(B 담당)와 맞춰 확정.
-
+- 보강 (2026-10-22): 참고 이미지(제미나이 그림)에 맞춰 모양을 다시 잡음. 성운석("swirling purple, magenta pink and electric blue cosmic clouds with tiny stars")·별가루 원석("deep navy space stone with scattered tiny white star dots")의 무늬는 Studio AI 텍스처로 입힘. 혜성 핵은 ForceField 빛 구슬, 떨어진 별은 Foil 금빛, 결정은 Glass + 조명. 견본은 Workspace.StarfallOrePreview (하늘 진열대 `_OreStage`, (1000, 600, 0)), 확인 후 지워도 됨.

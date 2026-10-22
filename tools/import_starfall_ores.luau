@@ -5,7 +5,9 @@
 	1) 블렌더에서 tools/blender/build_starfall_ores.py 실행 → ~/Downloads/CollapseMine/StarfallOres.fbx
 	2) Studio 가져오기(Ctrl+M)로 가져옴. Workspace에 StarfallOres 모델이 생김
 	3) 이 스크립트 실행 → ServerStorage.OreModels.Starfall.<광석> 모델 6개
-	4) 무늬: 견본의 StardustRock·NebulaSwirl·MeteorRock에 Studio AI 텍스처(generate_texture)를 입히고 견본을 틀로 다시 복사
+	4) 무늬: 견본의 StardustRock·NebulaSwirl에 Studio AI 텍스처(generate_texture, Quality)를 입히고
+	   견본을 틀로 다시 복사 (견본 모델을 Clone → PivotTo(CFrame.new()) → OreModels.Starfall에 교체).
+	   AI 텍스처 결과는 SurfaceAppearance로 붙고, 프롬프트는 docs/decisions.md D-010 참고
 	   (SHOW_PREVIEW = true면 허브 광장 앞에 견본을 한 줄로 세워 보여 줌)
 
 	MeshPart 이름 규칙: SF_<광석>_<재질>. 빛·반짝임은 블렌더에서 안 넘어오니 여기서 Neon·PointLight·ParticleEmitter로 입힌다.
@@ -31,15 +33,15 @@ local ORES = {
 -- 재질 → { 색, Roblox 재질, 투명도 }
 local LOOK = {
 	MeteorRock = { Color3.fromRGB(52, 40, 34), Enum.Material.Basalt, 0 },
-	MeteorLava = { Color3.fromRGB(255, 110, 30), Enum.Material.Neon, 0 },
+	MeteorLava = { Color3.fromRGB(255, 85, 20), Enum.Material.Neon, 0 },
 	StardustRock = { Color3.fromRGB(26, 32, 70), Enum.Material.SmoothPlastic, 0 },
-	StardustSpeck = { Color3.fromRGB(255, 245, 210), Enum.Material.Neon, 0 },
+	StardustSpeck = { Color3.fromRGB(220, 230, 255), Enum.Material.Neon, 0.45 }, -- 진하면 빛이 번져 알갱이가 커 보임
 	NebulaSwirl = { Color3.fromRGB(150, 80, 200), Enum.Material.SmoothPlastic, 0 },
 	CometIce = { Color3.fromRGB(200, 235, 255), Enum.Material.Glacier, 0 },
 	CometAura = { Color3.fromRGB(110, 200, 255), Enum.Material.ForceField, 0 }, -- 일렁이는 빛 구슬
-	CrystalShard = { Color3.fromRGB(255, 245, 170), Enum.Material.Neon, 0 },
-	CrystalGlow = { Color3.fromRGB(255, 170, 215), Enum.Material.Neon, 0.2 },
-	StarGold = { Color3.fromRGB(255, 190, 40), Enum.Material.Neon, 0 },
+	CrystalShard = { Color3.fromRGB(255, 236, 140), Enum.Material.Glass, 0.15 }, -- Neon은 하얗게 날아가서 Glass + 조명
+	CrystalGlow = { Color3.fromRGB(255, 120, 190), Enum.Material.Neon, 0.35 },
+	StarGold = { Color3.fromRGB(255, 196, 46), Enum.Material.Foil, 0 },
 }
 
 -- 광석별 빛과 반짝임
@@ -48,8 +50,8 @@ local GLOW = {
 	Stardust = { light = Color3.fromRGB(150, 170, 255), range = 8, sparkle = Color3.fromRGB(255, 245, 210) },
 	Nebula = { light = Color3.fromRGB(220, 110, 255), range = 10, sparkle = Color3.fromRGB(255, 180, 240) },
 	Comet = { light = Color3.fromRGB(120, 210, 255), range = 12, sparkle = Color3.fromRGB(200, 240, 255) },
-	Crystal = { light = Color3.fromRGB(255, 235, 140), range = 14, sparkle = Color3.fromRGB(255, 250, 200) },
-	Star = { light = Color3.fromRGB(255, 210, 80), range = 16, sparkle = Color3.fromRGB(255, 230, 120) },
+	Crystal = { light = Color3.fromRGB(255, 235, 140), range = 10, brightness = 2.5, sparkle = Color3.fromRGB(255, 250, 200) },
+	Star = { light = Color3.fromRGB(255, 210, 80), range = 12, brightness = 3, sparkle = Color3.fromRGB(255, 230, 120) },
 }
 
 local function sparkles(parent, color)
@@ -119,10 +121,10 @@ for i, info in ipairs(ORES) do
 		body.Anchored, body.CanCollide = true, true
 		body.Parent = m
 		m.PrimaryPart = body
-		m.WorldPivot = pivot
+		body.PivotOffset = body.CFrame:ToObjectSpace(pivot) -- PrimaryPart가 있으면 WorldPivot 대신 이 값이 피벗
 		local glow = GLOW[info.key]
 		local l = Instance.new("PointLight")
-		l.Color, l.Range, l.Brightness = glow.light, glow.range, 1.6
+		l.Color, l.Range, l.Brightness = glow.light, glow.range, glow.brightness or 1.6
 		l.Parent = body
 		if glow.sparkle then sparkles(body, glow.sparkle) end
 		m:PivotTo(CFrame.new())
