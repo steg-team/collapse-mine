@@ -292,17 +292,41 @@ def emissive_mask(key, rgb):
         m = np.clip((lum - 0.7) * 2.5, 0, 1)
     elif key == "Crystal":
         m = np.clip((lum - 0.65) * 2.5, 0, 1)
-    else:
+    elif key == "Star":
         m = np.clip((lum - 0.6) * 2.5, 0, 1)
+    elif key == "Amber":
+        m = np.clip((lum - 0.6) * 2, 0, 1) * (r > b + 0.25) * 0.6                            # 안쪽 따뜻한 빛
+    elif key == "Lantern":
+        m = np.clip((lum - 0.7) * 3, 0, 1) * (r > b + 0.2)                                   # 등불 불꽃
+    elif key in ("CavePearl", "WaterPearl"):
+        m = np.clip((lum - 0.75) * 3, 0, 1) * 0.7                                            # 진주 광택
+    else:
+        return None                                                                          # 빛 없음
     return np.clip(m, 0, 1)
 
 
-def build():
+# 1~3스테이지 광물 (기획서 "광물 도감 전체"). (키, 그림 파일, 두께, 세트)
+EARLY_ORES = [
+    ("Coal", "ore_01_coal.png", 0.42, "Stage01"), ("Copper", "ore_02_copper.png", 0.42, "Stage01"),
+    ("Quartz", "ore_03_quartz.png", 0.35, "Stage01"), ("Amber", "ore_04_amber.png", 0.38, "Stage01"),
+    ("CavePearl", "ore_05_cavepearl.png", 0.35, "Stage01"), ("Lantern", "ore_06_lantern.png", 0.30, "Stage01"),
+    ("Iron", "ore_07_iron.png", 0.42, "Stage02"), ("Tin", "ore_08_tin.png", 0.42, "Stage02"),
+    ("Silver", "ore_09_silver.png", 0.42, "Stage02"), ("Magnetite", "ore_10_magnetite.png", 0.38, "Stage02"),
+    ("Platinum", "ore_11_platinum.png", 0.40, "Stage02"), ("PocketWatch", "ore_12_pocketwatch.png", 0.18, "Stage02"),
+    ("Limestone", "ore_13_limestone.png", 0.42, "Stage03"), ("Calcite", "ore_14_calcite.png", 0.38, "Stage03"),
+    ("Azurite", "ore_15_azurite.png", 0.42, "Stage03"), ("Malachite", "ore_16_malachite.png", 0.40, "Stage03"),
+    ("WaterPearl", "ore_17_waterpearl.png", 0.35, "Stage03"), ("WetMap", "ore_18_wetmap.png", 0.14, "Stage03"),
+]
+
+
+def build(ores=None, fbx="StarfallOresTex.fbx", tex_prefix="SF"):
+    """ores 항목: (키, 그림, 두께[, 세트]). 그림은 REF 폴더. 빛 규칙이 없는 광석은 빛 마스크를 만들지 않는다."""
+    ores = ores or ORES
     os.makedirs(OUT, exist_ok=True)
     sc = bpy.data.scenes.get("Starfall") or bpy.data.scenes.new("Starfall")
     bpy.context.window.scene = sc
     obs = []
-    for i, (key, fn, depth) in enumerate(ORES):
+    for i, (key, fn, depth, *_) in enumerate(ores):
         _, px = load(fn)
         fg = fg_mask(px)
         rgb = px[..., :3].copy()
@@ -314,21 +338,23 @@ def build():
             grow = (~filled) & (cnt > 0)
             rgb[grow] = nb[grow] / cnt[grow][:, None]
             filled |= grow
-        cimg = save(f"SF_{key}_Color", np.concatenate([rgb, np.ones(fg.shape + (1,), np.float32)], 2))
-        em = emissive_mask(key, px[..., :3]) * fg
-        save(f"SF_{key}_Emissive", np.stack([em, em, em, np.ones_like(em)], 2))
+        cimg = save(f"{tex_prefix}_{key}_Color", np.concatenate([rgb, np.ones(fg.shape + (1,), np.float32)], 2))
+        em = emissive_mask(key, px[..., :3])
+        if em is not None:
+            em = em * fg
+            save(f"{tex_prefix}_{key}_Emissive", np.stack([em, em, em, np.ones_like(em)], 2))
         old = bpy.data.objects.get("SFT_" + key)
         if old:
             bpy.data.objects.remove(old, do_unlink=True)
         ob = build_solid(key, fn, depth, cimg)  # 예전: inflate + side_uv (옆구리 구멍 문제)
-        ob.location = (-12.5 + i * 5, 4, 0)
+        ob.location = (-12.5 + (i % 6) * 5, 4 + (i // 6) * 6, 0)
         ob.location.z -= min((ob.matrix_world @ v.co).z for v in ob.data.vertices)
         obs.append(ob)
     bpy.ops.object.select_all(action='DESELECT')
     for o in obs:
         o.select_set(True)
     bpy.context.view_layer.objects.active = obs[0]
-    path = os.path.join(os.path.expanduser("~"), "Downloads", "CollapseMine", "StarfallOresTex.fbx")
+    path = os.path.join(os.path.expanduser("~"), "Downloads", "CollapseMine", fbx)
     bpy.ops.export_scene.fbx(filepath=path, use_selection=True, object_types={'MESH'}, apply_unit_scale=True,
                              apply_scale_options='FBX_SCALE_ALL', axis_forward='-Z', axis_up='Y', mesh_smooth_type='FACE',
                              use_tspace=True, path_mode='COPY', embed_textures=True, bake_space_transform=True)
@@ -336,4 +362,4 @@ def build():
 
 
 if __name__ == "__main__":
-    build()
+    build()  # 1~3스테이지: build(EARLY_ORES, "EarlyOresTex.fbx", "EO")
