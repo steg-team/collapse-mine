@@ -56,23 +56,43 @@ ev.OnServerEvent:Connect(function(plr, target, hitPos)
 	swing(tool)
 
 	-- 광석: 경도(Hardness)만큼 때려야 깨짐
-	if typeof(target) == "Instance" and target:IsA("BasePart") and CS:HasTag(target, "Ore") then
-		if (target.Position - root.Position).Magnitude > REACH + 4 then return end
-		local hp = target:GetAttribute("HP") or target:GetAttribute("Hardness") or 1
+	-- 광석은 파트 하나(예전 방식)거나 광물 틀 모델(태그·속성이 모델에 있음). 모델이면 맞은 파트에서 모델을 찾는다.
+	local ore: Instance? = nil
+	if typeof(target) == "Instance" and target:IsA("BasePart") then
+		if CS:HasTag(target, "Ore") then
+			ore = target
+		else
+			local m = target:FindFirstAncestorWhichIsA("Model")
+			if m and CS:HasTag(m, "Ore") then ore = m end
+		end
+	end
+	if ore then
+		local orePos = if ore:IsA("Model") then ore:GetPivot().Position else (ore :: BasePart).Position
+		if (orePos - root.Position).Magnitude > REACH + 4 then return end
+		local maxHp = ore:GetAttribute("Hardness") or 1
+		local hp = ore:GetAttribute("HP") or maxHp
 		hp -= 1
 		if hp <= 0 then
-			plr.leaderstats.Coins.Value += target:GetAttribute("OreValue") or 0
-			if LEGENDARY_GRADES[target:GetAttribute("Grade")] then
-				local mine = Mines.findAt(target.Position)
+			plr.leaderstats.Coins.Value += ore:GetAttribute("OreValue") or 0
+			if LEGENDARY_GRADES[ore:GetAttribute("Grade")] then
+				local mine = Mines.findAt(orePos)
 				local stageId = mine and mine.order or 0
-				local depth = mine and math.max(0, math.floor(mine.top - target.Position.Y)) or 0
+				local depth = mine and math.max(0, math.floor(mine.top - orePos.Y)) or 0
 				-- (player, oreId, stageId, depth) — Events.luau 계약
-				EventBus.Fire(Events.LegendaryFound, plr, target:GetAttribute("Ore") or target.Name, stageId, depth)
+				EventBus.Fire(Events.LegendaryFound, plr, ore:GetAttribute("Ore") or ore.Name, stageId, depth)
 			end
-			target:Destroy()
+			ore:Destroy()
 		else
-			target:SetAttribute("HP", hp)
-			target.Transparency = math.min(0.6, target.Transparency + 0.1)
+			ore:SetAttribute("HP", hp)
+			if ore:IsA("Model") then
+				-- 맞을수록 조금씩 작아져서 "깎이는" 느낌 (처음 크기의 최대 30%까지)
+				local base = ore:GetAttribute("BaseScale")
+				if base == nil then base = ore:GetScale(); ore:SetAttribute("BaseScale", base) end
+				ore:ScaleTo(base * (1 - 0.3 * (1 - hp / maxHp)))
+			else
+				local p = ore :: BasePart
+				p.Transparency = math.min(0.6, p.Transparency + 0.1)
+			end
 		end
 		return
 	end

@@ -32,6 +32,7 @@ export type Ore = {
 	hardness: number,
 	color: Color3,
 	material: Enum.Material,
+	model: string?,
 }
 
 export type Mine = {
@@ -72,15 +73,21 @@ Mines.list = {
 			{ name = "흙층", top = -4, bottom = -50, material = Enum.Material.Ground, hardness = 1 },
 			{ name = "바위층", top = -50, bottom = -125, material = Enum.Material.Slate, hardness = 2 },
 		},
-		ores = { -- 임시값
-			{ name = "Coal", displayName = "석탄", grade = "일반", value = 3, weight = 45, minDepth = 0, hardness = 1,
-				color = Color3.fromRGB(40, 40, 46), material = Enum.Material.Slate },
-			{ name = "Copper", displayName = "구리", grade = "일반", value = 5, weight = 30, minDepth = 0, hardness = 2,
-				color = Color3.fromRGB(200, 115, 60), material = Enum.Material.Metal },
-			{ name = "Zinc", displayName = "아연", grade = "일반", value = 7, weight = 18, minDepth = 30, hardness = 2,
-				color = Color3.fromRGB(165, 178, 190), material = Enum.Material.Metal },
-			{ name = "Iron", displayName = "철", grade = "고급", value = 12, weight = 7, minDepth = 60, hardness = 3,
-				color = Color3.fromRGB(150, 110, 95), material = Enum.Material.CorrodedMetal },
+		-- 1스테이지 "흙 동굴" 광물 6종 (D-012). 가치·확률·경도 모두 임시값
+		-- model = ServerStorage.OreModels 아래 광물 틀 경로. 틀이 없으면 color·material로 만든 돌 파트를 쓴다.
+		ores = {
+			{ name = "Coal", displayName = "석탄", grade = "일반", value = 2, weight = 50, minDepth = 0, hardness = 1,
+				color = Color3.fromRGB(40, 40, 46), material = Enum.Material.Slate, model = "Stage01/Coal" },
+			{ name = "Copper", displayName = "구리", grade = "일반", value = 5, weight = 30, minDepth = 0, hardness = 1,
+				color = Color3.fromRGB(200, 115, 60), material = Enum.Material.Metal, model = "Stage01/Copper" },
+			{ name = "Quartz", displayName = "석영", grade = "고급", value = 15, weight = 12, minDepth = 15, hardness = 2,
+				color = Color3.fromRGB(235, 235, 245), material = Enum.Material.Glass, model = "Stage01/Quartz" },
+			{ name = "Amber", displayName = "호박석", grade = "희귀", value = 45, weight = 5, minDepth = 35, hardness = 2,
+				color = Color3.fromRGB(230, 150, 40), material = Enum.Material.Glass, model = "Stage01/Amber" },
+			{ name = "CavePearl", displayName = "동굴 진주", grade = "에픽", value = 140, weight = 2.5, minDepth = 60, hardness = 3,
+				color = Color3.fromRGB(245, 240, 225), material = Enum.Material.SmoothPlastic, model = "Stage01/CavePearl" },
+			{ name = "Lantern", displayName = "광부의 녹슨 등불", grade = "전설", value = 480, weight = 0.5, minDepth = 80, hardness = 4,
+				color = Color3.fromRGB(150, 90, 50), material = Enum.Material.CorrodedMetal, model = "Stage01/Lantern" },
 		},
 		collapse = { interval = 600, warning = 60, offset = 0 }, -- 임시값 (초)
 		cave = {
