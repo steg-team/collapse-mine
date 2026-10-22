@@ -37,8 +37,8 @@ local terrainOnly = RaycastParams.new()
 terrainOnly.FilterType = Enum.RaycastFilterType.Include
 terrainOnly.FilterDescendantsInstances = { T }
 
--- 방 바닥 중심과 반경 (generate_mine의 room(): 표시 파트는 바닥에서 6 위, 지름 = 2R)
-local center = roomPart.Position - Vector3.new(0, 6, 0)
+-- 방 바닥 중심과 반경 (generate_mine의 room(): 표시 파트 아랫면 = 바닥, 지름 = 2R)
+local center = roomPart.Position - Vector3.new(0, roomPart.Size.Y / 2, 0)
 local R = roomPart.Size.X / 2
 -- 도착 지점 반대쪽 벽 방향
 local away = center - arrival.Position
@@ -50,6 +50,8 @@ fwd = fwd.Magnitude > 0.1 and fwd.Unit or Vector3.xAxis
 local gateFloor = center + fwd * (R - 1)
 local floorHit = workspace:Raycast(gateFloor + Vector3.new(0, 4, 0), Vector3.new(0, -10, 0), terrainOnly)
 if floorHit then gateFloor = Vector3.new(gateFloor.X, floorHit.Position.Y, gateFloor.Z) end
+-- 지형 칸(4스터드) 경계에 맞춰야 바닥이 평평하게 채워진다 (안 맞추면 바닥이 1~2 솟아 레일이 묻힘)
+gateFloor = Vector3.new(gateFloor.X, math.floor(gateFloor.Y / 4 + 0.5) * 4, gateFloor.Z)
 local G = CFrame.lookAt(gateFloor, gateFloor + fwd)
 local function L(x, y, z) return G * CFrame.new(x, y, z) end
 
@@ -74,7 +76,7 @@ local MOUTH_Z = Z_TOP - 6 -- 동굴 아가리 문틀 자리 (지표 위)
 local W = 16 -- 굴 폭
 local H = 12 -- 굴 높이
 -- 문 자리 천장 한계: 지표 바로 아래 잔디 칸(top~0)은 남긴다
-local CEIL = (M.top - 1) - gateFloor.Y
+local CEIL = math.min(H + 3, (M.top - 1) - gateFloor.Y)
 
 local rec = CHS:TryBeginRecording("BuildMineExit")
 local old = root:FindFirstChild("ExitGate")
@@ -195,12 +197,16 @@ part("SignPost", Vector3.new(0.6, 6.2, 0.6), L(-(W / 2 + 2), 3.1, 7.5), WOOD, En
 local arrowBoard = part("SignBoard", Vector3.new(5.2, 2.4, 0.3), L(-(W / 2 + 1.2), 5.2, 7.85), WOOD, Enum.Material.Wood)
 label(arrowBoard, Enum.NormalId.Back, 50, { { "출구 →", 0.6, Enum.Font.GothamBold }, { "허브로 돌아가기", 0.4, Enum.Font.Gotham } })
 
--- 5) 레일 (방 쪽 평지에만) -----------------------------------------------------------
-for _, s in { -1, 1 } do
-	part("Rail", Vector3.new(0.3, 0.35, 13), L(s * 1.15, 0.45, 1.5), STEEL, Enum.Material.Metal)
-end
-for z = 7, -4, -2 do
-	part("Sleeper", Vector3.new(3.6, 0.3, 0.8), L(0, 0.15, z), WOOD_DARK, Enum.Material.Wood)
+-- 5) 레일 (문 안쪽 평지에만) -----------------------------------------------------------
+-- 지형 바닥이 칸 경계 때문에 조금씩 울퉁불퉁해서, 침목마다 실제 바닥 높이를 재서 얹는다
+for z = 3, -5, -2 do
+	local top = G:PointToWorldSpace(Vector3.new(0, 4, z))
+	local hit = workspace:Raycast(top, Vector3.new(0, -8, 0), terrainOnly)
+	local y = hit and (hit.Position.Y - gateFloor.Y) or 0
+	part("Sleeper", Vector3.new(3.6, 0.3, 0.8), L(0, y + 0.1, z), WOOD_DARK, Enum.Material.Wood)
+	for _, s in { -1, 1 } do
+		part("Rail", Vector3.new(0.3, 0.35, 2.05), L(s * 1.15, y + 0.4, z), STEEL, Enum.Material.Metal)
+	end
 end
 
 -- 6) 횃불: 벽에 레이를 쏴서 표면에 붙인다. 원점 로컬 +X = 벽에서 밖으로 ----------------

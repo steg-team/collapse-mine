@@ -46,6 +46,8 @@ export type Mine = {
 	bottom: number,
 	layers: { Layer },
 	ores: { Ore },
+	-- 이 등급 광물은 벽 속에 묻혀서 파야 나온다. extra = 광물 높이에 더 묻는 깊이
+	buried: { grades: { string }, extra: NumberRange }?,
 	collapse: { interval: number, warning: number, offset: number },
 	cave: {
 		seed: number,
@@ -54,6 +56,7 @@ export type Mine = {
 		roomSpacing: NumberRange,
 		subBranchChance: number,
 		tunnelRadius: number,
+		roomScale: number?, -- 방 반경·높이 배율 (기본 1)
 	},
 }
 
@@ -89,6 +92,7 @@ Mines.list = {
 			{ name = "Lantern", displayName = "광부의 녹슨 등불", grade = "전설", value = 480, weight = 0.5, minDepth = 80, hardness = 4,
 				color = Color3.fromRGB(150, 90, 50), material = Enum.Material.CorrodedMetal, model = "Stage01/Lantern" },
 		},
+		buried = { grades = { "희귀", "에픽", "전설" }, extra = NumberRange.new(0.5, 2) }, -- 임시값
 		collapse = { interval = 600, warning = 60, offset = 0 }, -- 임시값 (초)
 		cave = {
 			seed = 7,
@@ -96,7 +100,8 @@ Mines.list = {
 			hubRooms = 4,
 			roomSpacing = NumberRange.new(40, 60),
 			subBranchChance = 0.45,
-			tunnelRadius = 5,
+			tunnelRadius = 7, -- 굴 폭 약 14 (좁아 보이지 않게)
+			roomScale = 1.4,
 		},
 	},
 } :: { Mine }

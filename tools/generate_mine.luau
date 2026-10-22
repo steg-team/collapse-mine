@@ -32,13 +32,21 @@ local AIR = Enum.Material.Air
 local O = M.origin
 local C = M.cave
 local rng = Random.new(C.seed)
+local S = C.roomScale or 1 -- 방 크기·높이 배율 (굴 폭은 tunnelRadius)
 
 -- 폴더 준비 ------------------------------------------------------------------
 local minesRoot = workspace:FindFirstChild("Mines") or Instance.new("Folder")
 minesRoot.Name = "Mines"
 minesRoot.Parent = workspace
+-- 예전 광산(광석·방·램프)은 지우지 않고 ServerStorage.MineBackups로 옮긴다 (지형은 따로 백업해야 함)
 local old = minesRoot:FindFirstChild(M.id)
-if old then old:Destroy() end
+if old then
+	local bk = game:GetService("ServerStorage"):FindFirstChild("MineBackups") or Instance.new("Folder")
+	bk.Name = "MineBackups"
+	bk.Parent = game:GetService("ServerStorage")
+	old.Name = M.id .. "_" .. os.date("%m%d_%H%M")
+	old.Parent = bk
+end
 local root = Instance.new("Folder")
 root.Name = M.id
 root:SetAttribute("MineId", M.id)
@@ -119,6 +127,8 @@ local function placeOre(req)
 	local up = hit.Normal
 	local base = hit.Position - up * 0.35 -- 조금 파묻어서 벽에서 자라난 것처럼
 	local o = pickOreWith(oreRng, base.Y)
+	-- 비싼 광물은 벽 속에 묻는다: 겉에선 안 보이고 파야 나온다 (반짝임 입자만 살짝 새어 나옴)
+	local buried = M.buried and table.find(M.buried.grades, o.grade) ~= nil
 	local tpl = findTemplate(o.model)
 	-- 바닥을 붙인 채 up축으로 무작위 회전
 	local look = up:Cross(Vector3.yAxis).Magnitude > 0.1 and up:Cross(Vector3.yAxis).Unit or Vector3.xAxis
@@ -127,6 +137,16 @@ local function placeOre(req)
 		local m = tpl:Clone()
 		m.Name = o.name
 		m:ScaleTo(oreRng:NextNumber(1.1, 1.5))
+		if buried then
+			local _, size = m:GetBoundingBox()
+			local depth = size.Y + oreRng:NextNumber(M.buried.extra.Min, M.buried.extra.Max)
+			cf = cf - up * depth
+			m:SetAttribute("Buried", true)
+			-- 외곽선이 벽을 뚫고 보이면 숨긴 의미가 없음
+			for _, d in m:GetDescendants() do
+				if d:IsA("Highlight") then d.DepthMode = Enum.HighlightDepthMode.Occluded end
+			end
+		end
 		m:PivotTo(cf)
 		for _, d in m:GetDescendants() do
 			if d:IsA("BasePart") then d.Anchored = true end
@@ -174,15 +194,15 @@ end
 -- 방: 바닥 평평한 원통 + 낮은 돔
 local rooms = {}
 local function room(c: Vector3, R: number, kind: string)
-	T:FillCylinder(CFrame.new(c + Vector3.new(0, 5, 0)), 10, R, AIR); tick()
-	T:FillCylinder(CFrame.new(c + Vector3.new(0, 11, 0)), 4, R * 0.65, AIR); tick()
+	T:FillCylinder(CFrame.new(c + Vector3.new(0, 5 * S, 0)), 10 * S, R, AIR); tick()
+	T:FillCylinder(CFrame.new(c + Vector3.new(0, 11 * S, 0)), 4 * S, R * 0.65, AIR); tick()
 	local frac = math.clamp(depthOf(c.Y) / (M.top - M.bottom), 0, 1)
 	local risk = (kind == "Entrance" or kind == "Hub") and 0 or (0.05 + 0.25 * frac + (kind == "End" and 0.1 or 0))
 	local _, li = Mines.layerAt(M, c.Y)
 	local m = Instance.new("Part")
 	m.Name = "Room_" .. kind
-	m.Size = Vector3.new(R * 2, 12, R * 2)
-	m.Position = c + Vector3.new(0, 6, 0)
+	m.Size = Vector3.new(R * 2, 12 * S, R * 2)
+	m.Position = c + Vector3.new(0, 6 * S, 0) -- 바닥 = Position.Y - Size.Y / 2
 	m.Anchored, m.CanCollide, m.CanQuery, m.Transparency = true, false, false, 1
 	m:SetAttribute("Room", true)
 	m:SetAttribute("MineId", M.id)
@@ -194,9 +214,9 @@ local function room(c: Vector3, R: number, kind: string)
 	for _ = 1, n do
 		local a = rng:NextNumber(0, math.pi * 2)
 		local d = R - rng:NextNumber(0.5, 2)
-		makeOre(c + Vector3.new(math.cos(a) * d, rng:NextNumber(1, 6), math.sin(a) * d), kind == "End" and 2 or 1, Vector3.new(math.cos(a), 0, math.sin(a)))
+		makeOre(c + Vector3.new(math.cos(a) * d, rng:NextNumber(1, 6) * S, math.sin(a) * d), kind == "End" and 2 or 1, Vector3.new(math.cos(a), 0, math.sin(a)))
 	end
-	lamp(c + Vector3.new(0, 9, 0), math.max(24, R * 2.2))
+	lamp(c + Vector3.new(0, 9 * S, 0), math.max(24, R * 2.2))
 	table.insert(rooms, { c = c, R = R, kind = kind })
 end
 
@@ -212,8 +232,9 @@ T:FillCylinder(CFrame.new(O + Vector3.new(0, M.bottom - 6, 0)), 12, FR, last.mat
 root:SetAttribute("GenProgress", 0.1)
 
 -- 2) 입구 방 + 허브 방 무리 ---------------------------------------------------
-local entranceFloor = Vector3.new(O.X, M.top - 16, O.Z)
-room(entranceFloor, 16, "Entrance")
+-- 입구 방 천장(바닥 + 13S)이 지표 아래 지형 한 칸(4)을 남기게
+local entranceFloor = Vector3.new(O.X, M.top - math.ceil(13 * S + 3), O.Z)
+room(entranceFloor, 16 * S, "Entrance")
 
 local entrance = Instance.new("Part")
 entrance.Name = "Entrance"
@@ -244,9 +265,9 @@ exitPad.Parent = root
 local hubs = { { c = entranceFloor } }
 for i = 1, C.hubRooms do
 	local ang = (i - 1) / C.hubRooms * math.pi * 2 + rng:NextNumber(-0.3, 0.3)
-	local c = entranceFloor + Vector3.new(math.cos(ang) * 42, -4 - 3 * i, math.sin(ang) * 42)
+	local c = entranceFloor + Vector3.new(math.cos(ang) * 42 * S, -4 - 3 * i, math.sin(ang) * 42 * S)
 	corridor(entranceFloor, c)
-	room(c, rng:NextNumber(10, 13), "Hub")
+	room(c, rng:NextNumber(10, 13) * S, "Hub")
 	table.insert(hubs, { c = c })
 end
 root:SetAttribute("GenProgress", 0.2)
@@ -254,7 +275,7 @@ root:SetAttribute("GenProgress", 0.2)
 -- 3) 굴 갈래 -----------------------------------------------------------------
 -- 바닥이 지층 범위를 벗어나지 않게
 local minFloor = M.bottom + 8
-local maxFloor = M.top - 14
+local maxFloor = M.top - (TR * 2 + 4) -- 굴 천장이 지표 아래 지형 한 칸(4)을 남기게
 
 local function walkBranch(start: Vector3, heading: number, targetFloor: number, maxLen: number, depth: number)
 	local P = start
@@ -293,7 +314,7 @@ local function walkBranch(start: Vector3, heading: number, targetFloor: number, 
 		if len >= nextRoomAt and len < maxLen - 20 then
 			local perp = Vector3.new(-math.sin(h), 0, math.cos(h)) * side
 			side = -side
-			local R = rng:NextNumber(8, 12)
+			local R = rng:NextNumber(8, 12) * S
 			local rc = P + perp * (R + 6)
 			if distFromCenter(rc) < M.radius - R - 8 then
 				corridor(P, rc)
@@ -312,7 +333,7 @@ local function walkBranch(start: Vector3, heading: number, targetFloor: number, 
 	local ec = P + perp * 6
 	if distFromCenter(ec) > M.radius - 16 then ec = P end
 	corridor(P, ec)
-	room(ec, rng:NextNumber(11, 14), "End")
+	room(ec, rng:NextNumber(11, 14) * S, "End")
 end
 
 for b = 1, C.branches do
