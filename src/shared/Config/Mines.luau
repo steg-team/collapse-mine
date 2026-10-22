@@ -50,7 +50,8 @@ export type Mine = {
 	-- 서버(OreSpawner)가 켜질 때·붕괴 뒤에 광산 흙 전체(굴 밖 꽉 찬 땅)에 랜덤으로 count개 묻는다.
 	-- regrowDelay = 붕괴 뒤 다시 묻기까지 초
 	buried: { grades: { string }, count: number, regrowDelay: number }?,
-	collapse: { interval: number, warning: number, offset: number },
+	-- interval: 붕괴 주기(초) 범위, 매 주기 이 안에서 랜덤 / warning: 경보 길이(초) / offset: 첫 붕괴를 미루는 시간(초), 광산끼리 엇갈리게 (D-013)
+	collapse: { interval: NumberRange, warning: number, offset: number },
 	cave: {
 		seed: number,
 		branches: number,
@@ -95,7 +96,7 @@ Mines.list = {
 				color = Color3.fromRGB(150, 90, 50), material = Enum.Material.CorrodedMetal, model = "Stage01/Lantern" },
 		},
 		buried = { grades = { "희귀", "에픽", "전설" }, count = 1500, regrowDelay = 5 }, -- 임시값
-		collapse = { interval = 600, warning = 60, offset = 0 }, -- 임시값 (초)
+		collapse = { interval = NumberRange.new(480, 720), warning = 60, offset = 0 }, -- 8~12분 랜덤, 임시값 (초)
 		cave = {
 			seed = 7,
 			branches = 12,
