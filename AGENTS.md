@@ -91,15 +91,22 @@ docs/        기획서, 결정 기록 (동기화 안 됨)
 
 ## 맵 사실관계 (현재 플레이스 기준)
 
-- 맵 루트: `Workspace.CollapseMine`
-  - `Ores/` 광석 파트. 속성: `Vein`, `Ore`, `OreValue`, `Layer`, `Hardness`, (`HP` 채굴 중 남은 체력)
-  - `Rooms/` 투명 방 구역 파트. 속성: `Room`, `RoomType`(Hub/Side/End), `Layer`, `CollapseRisk`
-  - `Lights/` 램프, `Hub/` 지상 광장(상점, 제작소, 리더보드, `MineSpawn`)
-  - `AntNestInfo` (Configuration): 지층별 경도 `L1~L5_Hardness`, 생성 `Seed`
-- 땅은 Terrain, 굴은 개미굴 모양(입구 경사로 → 허브 방 → 나선 대각선 굴 5갈래, 옆방·끝방). 수직 구멍은 만들지 않습니다 (걸어서 올라올 수 있어야 함).
-- 지층(y 기준): 1 흙 -4~-24 / 2 바위 -24~-48 / 3 수정 -48~-72 / 4 심층암 -72~-96 / 5 용암 -96~-152
-- 지표(y > -4)는 채굴 불가.
-- 이전 버전 맵 백업: `ServerStorage.OldPitBackup`, `ServerStorage.HangingNestBackup`
+- 광산 여러 개 구조 (`docs/decisions.md` D-006). 광산 목록·위치·지층·광물표는 **`src/shared/Config/Mines.luau`가 원본**. 숫자를 코드에 따로 적지 말고 이 설정을 읽습니다.
+- 지상 허브: `Workspace.CollapseMine.Hub` (광장, 판매소 `Shop`, 제작소 `Workshop`, 랭킹판 `Leaderboard`, 스폰 `MineSpawn`, 광산 입구 `MinePortals/Portal_<id>`)
+  - 배치: 스폰 `MineSpawn` (0, 1.5, 84)을 가운데 두고 제작소(0, 116, 남향)·판매소(-58, 90, 동향)·랭킹판(58, 90, 서향)이 돌바닥 광장을 ㄷ자로 둘러싼다. 광산 입구는 남쪽 (0, 0, 38)
+  - 건물 3개는 `tools/build_hub_buildings.luau`(파트 버전) 또는 `tools/blender/build_*.py` + `tools/import_hub_mesh.luau`(블렌더 메시 버전, 현재 사용 중)로 생성. 상호작용(판매·제작)은 각 건물의 `Counter` 파트에, 랭킹 표시는 `Leaderboard/Board_BestHaul`·`Board_BestOre`·`Board_TotalEarned`의 SurfaceGui `Rows/Row1~5` 텍스트를 서버에서 바꿔서 붙인다
+  - 허브는 사방이 절벽(높이 40~56)으로 둘러싸인 분지. 절벽 위 바깥쪽에 투명 경계벽(`Hub/Boundary`)이 있어 밖으로 떨어지지 않는다. `tools/build_hub_cliffs.luau`로 생성 (분지 중심 (0,0,90), 안쪽 반폭 88×52)
+  - 광산 입구는 입구마다 뒤에 거대한 산(눈 덮인 봉우리)을 두고 앞면 절벽에 깔때기 모양 동굴 아가리(앞 46×56)를 뚫는 방식. 입구가 웅장해야 다음 광산에 가고 싶어진다는 방향 (D-008). `tools/build_cave_entrance.luau`로 생성, `THEME`으로 광산별 분위기(basic, lava). 기본 광산 입구는 남쪽 (0, 0, 38)
+  - 새 입구를 낼 때 경계벽이 입구 안쪽을 가로막지 않는지 확인 (경계벽은 절벽 안쪽 면에서 약 37 뒤)
+- 광산: `Workspace.Mines.<id>` — `tools/generate_mine.luau`로 생성
+  - `Ores/` 광석 (태그 `Ore`, 속성 `MineId`, `Ore`, `DisplayName`, `Grade`, `OreValue`, `Hardness`, `Layer`, 채굴 중 `HP`)
+  - `Rooms/` 투명 방 구역 (속성 `RoomType`=Entrance/Hub/Side/End, `Layer`, `CollapseRisk`)
+  - `Lights/` 램프, `Entrance` 도착 지점, `ExitPoint` 출구 발판 (태그 `MineExit`)
+- 이동: 포탈(태그 `MinePortal`, 속성 `MineId`) → 광산 입구, 출구 발판 → 허브 스폰. 플레이어 속성 `PickaxeTier`가 광산의 `requiredPickaxe` 이상이어야 입장.
+- 땅은 Terrain, 굴은 개미굴 모양(입구 방 → 허브 방 → 완만히 내려가며 퍼지는 굴, 옆방·끝방). 수직 구멍은 만들지 않습니다 (걸어서 올라올 수 있어야 함).
+- 현재 광산: `basic` 기본 광산 — 중심 (0, 0, -900), 반경 350, 지층 흙(-4~-50)·바위(-50~-125)
+- 지표(광산 `top` 위)와 허브는 채굴 불가.
+- 이전 맵 백업: `ServerStorage.OldPitBackup`, `HangingNestBackup`, `FirstCaveBackup`, `OldPortalBackup`(나무 아치 포탈)
 
 ## Git 흐름
 

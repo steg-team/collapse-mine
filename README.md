@@ -73,5 +73,19 @@ Rojo로 동기화되지 않습니다. Studio **보기 → 명령창**에 내용�
 
 | 파일 | 하는 일 |
 |---|---|
-| `generate_ant_cave.luau` | 개미굴 동굴 맵(입구, 허브 방, 나선 대각선 굴 5갈래, 옆방·끝방, 광석, 방 구역, 램프) 생성. `SEED`만 바꾸면 다른 모양 |
+| `generate_mine.luau` | `src/shared/Config/Mines.luau`의 광산 설정 하나를 읽어 개미굴 광산을 지정 위치에 생성. 맨 위 `MINE_ID`만 바꿔서 실행 |
+| `build_hub_cliffs.luau` | 시작 지점(허브)을 둘러싼 절벽 링 + 절벽 위 보이지 않는 경계벽 (낙사 방지). 입구보다 먼저 실행 |
+| `build_hub_buildings.luau` | 허브 건물 3개: 판매소(차양·저울), 제작소(대장간·굴뚝), 랭킹판(3칸 게시판·트로피). 기존 건물은 `ServerStorage.OldHubBuildingsBackup`으로 옮김 |
+| `blender/build_workshop.py` | (블렌더) 제작소 외형을 만들어 `~/Downloads/CollapseMine/Workshop.fbx`로 내보냄. 재질별로 합쳐 `WS_<재질>` 이름으로 남김 |
+| `blender/build_shop.py`, `blender/build_leaderboard.py` | (블렌더) 판매소·랭킹판 외형. 공통 도우미는 `blender/rbx_common.py` |
+| `blender/build_entrance_props.py` + `import_entrance_props.luau` | 광산 입구 장식(화로·갱도 문틀·레일·광차·벽 횃불·간판 테두리)을 블렌더 메시로 교체. 간판 글자·이동 판정·불은 Roblox 파트 유지 |
+| `import_hub_mesh.luau` | 가져온 FBX 건물을 허브 자리에 끼우고 Roblox 재질을 입힘. 계산대·간판·불 같은 기능 부품은 옛 모델에서 옮겨 옴 |
+| `build_cave_entrance.luau` | 허브 절벽 자리에 광산 입구 산(봉우리 최고 약 220, 눈 덮인 정상)과 거대한 동굴 입구(앞 46×56 → 안쪽 26×22 깔때기)를 만들고 화로·사슬 표지판·갱도 문틀·레일·광차·등불 배치, 안쪽에 이동 판정. `MINE_ID`, `MOUTH`, `FACING`, `THEME`(basic/lava), `PEAK`를 바꿔 광산마다 실행 |
 | `build_pickaxe_model.luau` | `StarterPack.Pickaxe` 모델과 `ReplicatedStorage.Remotes.MineHit` 생성 |
+
+### 새 광산 추가 순서
+
+1. `src/shared/Config/Mines.luau`에 항목 추가 (위치는 다른 광산·허브와 겹치지 않게) → PR
+2. Rojo로 Studio에 반영된 상태에서 `tools/generate_mine.luau`의 `MINE_ID`를 바꿔 실행
+3. `tools/build_cave_entrance.luau`로 허브 절벽 벽에 동굴 입구 배치 (다른 입구와 겹치지 않게 위치·방향 지정)
+4. `docs/game-design.md` 광산 구성 표 갱신

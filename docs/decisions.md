@@ -20,7 +20,7 @@ AI 에이전트는 구현 전에 이 문서와 `game-design.md`를 읽고, 둘�
 - 2026-10-21 / 채택 / 이우진
 - 결정: 원형으로 파 내려가는 구덩이 대신, 땅 속 개미굴 모양 동굴로 한다. 입구 경사로 → 허브 방 무리 → 대각선으로 내려가는 나선 굴 여러 갈래, 굴 중간중간 방 여러 개.
 - 이유: 수직굴은 붕괴 때 올라올 방법이 없다. 대각선 경사로면 걸어서 탈출할 수 있어서 "붕괴 직전 출구로 달리기"가 성립한다.
-- 영향: 맵은 Terrain 동굴(`tools/generate_ant_cave.luau`). 처음 만든 원통 광산과 매달린 개미굴은 `ServerStorage` 백업으로 보관.
+- 영향: 맵은 Terrain 동굴(`tools/generate_ant_cave.luau`, 이후 D-006에서 `generate_mine.luau`로 대체). 처음 만든 원통 광산과 매달린 개미굴은 `ServerStorage` 백업으로 보관.
 
 ## D-002 광맥과 약한 지반
 
@@ -49,3 +49,40 @@ AI 에이전트는 구현 전에 이 문서와 `game-design.md`를 읽고, 둘�
 - 결정: 기획서 원본을 `docs/game-design.md`로 옮겨 Git으로 관리한다. 기획 변경은 PR로 올리고 3명 모두 리뷰한다.
 - 이유: 3명과 각자의 AI가 같은 방향을 보고 만들어야 하고, 기획이 바뀌면 그 이력이 남아야 한다.
 - 영향: `docs/`, `AGENTS.md`, `CLAUDE.md`, `CODEOWNERS`
+
+## D-006 곡괭이 등급마다 다른 광산
+
+- 2026-10-21 / 채택 / 이우진
+- 결정: 광산을 여러 개 만들고, 곡괭이 등급을 올리면 다음 광산이 열린다. 한 장소 안에 허브 하나와 광산 여러 개를 따로 짓고, 허브 포탈로 오간다. 광산은 설정 파일 한 줄로 추가한다. 붕괴는 광산마다 따로, 시간을 엇갈리게 둔다.
+- 이유: 맵 하나를 깊게만 파면 금방 끝나고 성장 동기가 약하다. 곡괭이마다 새 광산이 열리면 업그레이드할 이유가 확실하다. 한 장소에 두면 공지·리더보드·붕괴를 서버 전체가 공유한다.
+- 영향: `src/shared/Config/Mines.luau`, `tools/generate_mine.luau`(구 `generate_ant_cave.luau` 대체), `MiningServer`, `MineTravel`, 허브 포탈. 첫 개미굴(허브 바로 아래, 지층 5개)은 폐기하고 메움 — 오브젝트는 `ServerStorage.FirstCaveBackup`.
+
+## D-007 기본 광산은 얕고 아주 넓게
+
+- 2026-10-21 / 채택 / 이우진
+- 결정: 기본 광산은 반경 약 350, 깊이 약 120(지층 2개), 굴 12갈래 + 곁가지. 처음 목표는 방 40~50개였으나 "더 크게" 요청에 따라 곁가지를 그대로 두어 실제 생성 결과는 방 약 150개(옆방 111, 끝방 35), 광석 약 970개, 램프 약 240개 (seed 7).
+- 이유: 첫 광산이 좁으면 금방 끝난다. 깊은 층 테마는 다음 광산이 맡으므로 기본 광산은 깊이 대신 넓이로 플레이 시간을 만든다.
+- 영향: `src/shared/Config/Mines.luau`의 `basic` 설정. 플레이 테스트 후 방·광석이 너무 많으면 `cave.subBranchChance`, `roomSpacing`을 줄여 재생성.
+
+## D-008 광산 입구는 웅장하게
+
+- 2026-10-21 / 채택 / 이우진
+- 결정: 시작 지점은 사방을 절벽으로 둘러싸 낙사를 막고, 광산 입구마다 뒤에 거대한 산(뾰족한 봉우리, 눈 덮인 정상)과 깔때기 모양의 거대한 동굴 아가리를 둔다. 화로, 사슬에 매단 대형 표지판, 갱도 문틀, 레일·광차로 장식한다. 광산마다 테마(바위, 용암 등)를 바꾼다.
+- 이유: 용암 동굴 등 광산이 계속 늘어날 텐데, 입구가 장엄해야 "저기 가보고 싶다"는 동기가 생긴다. 허브 바깥이 낭떠러지라 절벽으로 막아야 한다.
+- 영향: `tools/build_hub_cliffs.luau`, `tools/build_cave_entrance.luau`, `Hub/Boundary`, `Hub/MinePortals`
+
+## D-009 랭킹은 깊이 대신 수확 기준 3종
+
+- 2026-10-21 / 채택 / 이우진
+- 결정: 허브 리더보드의 "깊이 순위"를 없애고 랭킹 3종을 둔다. ① 최고 탈출 수확(붕괴 한 번에 살아서 들고 나온 광물 가치, 주간 초기화, 메인) ② 최고 광물(한 덩이 최고가 = 무게 × 압력 등급, 전체 기간) ③ 누적 수입(지금까지 번 코인, 전체 기간). 허브 판매소·제작소·랭킹판 디자인도 새로 짓는다.
+- 이유: 광산이 곡괭이 등급별로 나뉘고(D-006) 기본 광산이 얕아져서(D-007) 깊이는 누구나 금방 바닥에 닿거나 곡괭이 등급과 같아진다. 게임의 핵심인 "더 캘까, 지금 탈출할까"를 잘한 사람이 1등이 되게 한다. 주간 초기화로 신규 유저도 도전할 수 있게 한다.
+- 영향: `docs/game-design.md` 허브 표, `tools/build_hub_buildings.luau`, `Hub/Leaderboard`(Board_BestHaul·Board_BestOre·Board_TotalEarned). 최고 탈출 수확은 붕괴 이벤트(`CollapseEnded`)가 생긴 뒤 집계 가능. 구현은 C 담당.
+
+## D-010 새 광산 "별이 떨어진 곳" 광석 6종
+
+- 2026-10-22 / 채택(광석 모델만, 광산 순서·곡괭이·가치는 미정) / 이우진
+- 결정: 밤하늘·운석 테마 광산 "별이 떨어진 곳"을 후보로 두고, 광석 6종의 모델을 먼저 만든다. 운석 파편 · 별가루 원석 · 성운석 · 혜성 핵 · 별빛 결정 · 떨어진 별. 가치 임시값(낮은 순): 330M · 530M · 830M · 2B · 5B · 17B.
+- 이유: 빛나는 광석은 멀리서도 눈에 띄어 "저기 가 보고 싶다"는 동기를 만든다. 모델을 먼저 만들어 두면 광산을 지을 때 바로 쓸 수 있다.
+- 영향: `tools/blender/build_starfall_ores.py`, `tools/import_starfall_ores.luau`, `ServerStorage.OreModels.Starfall`. 광산 위치·지층·광물표는 광산을 지을 때 `src/shared/Config/Mines.luau`에 추가. 광석이 Part가 아니라 모델이라 광산 생성기·채굴 판정(`Hitbox` 파트 기준)도 그때 맞춘다. 가치 단위(M, B)는 경제 설계(B 담당)와 맞춰 확정.
+- 보강 (2026-10-22): 참고 이미지(제미나이 그림)에 맞춰 모양을 다시 잡음. 성운석("swirling purple, magenta pink and electric blue cosmic clouds with tiny stars")·별가루 원석("deep navy space stone with scattered tiny white star dots")의 무늬는 Studio AI 텍스처로 입힘. 혜성 핵은 ForceField 빛 구슬, 떨어진 별은 Foil 금빛, 결정은 Glass + 조명. 견본은 Workspace.StarfallOrePreview (하늘 진열대 `_OreStage`, (1000, 600, 0)), 확인 후 지워도 됨.
+- 보강 2 (2026-10-22): 모양을 직접 만드는 대신 **그림 자체를 텍스처로** 쓰는 방식으로 바꿈. 그림 실루엣을 부풀린 로우폴리 메시 + SurfaceAppearance(ColorMap = 그림, EmissiveMask = 용암·별 등 밝은 부분). 옆면은 그림 안쪽 무늬 조각을 둘러 입힘. 생성: `tools/blender/build_starfall_from_images.py` → `tools/import_starfall_tex.luau`. 광석마다 오라(입자·ForceField 빛막·Highlight)를 붙임(임시값). 입자가 많으니 광산에 뿌릴 땐 가까운 광석만 켜는 클라이언트 처리가 필요. Tripo 등 이미지→3D 서비스는 무료 플랜에서 내보내기·상업 이용이 막혀 보류.
