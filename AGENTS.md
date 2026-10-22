@@ -54,9 +54,9 @@ docs/        기획서, 결정 기록 (동기화 안 됨)
 
 | 담당 | 기능 | 폴더 |
 |---|---|---|
-| A | 채굴 코어: 광산 생성, 레이어, 채굴 판정, 광물 확률·무게·압력 등급, 광산 카나리아, 곡괭이 제작, 희귀 광물 연출 | `Mining/` |
-| B | 경제·성장: 판매, 상점, 광맥 재생, 리버스, 게임패스·결제, 데이터 저장, 공용 코드 | `Economy/`, `Core/`, `shared/` |
-| C | 소셜·이벤트: 서버 공지, 리더보드, 광맥 붕괴 이벤트, 출석·퀘스트, 튜토리얼, 친구 초대 | `Social/` |
+| A | 채굴 코어: 캐릭터, 채굴 판정·손맛, 곡괭이 성능(파워·속도·강화 효과), 광물 155개 데이터·출현 확률·압력 등급, 광맥 생성·재생, OreSpot·포털, 붕괴 때 통로 막힘, 희귀 광물 연출 | `Mining/` |
+| B | 경제: 인벤토리, 가방, 상점, 곡괭이 제작·강화 비용, 광물 판매가, 가격 밸런스, 광산 카나리아, 리버스, 데이터 저장, 공용 코드 | `Economy/`, `Core/`, `shared/` |
+| C | 이벤트·서비스: 광맥 붕괴 이벤트(타이머·경보·갇힘·탈출 보상), 서버 공지, 게임패스·부스트·결제, 리더보드, 출석·퀘스트, 튜토리얼, 친구 초대 | `Social/` |
 
 - 다른 담당 폴더의 코드를 직접 고치지 마세요. 필요하면 이슈나 PR 코멘트로 요청합니다.
 - 기능끼리는 **`src/shared/Events.luau`의 이벤트로만** 주고받습니다. 이벤트를 추가·변경하면 관련 담당 모두에게 리뷰를 받습니다.
@@ -66,11 +66,20 @@ docs/        기획서, 결정 기록 (동기화 안 됨)
 
 | 이벤트 | 방향 | 담는 정보 |
 |---|---|---|
-| `OreMined` | A → B | 광물 종류, 무게, 압력 등급 |
-| `LegendaryFound` | A → C | 플레이어, 광물, 깊이 |
-| `PickaxeUpgraded` | B → A | 플레이어, 곡괭이 등급 |
-| `CollapseStarted` / `CollapseEnded` | C → A, B | 남은 시간, 탈출 여부 |
-| `BoostPurchased` | B → C | 구매자, 부스트 종류 |
+| `PlayerDataLoaded` | B → 전체 | 플레이어 (저장 데이터 로드 완료) |
+| `OreMined` | A → B, C | 광물 종류, 무게, 압력 등급 |
+| `LegendaryFound` | A → C | 플레이어, 광물, 광산, 깊이 |
+| `StageEntered` | A → C | 플레이어, 광산 |
+| `OreBagged` | B → C | 플레이어, 광물, 확정 가격 (최고 광물 랭킹) |
+| `OreSold` | B → C | 플레이어, 광물, 개수, 판매액 (누적 수입 랭킹) |
+| `HaulSecured` | B → C | 플레이어, 광산, 탈출 수확 가치 (최고 탈출 수확 랭킹) |
+| `PickaxeUpgraded` | B → A, C | 플레이어, 곡괭이 단계, 강화 단계 |
+| `CollapseWarning` | C → A, B | 광산, 붕괴 시각 (경보·카운트다운 시작) |
+| `CollapseOccurred` | C → A, B | 광산 (실제 붕괴) |
+| `PlayerEscaped` / `PlayerTrapped` | C → B | 플레이어, 광산 (탈출 보너스 / 가방 차감) |
+| `QuestCompleted` / `DailyLoginClaimed` | C → B | 플레이어, 보상 |
+
+이벤트가 아닌 조회 함수 (C 제공): `Monetization.HasPass`, `Monetization.GetMultiplier`(패스+부스트 배수, A 채굴 속도·B 판매가), `Collapse.GetRemainingTime`(A 압력 등급). 인자 형식은 `Events.luau` 주석 참고.
 
 ## 보안 규칙 (어기면 PR 반려)
 

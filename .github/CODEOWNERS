@@ -9,16 +9,16 @@
 /AGENTS.md              @leewoojin12 @091012
 /CLAUDE.md              @leewoojin12 @091012
 
-# A · 채굴 코어 — 광산 생성, 채굴 판정, 광물 확률·무게·압력, 카나리아, 곡괭이
+# A · 플레이어 + 광산 + 채굴 — 캐릭터, 채굴 판정, 곡괭이 성능, 광물 확률·무게·압력, 광맥 생성·재생
 /src/server/Mining/     @leewoojin12
 /src/client/Mining/     @leewoojin12
 
-# B · 경제·성장 — 판매, 상점, 광맥 재생, 리버스, 결제, 데이터 저장, 공용 코드
+# B · 경제 — 인벤토리, 상점, 곡괭이 제작·강화 비용, 판매가, 카나리아, 데이터 저장, 공용 코드
 # /src/server/Economy/  @담당자아이디
 # /src/client/Economy/  @담당자아이디
 # /src/server/Core/     @담당자아이디
 # /src/shared/          @담당자아이디
 
-# C · 소셜·이벤트 — 서버 공지, 리더보드, 붕괴 이벤트, 퀘스트, 튜토리얼
+# C · 이벤트·서비스 — 붕괴 이벤트, 서버 공지, 게임패스·부스트·결제, 리더보드, 출석·퀘스트, 튜토리얼
 # /src/server/Social/   @담당자아이디
 # /src/client/Social/   @담당자아이디

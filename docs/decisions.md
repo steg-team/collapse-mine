@@ -86,3 +86,13 @@ AI 에이전트는 구현 전에 이 문서와 `game-design.md`를 읽고, 둘�
 - 영향: `tools/blender/build_starfall_ores.py`, `tools/import_starfall_ores.luau`, `ServerStorage.OreModels.Starfall`. 광산 위치·지층·광물표는 광산을 지을 때 `src/shared/Config/Mines.luau`에 추가. 광석이 Part가 아니라 모델이라 광산 생성기·채굴 판정(`Hitbox` 파트 기준)도 그때 맞춘다. 가치 단위(M, B)는 경제 설계(B 담당)와 맞춰 확정.
 - 보강 (2026-10-22): 참고 이미지(제미나이 그림)에 맞춰 모양을 다시 잡음. 성운석("swirling purple, magenta pink and electric blue cosmic clouds with tiny stars")·별가루 원석("deep navy space stone with scattered tiny white star dots")의 무늬는 Studio AI 텍스처로 입힘. 혜성 핵은 ForceField 빛 구슬, 떨어진 별은 Foil 금빛, 결정은 Glass + 조명. 견본은 Workspace.StarfallOrePreview (하늘 진열대 `_OreStage`, (1000, 600, 0)), 확인 후 지워도 됨.
 - 보강 2 (2026-10-22): 모양을 직접 만드는 대신 **그림 자체를 텍스처로** 쓰는 방식으로 바꿈. 그림 실루엣을 부풀린 로우폴리 메시 + SurfaceAppearance(ColorMap = 그림, EmissiveMask = 용암·별 등 밝은 부분). 옆면은 그림 안쪽 무늬 조각을 둘러 입힘. 생성: `tools/blender/build_starfall_from_images.py` → `tools/import_starfall_tex.luau`. 광석마다 오라(입자·ForceField 빛막·Highlight)를 붙임(임시값). 입자가 많으니 광산에 뿌릴 땐 가까운 광석만 켜는 클라이언트 처리가 필요. Tripo 등 이미지→3D 서비스는 무료 플랜에서 내보내기·상업 이용이 막혀 보류.
+
+## D-011 역할 분담 최신화와 이벤트 계약 정리
+
+- 2026-10-22 / 채택 (팀 리뷰 대기) / C 담당
+- 결정:
+  - 역할 분담을 공유 기획서(Claude 문서) 기준으로 맞춘다. 게임패스·부스트·결제는 B → **C**, 광산 카나리아는 A → **B**, 광맥 재생은 B → **A**, 곡괭이는 성능 A / 비용 B로 나눈다 ("성능은 A, 돈은 B").
+  - 이벤트 계약을 `src/shared/Events.luau` 기준으로 다시 정한다. `CollapseStarted`/`CollapseEnded` → `CollapseWarning`(경보)/`CollapseOccurred`(실제 붕괴) + `PlayerEscaped`/`PlayerTrapped`. `BoostPurchased` 이벤트는 없애고 C의 조회 함수 `Monetization.HasPass`/`GetMultiplier`로 대체. 붕괴까지 남은 시간은 `Collapse.GetRemainingTime`으로 조회.
+  - D-009 랭킹 3종 집계를 위해 B → C 이벤트 `OreBagged`(광물 확정 가격), `OreSold`(판매액), `HaulSecured`(탈출 수확 가치)를 추가. 그 밖에 `PlayerDataLoaded`, `StageEntered`, `QuestCompleted`, `DailyLoginClaimed` 추가.
+- 이유: 레포 문서가 공유 기획서보다 오래된 버전이었다. "일어난 일"은 이벤트로, "지금 상태"(패스 보유, 배수, 남은 시간)는 조회 함수로 나누면 상태를 여러 곳에서 따로 들고 있다가 어긋날 일이 없다. 붕괴는 카운트다운이 끝나는 순간이 곧 붕괴라 시작·종료를 나눌 필요가 없다.
+- 영향: `src/shared/Events.luau`, `AGENTS.md`·`game-design.md` 역할·이벤트 표, `CODEOWNERS` 주석. 실제로 이벤트를 쏘고 받는 이벤트 버스 모듈은 아직 없음(공용 코드, B). `친구 초대`(C)와 `리버스`(B)는 공유 기획서에 담당 표기가 없어 기존대로 둔다.
