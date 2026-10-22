@@ -46,10 +46,11 @@ export type Mine = {
 	bottom: number,
 	layers: { Layer },
 	ores: { Ore },
-	-- 이 등급 광물은 벽 표면에 안 나오고 땅 속에만 묻혀서, 지형을 파야 나온다.
-	-- 서버(OreSpawner)가 켜질 때·붕괴 뒤에 광산 흙 전체(굴 밖 꽉 찬 땅)에 랜덤으로 count개 묻는다.
-	-- regrowDelay = 붕괴 뒤 다시 묻기까지 초
-	buried: { grades: { string }, count: number, regrowDelay: number }?,
+	-- 이 등급 광물은 벽에 미리 박지 않고, 지형을 팔 때마다 확률로 나온다 (판 자리 벽에 드러남).
+	-- chance = 한 번 팔 때 나올 확률. Min은 지표, Max는 광산 바닥에서의 확률이고 깊이에 따라 사이 값.
+	-- 나오는 광물은 그 깊이의 minDepth를 만족하는 것 중 weight로 뽑음
+	digFinds: { grades: { string }, chance: NumberRange }?,
+	oreRegrowDelay: number?, -- 붕괴 뒤 빈 벽 광석 자리를 다시 채우기까지 초
 	-- interval: 붕괴 주기(초) 범위, 매 주기 이 안에서 랜덤 / warning: 경보 길이(초) / offset: 첫 붕괴를 미루는 시간(초), 광산끼리 엇갈리게 (D-013)
 	collapse: { interval: NumberRange, warning: number, offset: number },
 	cave: {
@@ -95,7 +96,8 @@ Mines.list = {
 			{ name = "Lantern", displayName = "광부의 녹슨 등불", grade = "전설", value = 480, weight = 0.5, minDepth = 80, hardness = 4,
 				color = Color3.fromRGB(150, 90, 50), material = Enum.Material.CorrodedMetal, model = "Stage01/Lantern" },
 		},
-		buried = { grades = { "희귀", "에픽", "전설" }, count = 1500, regrowDelay = 5 }, -- 임시값
+		digFinds = { grades = { "희귀", "에픽", "전설" }, chance = NumberRange.new(0.008, 0.025) }, -- 임시값 (곡괭이 0.35초마다 → 깊은 곳에서 대략 15~40초에 하나)
+		oreRegrowDelay = 5, -- 임시값 (초)
 		collapse = { interval = NumberRange.new(480, 720), warning = 60, offset = 0 }, -- 8~12분 랜덤, 임시값 (초)
 		cave = {
 			seed = 7,
