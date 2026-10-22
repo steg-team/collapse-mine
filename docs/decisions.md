@@ -122,3 +122,15 @@ AI 에이전트는 구현 전에 이 문서와 `game-design.md`를 읽고, 둘�
   - "광산 안"은 `Mines.findAt(위치)`로 판정한다 (광산 반경 안, 지표 아래).
 - 이유: 갇힌 사람을 그대로 두면 막힌 통로 안에서 못 나온다. 경보 전에 이미 나간 사람에게 보너스를 주면 "끝까지 버티기"의 의미가 없다.
 - 영향: `src/server/Social/Collapse.luau`, `src/shared/Config/Social.luau`(C 설정 한 파일, 숫자 전부 임시값).
+
+## D-014 플레이어 데이터 저장
+
+- 2026-10-22 / 채택 (팀 리뷰 대기) / B 담당
+- 결정:
+  - 플레이어당 DataStore 키 하나(`Player_<UserId>`)에 모든 저장 데이터를 담는다. 세션 잠금·자동 저장은 ProfileStore(loleris, MIT)를 `src/server/Economy/ProfileStore.luau`로 가져와 쓴다.
+  - 저장 칸: `coins`, `pickaxe`(tier·enhance), `canary`, `rebirths`, `bag`(광물마다 ore·weight·pressure·value, 가방 = 인벤토리), `codex`(도감), `stats`(totalEarned·bestOre·bestHaul), `social`(C 전용 칸, 구조는 C가 정함), 스키마 버전 `v`. 게임패스는 저장하지 않고 매번 조회한다.
+  - 붕괴 경보 중에 광산 안에서 접속을 끊으면 갇힘과 같은 비율로 가방을 차감한다. 평소 접속 끊김은 가방을 그대로 둔다.
+  - `PlayerTrapped`를 받으면 같은 비율로 가방을 차감하고, `PlayerEscaped`를 받으면 보너스 코인을 준다.
+  - 다른 기능은 `PlayerDataLoaded` 이후 `PlayerData.get(player)`로 읽는다. 쓰기는 B가 하고, C는 `social` 칸만 쓴다.
+- 이유: 서버를 옮길 때 데이터가 덮어써지거나 복제되는 것을 막으려면 세션 잠금이 필요하고, 직접 짜면 버그가 곧 데이터 유실이다. 키를 하나로 두면 저장이 한 번에 처리돼 칸끼리 어긋나지 않는다. 경보 중 접속 끊기로 갇힘 차감을 피하는 꼼수를 막되, 평소 튕김에는 손해가 없게 한다.
+- 영향: `src/server/Economy/PlayerData.luau`, `EconomyInit.server.luau`, `src/shared/Config/Economy.luau`(갇힘 차감 비율, 임시값), `Events.luau` 조회 함수 주석. 코인은 당분간 `leaderstats.Coins` 값을 저장한다 (A의 채굴 코드가 직접 더하는 동안). Studio에서 실제로 저장하려면 게임 설정 → 보안 → "Studio에서 API 서비스 사용"을 켠다 (꺼져 있으면 저장 없이 돌아감).
