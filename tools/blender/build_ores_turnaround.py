@@ -102,10 +102,14 @@ def emissive_mask(key, rgb):
     return None
 
 
-def build_turn(key, fn, size=3.0, N=96, voxel=0.04, target=6000, loc=(0, 0, 0), roundness=2.0, side_core=0.0):
+def build_turn(key, fn, size=3.0, N=96, voxel=0.04, target=6000, loc=(0, 0, 0), roundness=2.0, side_core=0.0, side_base=0.0, sheet=0.0):
     """roundness: 높이마다 단면을 (|x|/a)^p + (|y|/b)^p <= 1 로 깎는 지수. 2 = 타원(둥근 물건), 클수록 네모, 0 = 깎지 않음
     side_core: 옆 그림에서 세로로 이만큼(최대 대비 비율) 이상 찬 열만 두께로 씀. 회중시계처럼 옆 그림에
-               바닥에 펼친 뚜껑·늘어진 사슬이 같이 그려져 몸통이 두꺼워지는 걸 막는다. 0 = 끔"""
+               바닥에 펼친 뚜껑·늘어진 사슬이 같이 그려져 몸통이 두꺼워지는 걸 막는다. 0 = 끔
+    side_base: 바닥에서 이 높이(전체 높이 대비)까지는 side_core를 쓰지 않고 옆 그림 전체를 씀.
+               펼친 뚜껑처럼 바닥에 누운 부분을 살려 옆에서 L자가 되게 한다
+    sheet: 0보다 크면 종이처럼 이 두께의 얇은 판 + 양 끝(앞 실루엣 좌우 가장자리)만 말린 원통으로 만든다.
+           옆 그림이 말린 두루마리 단면이라 그대로 쓰면 지도 전체가 두꺼운 상자가 되기 때문"""
     img = bpy.data.images.load(os.path.join(REF, fn), check_existing=True); img.reload()
     W, H = img.size
     px = np.array(img.pixels[:], dtype=np.float32).reshape(H, W, 4)
@@ -117,12 +121,13 @@ def build_turn(key, fn, size=3.0, N=96, voxel=0.04, target=6000, loc=(0, 0, 0), 
         mm = keep_main(mm)
         ys, _ = np.nonzero(mm)
         y0, y1 = ys.min(), ys.max()  # 높이 기준은 자르기 전 전체 (앞 그림과 높이를 맞추려고)
+        _, xs = np.nonzero(mm)
+        core = mm
         if vi == 1 and side_core > 0:
             cov = mm.sum(0)
-            mm[:, cov < side_core * cov.max()] = False
-        _, xs = np.nonzero(mm)
-        views.append((xs.min(), xs.max(), y0, y1, mm))
-    (fx0, fx1, fy0, fy1, fm), (sx0, sx1, sy0, sy1, sm) = views
+            core = mm.copy(); core[:, cov < side_core * cov.max()] = False
+        views.append((xs.min(), xs.max(), y0, y1, mm, core))
+    (fx0, fx1, fy0, fy1, fm, _), (sx0, sx1, sy0, sy1, sm_full, sm_core) = views
     hF, hS = fy1 - fy0, sy1 - sy0
     wx = (fx1 - fx0) * size / hF; wy = (sx1 - sx0) * size / hS
     cell = size / N
@@ -135,8 +140,22 @@ def build_turn(key, fn, size=3.0, N=96, voxel=0.04, target=6000, loc=(0, 0, 0), 
         u = x0 + (t + w / 2) / w * (x1 - x0); v = y0 + z / size * h
         return mask[np.clip(v.astype(int), 0, H - 1), np.clip(u.astype(int), 0, W - 1)]
     X, Z = np.meshgrid(xs, zs, indexing='ij'); Fm = sample(fm, fx0, fx1, fy0, hF, wx, X, Z)
-    Y, Z2 = np.meshgrid(ys_, zs, indexing='ij'); Sm = sample(sm, sx0, sx1, sy0, hS, wy, Y, Z2)
+    Y, Z2 = np.meshgrid(ys_, zs, indexing='ij')
+    Sm = np.where(Z2 < side_base * size, sample(sm_full, sx0, sx1, sy0, hS, wy, Y, Z2), sample(sm_core, sx0, sx1, sy0, hS, wy, Y, Z2))
     occ = Fm[:, None, :] & Sm[None, :, :]
+    if sheet > 0:
+        R = min(wy / 2, 0.35)  # 말린 끝 반지름
+        occ = np.zeros_like(occ)
+        for k in range(N):
+            fx = np.nonzero(Fm[:, k])[0]
+            if len(fx) == 0:
+                continue
+            xl, xr = xs[fx[0]], xs[fx[-1]]
+            thin = np.abs(ys_)[None, :] <= sheet / 2
+            rl = ((xs[:, None] - (xl + R)) ** 2 + ys_[None, :] ** 2) <= R * R
+            rr = ((xs[:, None] - (xr - R)) ** 2 + ys_[None, :] ** 2) <= R * R
+            occ[:, :, k] = Fm[:, None, k] & (thin | rl | rr)
+        roundness = 0
     if roundness > 0:
         # 앞·옆 실루엣만 겹치면 단면이 늘 사각형이라 네모나 보인다 → 높이마다 그 범위에 맞는 타원으로 깎음
         for k in range(N):
@@ -238,13 +257,15 @@ def build_turn(key, fn, size=3.0, N=96, voxel=0.04, target=6000, loc=(0, 0, 0), 
 # 단면 둥글기 (기본 2 = 타원). 각진 결정·납작한 종이는 덜 둥글게
 ROUNDNESS = {"Calcite": 6.0, "Coal": 3.0, "Limestone": 3.0, "Magnetite": 3.0, "WetMap": 0.0}
 SIDE_CORE = {"PocketWatch": 0.55}
+SIDE_BASE = {"PocketWatch": 0.14}  # 바닥에 펼친 뚜껑 높이
+SHEET = {"WetMap": 0.12}  # 종이 두께
 
 
 def build_all(ores=TURN_ORES, fbx="EarlyOresTurn.fbx"):
     os.makedirs(OUT, exist_ok=True)
     obs = []
     for i, (key, fn) in enumerate(ores):
-        obs.append(build_turn(key, fn, loc=(-12.5 + (i % 6) * 5, 60 + (i // 6) * 6, 0), roundness=ROUNDNESS.get(key, 2.0), side_core=SIDE_CORE.get(key, 0.0)))
+        obs.append(build_turn(key, fn, loc=(-12.5 + (i % 6) * 5, 60 + (i // 6) * 6, 0), roundness=ROUNDNESS.get(key, 2.0), side_core=SIDE_CORE.get(key, 0.0), side_base=SIDE_BASE.get(key, 0.0), sheet=SHEET.get(key, 0.0)))
     bpy.ops.object.select_all(action='DESELECT')
     for o in obs:
         o.select_set(True)
