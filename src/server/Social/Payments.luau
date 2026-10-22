@@ -4,19 +4,20 @@
 -- A·B 는 MarketplaceService 를 직접 쓰지 말고 이 모듈만 쓴다. 결제 관련 문제가 생기면 여기 한 곳만 보면 되게.
 --
 --   local Payments = require(game.ServerScriptService.Server.Social.Payments)
---   Payments.HasPass(player, "AutoMine")          --> true / false
---   Payments.GetMultiplier(player, "MineSpeed")   --> 1, 2, ...
+--   Payments.HasPass(player, Social.PassName.AutoMine)               --> true / false
+--   Payments.GetMultiplier(player, Social.MultiplierKind.MineSpeed)  --> 1, 2, ...
 --
--- 패스 목록·가격·배수는 src/shared/Config/Passes.luau
+-- 패스 목록·가격·배수, 패스 이름은 src/shared/Config/Social.luau
 
 local Players = game:GetService("Players")
 local MarketplaceService = game:GetService("MarketplaceService")
 local RunService = game:GetService("RunService")
 local RS = game:GetService("ReplicatedStorage")
 
-local Passes = require(RS:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("Passes"))
+local Social = require(RS:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("Social"))
+local Passes = Social.Passes
 
-export type MultiplierKind = "MineSpeed" | "SellPrice"
+export type MultiplierKind = Social.MultiplierKind
 
 -- 플레이어별 보유 패스 캐시. UserOwnsGamePassAsync 는 느리고 호출 제한이 있어서
 -- 입장할 때 한 번만 묻고, 그 뒤로는 캐시에서 바로 답한다.
@@ -48,8 +49,8 @@ end
 
 -- 게임패스 보유 여부. 입장 직후 조회가 끝나기 전에는 false 가 나올 수 있다.
 function Payments.HasPass(player: Player, passName: string): boolean
-	if Passes[passName] == nil then
-		-- 오타를 조용히 넘기지 않기 위해 경고 (패스 이름은 Config/Passes.luau 참고)
+	if (Passes :: any)[passName] == nil then
+		-- 오타를 조용히 넘기지 않기 위해 경고 (패스 이름은 Config/Social.luau 의 PassName)
 		warn(`[Payments] 없는 패스 이름: {passName}`)
 		return false
 	end
@@ -76,7 +77,7 @@ end
 
 -- 게임 안에서 패스 구매 창 띄우기 (서버에서 호출. 클라이언트 버튼은 나중에 상점/UI 작업 때)
 function Payments.PromptPass(player: Player, passName: string)
-	local pass = Passes[passName]
+	local pass = (Passes :: any)[passName] :: Social.Pass?
 	if not pass or pass.id == 0 then
 		warn(`[Payments] 구매 창을 띄울 수 없는 패스: {passName} (id 미설정)`)
 		return

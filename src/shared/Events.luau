@@ -54,7 +54,7 @@ local Events = {
 	-- ───────── C: 붕괴 ─────────
 
 	-- C → A, B : 붕괴 경보, 카운트다운 시작 (B의 카나리아 불안 연출 등)
-	-- (mineId: string, endsAt: number) -- endsAt = 붕괴 시각 (os.time 기준)
+	-- (mineId: string, endsAt: number) -- endsAt = 붕괴 시각 (workspace:GetServerTimeNow() 기준)
 	CollapseWarning = "CollapseWarning",
 
 	-- C → A, B : 카운트다운 종료, 실제 붕괴 (A는 통로 막힘 + 광맥 재생 타이머 시작)

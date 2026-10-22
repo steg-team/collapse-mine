@@ -5,3 +5,5 @@
 
 local Social = script.Parent
 require(Social:WaitForChild("Payments"))
+-- 붕괴는 require 되는 순간부터 광산별 타이머가 돈다
+require(Social:WaitForChild("Collapse"))
