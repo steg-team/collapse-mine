@@ -45,6 +45,84 @@ local function sparkles(parent, color)
 	pe.Parent = parent
 end
 
+-- 오라 (임시값). 광석 몸통(Hitbox)에 붙는다. 입자는 게임 중 켜고 끌 수 있어서
+-- 나중에 클라이언트에서 가까운 광석만 켜거나 붕괴 때 세게 하는 식으로 조절한다.
+local SMOKE = "rbxasset://textures/particles/smoke_main.dds"
+local FIRE = "rbxasset://textures/particles/fire_main.dds"
+local SPARK = "rbxasset://textures/particles/sparkles_main.dds"
+
+local function emitter(parent, name, props)
+	local pe = Instance.new("ParticleEmitter")
+	pe.Name = name
+	pe.LightEmission = 1
+	pe.LockedToPart = false
+	for k, v in props do pe[k] = v end
+	pe.Parent = parent
+	return pe
+end
+
+local function ns(a, b) return NumberSequence.new({ NumberSequenceKeypoint.new(0, a), NumberSequenceKeypoint.new(1, b) }) end
+local function fade(a) return NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.2, a), NumberSequenceKeypoint.new(1, 1) }) end
+
+local AURA = {
+	Meteor = function(body)
+		emitter(body, "AuraHeat", { Texture = SMOKE, Color = ColorSequence.new(Color3.fromRGB(255, 120, 40), Color3.fromRGB(120, 30, 10)),
+			Size = ns(1.2, 2.4), Transparency = fade(0.75), Lifetime = NumberRange.new(1.2, 2), Rate = 6,
+			Speed = NumberRange.new(0.6, 1.2), SpreadAngle = Vector2.new(25, 25), Acceleration = Vector3.new(0, 1, 0), RotSpeed = NumberRange.new(-30, 30) })
+		emitter(body, "AuraEmbers", { Texture = FIRE, Color = ColorSequence.new(Color3.fromRGB(255, 170, 60)),
+			Size = ns(0.18, 0), Transparency = ns(0, 1), Lifetime = NumberRange.new(0.8, 1.4), Rate = 8,
+			Speed = NumberRange.new(1.5, 3), SpreadAngle = Vector2.new(35, 35), Acceleration = Vector3.new(0, 2, 0) })
+	end,
+	Stardust = function(body)
+		emitter(body, "AuraDust", { Texture = SPARK, Color = ColorSequence.new(Color3.fromRGB(200, 215, 255)),
+			Size = ns(0.25, 0), Transparency = ns(0.1, 1), Lifetime = NumberRange.new(1.5, 2.5), Rate = 10,
+			Speed = NumberRange.new(0.2, 0.5), SpreadAngle = Vector2.new(180, 180), RotSpeed = NumberRange.new(-90, 90) })
+	end,
+	Nebula = function(body)
+		emitter(body, "AuraMist", { Texture = SMOKE, Color = ColorSequence.new(Color3.fromRGB(255, 120, 220), Color3.fromRGB(140, 90, 255)),
+			Size = ns(1.5, 3), Transparency = fade(0.7), Lifetime = NumberRange.new(2, 3), Rate = 4,
+			Speed = NumberRange.new(0.3, 0.6), SpreadAngle = Vector2.new(180, 180), RotSpeed = NumberRange.new(-20, 20), Acceleration = Vector3.new(0, 0.3, 0) })
+	end,
+	Comet = function(body, mesh)
+		-- 일렁이는 빛막: 몸체를 조금 키운 복사본에 ForceField 재질
+		local shell = mesh:Clone()
+		shell.Name = "AuraShell"
+		for _, c in shell:GetChildren() do c:Destroy() end
+		shell.Material = Enum.Material.ForceField
+		shell.Color = Color3.fromRGB(110, 200, 255)
+		shell.Size = mesh.Size * 1.15
+		shell.CFrame = mesh.CFrame
+		shell.CanCollide, shell.CanQuery, shell.CanTouch = false, false, false
+		shell.Parent = mesh.Parent
+		emitter(body, "AuraTail", { Texture = SMOKE, Color = ColorSequence.new(Color3.fromRGB(170, 230, 255)),
+			Size = ns(0.8, 0.2), Transparency = fade(0.6), Lifetime = NumberRange.new(1, 1.6), Rate = 8,
+			Speed = NumberRange.new(1, 1.5), SpreadAngle = Vector2.new(10, 10), EmissionDirection = Enum.NormalId.Left })
+	end,
+	Crystal = function(body)
+		emitter(body, "AuraGlint", { Texture = SPARK, Color = ColorSequence.new(Color3.fromRGB(255, 250, 210)),
+			Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(0.3, 0.9), NumberSequenceKeypoint.new(1, 0) }),
+			Transparency = ns(0, 0.4), Lifetime = NumberRange.new(0.4, 0.6), Rate = 2,
+			Speed = NumberRange.new(0, 0), SpreadAngle = Vector2.new(180, 180), Rotation = NumberRange.new(0, 45) })
+	end,
+	Star = function(body, mesh)
+		emitter(body, "AuraGold", { Texture = SMOKE, Color = ColorSequence.new(Color3.fromRGB(255, 220, 110), Color3.fromRGB(255, 160, 40)),
+			Size = ns(1.4, 2.8), Transparency = fade(0.7), Lifetime = NumberRange.new(1.5, 2.5), Rate = 6,
+			Speed = NumberRange.new(0.5, 1), SpreadAngle = Vector2.new(30, 30), Acceleration = Vector3.new(0, 0.8, 0), RotSpeed = NumberRange.new(-30, 30) })
+		emitter(body, "AuraRays", { Texture = SPARK, Color = ColorSequence.new(Color3.fromRGB(255, 235, 150)),
+			Size = ns(0.3, 0), Transparency = ns(0, 1), Lifetime = NumberRange.new(1, 2), Rate = 10,
+			Speed = NumberRange.new(0.5, 1.5), SpreadAngle = Vector2.new(180, 180) })
+		-- 가장 희귀한 광석이라 외곽선으로 멀리서도 보이게
+		local hl = Instance.new("Highlight")
+		hl.Name = "AuraOutline"
+		hl.FillTransparency = 1
+		hl.OutlineColor = Color3.fromRGB(255, 215, 90)
+		hl.OutlineTransparency = 0.2
+		hl.DepthMode = Enum.HighlightDepthMode.Occluded
+		hl.Adornee = mesh.Parent
+		hl.Parent = mesh.Parent
+	end,
+}
+
 local imported = assert(workspace:FindFirstChild("StarfallOresTex"), "Workspace에 StarfallOresTex 모델이 없음 (FBX 가져오기 먼저)")
 local rec = CHS:TryBeginRecording("ImportStarfallTex")
 
@@ -100,6 +178,7 @@ for i, key in ipairs(ORDER) do
 		l.Color, l.Range, l.Brightness = t.light, 10, 1.5
 		l.Parent = body
 		if t.sparkle then sparkles(body, t.sparkle) end
+		if AURA[key] then AURA[key](body, mp) end
 		m:PivotTo(CFrame.new())
 
 		local old = folder:FindFirstChild(key)
