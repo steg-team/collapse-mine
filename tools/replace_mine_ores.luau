@@ -124,6 +124,15 @@ for i, spot in spots do
 		if tpl then
 			local m = tpl:Clone()
 			m:ScaleTo(rng:NextNumber(1.1, 1.5))
+			-- 비싼 광물은 벽 속에 묻는다 (generate_mine의 placeOre와 같은 규칙)
+			if M.buried and table.find(M.buried.grades, o.grade) then
+				local _, size = m:GetBoundingBox()
+				cf = cf - up * (size.Y + rng:NextNumber(M.buried.extra.Min, M.buried.extra.Max))
+				m:SetAttribute("Buried", true)
+				for _, d in m:GetDescendants() do
+					if d:IsA("Highlight") then d.DepthMode = Enum.HighlightDepthMode.Occluded end
+				end
+			end
 			m:PivotTo(cf)
 			for _, d in m:GetDescendants() do
 				if d:IsA("BasePart") then d.Anchored = true end
