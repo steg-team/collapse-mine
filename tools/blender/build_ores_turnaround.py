@@ -102,7 +102,8 @@ def emissive_mask(key, rgb):
     return None
 
 
-def build_turn(key, fn, size=3.0, N=96, voxel=0.04, target=6000, loc=(0, 0, 0)):
+def build_turn(key, fn, size=3.0, N=96, voxel=0.04, target=6000, loc=(0, 0, 0), roundness=2.0):
+    """roundness: 높이마다 단면을 (|x|/a)^p + (|y|/b)^p <= 1 로 깎는 지수. 2 = 타원(둥근 물건), 클수록 네모, 0 = 깎지 않음"""
     img = bpy.data.images.load(os.path.join(REF, fn), check_existing=True); img.reload()
     W, H = img.size
     px = np.array(img.pixels[:], dtype=np.float32).reshape(H, W, 4)
@@ -129,6 +130,16 @@ def build_turn(key, fn, size=3.0, N=96, voxel=0.04, target=6000, loc=(0, 0, 0)):
     X, Z = np.meshgrid(xs, zs, indexing='ij'); Fm = sample(fm, fx0, fx1, fy0, hF, wx, X, Z)
     Y, Z2 = np.meshgrid(ys_, zs, indexing='ij'); Sm = sample(sm, sx0, sx1, sy0, hS, wy, Y, Z2)
     occ = Fm[:, None, :] & Sm[None, :, :]
+    if roundness > 0:
+        # 앞·옆 실루엣만 겹치면 단면이 늘 사각형이라 네모나 보인다 → 높이마다 그 범위에 맞는 타원으로 깎음
+        for k in range(N):
+            fx = np.nonzero(Fm[:, k])[0]; sy = np.nonzero(Sm[:, k])[0]
+            if len(fx) == 0 or len(sy) == 0:
+                continue
+            cxk = (xs[fx[0]] + xs[fx[-1]]) / 2; ax = (xs[fx[-1]] - xs[fx[0]]) / 2 + cell
+            cyk = (ys_[sy[0]] + ys_[sy[-1]]) / 2; ay = (ys_[sy[-1]] - ys_[sy[0]]) / 2 + cell
+            ell = (np.abs(xs[:, None] - cxk) / ax) ** roundness + (np.abs(ys_[None, :] - cyk) / ay) ** roundness <= 1.0
+            occ[:, :, k] &= ell
 
     bm = bmesh.new(); vmap = {}
 
@@ -217,11 +228,15 @@ def build_turn(key, fn, size=3.0, N=96, voxel=0.04, target=6000, loc=(0, 0, 0)):
     return ob
 
 
+# 단면 둥글기 (기본 2 = 타원). 각진 결정·납작한 종이는 덜 둥글게
+ROUNDNESS = {"Calcite": 6.0, "Coal": 3.0, "Limestone": 3.0, "Magnetite": 3.0, "WetMap": 0.0}
+
+
 def build_all(ores=TURN_ORES, fbx="EarlyOresTurn.fbx"):
     os.makedirs(OUT, exist_ok=True)
     obs = []
     for i, (key, fn) in enumerate(ores):
-        obs.append(build_turn(key, fn, loc=(-12.5 + (i % 6) * 5, 60 + (i // 6) * 6, 0)))
+        obs.append(build_turn(key, fn, loc=(-12.5 + (i % 6) * 5, 60 + (i // 6) * 6, 0), roundness=ROUNDNESS.get(key, 2.0)))
     bpy.ops.object.select_all(action='DESELECT')
     for o in obs:
         o.select_set(True)
