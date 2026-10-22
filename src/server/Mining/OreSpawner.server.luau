@@ -208,10 +208,11 @@ for _, m in Mines.list do
 	task.spawn(setup, m)
 end
 
--- 붕괴 뒤 광맥 재생 (Events.luau: CollapseOccurred(stageId) — A는 광맥 재생 타이머 시작)
-EventBus.On(Events.CollapseOccurred, function(stageId: number)
+-- 붕괴 뒤 광맥 재생 (Events.luau: CollapseOccurred(mineId) — A는 광맥 재생 타이머 시작)
+-- 계약이 stageId(번호) → mineId(문자열)로 바뀌는 중이라 둘 다 받는다
+EventBus.On(Events.CollapseOccurred, function(which: string | number)
 	for _, f in fields do
-		if f.mine.order == stageId then
+		if f.mine.id == which or f.mine.order == which then
 			task.delay(if f.mine.buried then f.mine.buried.regrowDelay else 5, function()
 				reburyAll(f)
 				refillWalls(f)

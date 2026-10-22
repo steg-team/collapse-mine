@@ -92,10 +92,10 @@ ev.OnServerEvent:Connect(function(plr, target, hitPos)
 			plr.leaderstats.Coins.Value += ore:GetAttribute("OreValue") or 0
 			if LEGENDARY_GRADES[ore:GetAttribute("Grade")] then
 				local mine = Mines.findAt(orePos)
-				local stageId = mine and mine.order or 0
+				local mineId = mine and mine.id or (ore:GetAttribute("MineId") or "")
 				local depth = mine and math.max(0, math.floor(mine.top - orePos.Y)) or 0
-				-- (player, oreId, stageId, depth) — Events.luau 계약
-				EventBus.Fire(Events.LegendaryFound, plr, ore:GetAttribute("Ore") or ore.Name, stageId, depth)
+				-- (player, oreId, mineId: string, depth) — Events.luau 계약 (PR #6에서 stageId → mineId)
+				EventBus.Fire(Events.LegendaryFound, plr, ore:GetAttribute("Ore") or ore.Name, mineId, depth)
 			end
 			ore:Destroy()
 		else
