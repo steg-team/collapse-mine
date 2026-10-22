@@ -3,14 +3,12 @@
 
 # 기본 담당자는 두지 않음: 위 목록에 안 걸리는 파일(tools/, README 등)은 자동 리뷰 요청 없이 직접 지정
 
-# 기획 문서 — 3명 모두 리뷰
-/docs/                  @leewoojin12 @0-9-10-12 @ssyy3034
-/AGENTS.md              @leewoojin12 @0-9-10-12 @ssyy3034
-/CLAUDE.md              @leewoojin12 @0-9-10-12 @ssyy3034
+# 기획 문서 — B·C 자동 리뷰 (A는 자동 요청 받지 않음)
+/docs/                  @0-9-10-12 @ssyy3034
+/AGENTS.md              @0-9-10-12 @ssyy3034
+/CLAUDE.md              @0-9-10-12 @ssyy3034
 
-# A · 플레이어 + 광산 + 채굴 — 캐릭터, 채굴 판정, 곡괭이 성능, 광물 확률·무게·압력, 광맥 생성·재생
-/src/server/Mining/     @leewoojin12
-/src/client/Mining/     @leewoojin12
+# A · 플레이어 + 광산 + 채굴 (Mining/) — 자동 리뷰 요청 받지 않음 (이우진 요청). A에게 리뷰 받을 땐 직접 지정
 
 # B · 경제 — 인벤토리, 상점, 곡괭이 제작·강화 비용, 판매가, 카나리아, 데이터 저장
 /src/server/Economy/    @ssyy3034
@@ -20,6 +18,6 @@
 /src/server/Social/     @0-9-10-12
 /src/client/Social/     @0-9-10-12
 
-# 공통 기반 (0단계) — 고칠 때 3명 모두 리뷰
-/src/server/Core/       @leewoojin12 @0-9-10-12 @ssyy3034
-/src/shared/            @leewoojin12 @0-9-10-12 @ssyy3034
+# 공통 기반 (0단계) — B·C 자동 리뷰 (A는 자동 요청 받지 않음)
+/src/server/Core/       @0-9-10-12 @ssyy3034
+/src/shared/            @0-9-10-12 @ssyy3034
