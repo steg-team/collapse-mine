@@ -3,10 +3,12 @@
 
 - 운석 파편: 불규칙한 돌판 사이로 용암 핵이 비침
 - 별가루 원석: 짙은 남색 덩어리에 빛 알갱이가 박힘
-- 성운석: 보라 돌에 분홍·파랑 소용돌이 띠 + 빛 알갱이
-- 혜성 핵: 각진 얼음 덩어리와 가시 + 빛 고리 2겹
-- 별빛 결정: 어두운 바위 받침 위 결정 다발
-- 떨어진 별: 두툼한 보석형 별이 바위 더미에 비스듬히 박힘
+- 성운석: 매끈한 둥근 돌 (은하 소용돌이 무늬는 Roblox AI 텍스처로)
+- 혜성 핵: 각진 얼음 덩어리와 가시 + 감싸는 빛 구슬 (Roblox ForceField)
+- 별빛 결정: 분홍빛 받침 위 결정 다발
+- 떨어진 별: 통통하고 울퉁불퉁한 금빛 별
+
+참고 이미지(제미나이 그림)에 맞춰 모양을 잡았다. 무늬가 필요한 메시는 UV를 펼쳐 내보낸다.
 
 오브젝트 이름은 SF_<광석>_<재질>. 재질별로 따로 두어야 Roblox에서 빛나는 부분만 Neon으로 바꿀 수 있다.
 빛·반짝임은 Roblox에서 입힌다 (tools/import_starfall_ores.luau).
@@ -19,7 +21,7 @@ PAL = {
     "MeteorRock": (0.16, 0.11, 0.09), "MeteorLava": (1.0, 0.35, 0.05),
     "StardustRock": (0.06, 0.08, 0.22), "StardustSpeck": (1.0, 0.95, 0.75),
     "NebulaBase": (0.28, 0.10, 0.45), "NebulaPink": (0.95, 0.35, 0.80), "NebulaBlue": (0.30, 0.45, 0.95),
-    "CometIce": (0.70, 0.88, 1.0), "CometGlow": (0.45, 0.80, 1.0),
+    "CometIce": (0.70, 0.88, 1.0), "CometAura": (0.45, 0.80, 1.0), "NebulaSwirl": (0.45, 0.20, 0.65), "CrystalGlow": (1.0, 0.70, 0.85),
     "CrystalShard": (1.0, 0.95, 0.60), "CrystalBase": (0.22, 0.20, 0.26),
     "StarGold": (1.0, 0.78, 0.15), "StarCore": (1.0, 0.95, 0.55), "StarRock": (0.20, 0.17, 0.15),
 }
@@ -147,7 +149,7 @@ def specks(ore, mat, pts, rnd, rmin, rmax, loc):
     return emit(bm, ore, mat, loc)
 
 
-def torus_bm(R, r, rot, segs=28, ms=4):
+def _unused_torus_bm(R, r, rot, segs=28, ms=4):
     t = bmesh.new()
     rings = []
     for i in range(segs):
@@ -174,34 +176,15 @@ def build():
     blob("Meteor", "MeteorLava", 1.22, 2, 0.02, 1.5, 3, (-10, 0, 1.3), squash=SQ)
     cell_shell("Meteor", "MeteorRock", 1.38, 1, 0.87, 0.3, 0.12, 8, (-10, 0, 1.3), squash=SQ)
 
-    # 2) 별가루 원석
-    SQ = (1.1, 1.0, 0.95)
-    bm = ico(1.2, 2); lumpy(bm, 0.18, 1.3 / 1.2, 7); transformed(bm, scale=SQ)
+    # 2) 별가루 원석 (둥글고 매끈하게, 무늬는 AI 텍스처) + 표면 빛 알갱이
+    SQ = (1.08, 1.0, 0.95)
+    bm = ico(1.2, 3); lumpy(bm, 0.1, 0.9, 7); transformed(bm, scale=SQ)
     emit(bm, "Stardust", "StardustRock", (-6, 0, 1.2))
-    specks("Stardust", "StardustSpeck", surface_points(1.2, 0.18, 1.3 / 1.2, 7, 38, rnd, SQ), rnd, 0.05, 0.13, (-6, 0, 1.2))
+    specks("Stardust", "StardustSpeck", surface_points(1.2, 0.1, 0.9, 7, 45, rnd, SQ, zmin=-0.5), rnd, 0.04, 0.1, (-6, 0, 1.2))
 
-    # 3) 성운석: 면마다 띠 재질을 정한 뒤 재질별로 분리
-    bm = ico(1.25, 3); lumpy(bm, 0.12, 1.0, 13); transformed(bm, scale=(1.0, 0.95, 1.08))
-    me = bpy.data.meshes.new("SF_Nebula_tmp"); bm.to_mesh(me); bm.free()
-    for k in ("NebulaBase", "NebulaPink", "NebulaBlue"):
-        me.materials.append(bpy.data.materials["SF_" + k])
-    for p in me.polygons:
-        cc = p.center
-        f = math.sin(math.atan2(cc.y, cc.x) * 2 + cc.z * 2.6 + noise.noise(cc * 1.4) * 2.2)
-        p.material_index = 1 if f > 0.55 else (2 if f < -0.6 else 0)
-        p.use_smooth = False
-    ob = bpy.data.objects.new("SF_Nebula_tmp", me); c.objects.link(ob); ob.location = (-2, 0, 1.3)
-    bpy.ops.object.select_all(action='DESELECT'); ob.select_set(True); bpy.context.view_layer.objects.active = ob
-    bpy.ops.object.mode_set(mode='EDIT'); bpy.ops.mesh.select_all(action='SELECT')
-    bpy.ops.mesh.separate(type='MATERIAL'); bpy.ops.object.mode_set(mode='OBJECT')
-    for o in list(c.objects):
-        if o.name.startswith("SF_Nebula_tmp"):
-            m = o.data.materials[o.data.polygons[0].material_index].name
-            o.data.materials.clear(); o.data.materials.append(bpy.data.materials[m])
-            for p in o.data.polygons:
-                p.material_index = 0
-            o.name = o.data.name = "SF_Nebula_" + m[3:]
-    specks("Nebula", "StardustSpeck", surface_points(1.25, 0.12, 1.0, 13, 22, rnd, (1.0, 0.95, 1.08)), rnd, 0.04, 0.09, (-2, 0, 1.3))
+    # 3) 성운석
+    bm = ico(1.25, 3); lumpy(bm, 0.14, 0.9, 13); transformed(bm, scale=(1.0, 0.92, 1.1), rot=(0, 18, 0))
+    emit(bm, "Nebula", "NebulaSwirl", (-2, 0, 1.35))
 
     # 4) 혜성 핵
     bm = ico(1.05, 1); lumpy(bm, 0.28, 1.2, 31)
@@ -209,14 +192,11 @@ def build():
         d = Vector((rnd.gauss(0, 1), rnd.gauss(0, 1), abs(rnd.gauss(0, 1)) * 0.6)).normalized()
         shard(bm, d * 0.7, d, rnd.uniform(0.8, 1.3), rnd.uniform(0.18, 0.28), sides=5, tip=0.45)
     emit(bm, "Comet", "CometIce", (2, 0, 1.3))
-    bm = bmesh.new()
-    for R, rot in ((1.75, (70, 15, 0)), (1.95, (-60, -25, 30))):
-        add_into(bm, torus_bm(R, 0.06, rot))
-    emit(bm, "Comet", "CometGlow", (2, 0, 1.3))
+    emit(ico(1.55, 3), "Comet", "CometAura", (2, 0, 1.3))
 
     # 5) 별빛 결정
-    bm = ico(1.0, 1); lumpy(bm, 0.25, 1.5, 41); transformed(bm, scale=(1.35, 1.15, 0.45))
-    emit(bm, "Crystal", "CrystalBase", (6, 0, 0.35))
+    bm = ico(1.0, 2); lumpy(bm, 0.2, 1.5, 41); transformed(bm, scale=(1.1, 0.95, 0.4))
+    emit(bm, "Crystal", "CrystalGlow", (6, 0, 0.3))
     bm = bmesh.new()
     shard(bm, (0, 0, 0.2), (0.05, 0.02, 1), 2.9, 0.38, sides=6, tip=0.3)
     for i in range(8):
@@ -226,9 +206,9 @@ def build():
               rnd.uniform(1.0, 2.1), rnd.uniform(0.16, 0.28), sides=6, tip=0.32)
     emit(bm, "Crystal", "CrystalShard", (6, 0, 0.35))
 
-    # 6) 떨어진 별
+    # 6) 떨어진 별: 두툼한 별을 한 번 쪼개고 울퉁불퉁하게
     bm = bmesh.new()
-    n, ro, ri, th, bulge = 5, 1.35, 0.62, 0.42, 0.5
+    n, ro, ri, th, bulge = 5, 1.35, 0.72, 0.9, 0.55
     front, back = [], []
     for i in range(n * 2):
         a = i * math.pi / n + math.pi / 2
@@ -241,17 +221,11 @@ def build():
         bm.faces.new((fc, front[j], front[i])); bm.faces.new((bc, back[i], back[j]))
         bm.faces.new((front[i], front[j], back[j], back[i]))
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
-    transformed(bm, rot=(-18, 12, 8))
-    emit(bm, "Star", "StarGold", (10, 0, 1.55))
-    emit(ico(0.32, 1), "Star", "StarCore", (10, -0.45, 1.55))
-    bm = bmesh.new()
-    for i in range(9):
-        a = i * 2 * math.pi / 9
-        r = ico(rnd.uniform(0.28, 0.5), 0)
-        transformed(r, loc=(math.cos(a) * 1.05, math.sin(a) * 0.75, 0.15), rot=(rnd.uniform(0, 60), rnd.uniform(0, 60), rnd.uniform(0, 90)), scale=(1.2, 1, 0.8))
-        add_into(bm, r)
-    emit(bm, "Star", "StarRock", (10, 0, 0.0))
-
+    bmesh.ops.subdivide_edges(bm, edges=bm.edges[:], cuts=1, use_grid_fill=True)
+    for v in bm.verts:
+        v.co *= 1 + 0.07 * noise.noise(v.co * 2.3 + Vector((5, 1, 2)))
+    transformed(bm, rot=(-12, 0, 10))
+    emit(bm, "Star", "StarGold", (10, 0, 1.45))
 
 def export():
     c = coll()
@@ -263,6 +237,14 @@ def export():
     bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
     bpy.context.scene.cursor.location = (0, 0, 0)
     bpy.ops.object.origin_set(type='ORIGIN_CURSOR')
+    for o in obs:  # Roblox AI 텍스처가 무늬를 입힐 수 있게 UV 펼침
+        bpy.ops.object.select_all(action='DESELECT'); o.select_set(True); bpy.context.view_layer.objects.active = o
+        bpy.ops.object.mode_set(mode='EDIT'); bpy.ops.mesh.select_all(action='SELECT')
+        bpy.ops.uv.smart_project(angle_limit=1.15, island_margin=0.02)
+        bpy.ops.object.mode_set(mode='OBJECT')
+    bpy.ops.object.select_all(action='DESELECT')
+    for o in obs:
+        o.select_set(True)
     path = os.path.join(os.path.expanduser("~"), "Downloads", "CollapseMine", "StarfallOres.fbx")
     os.makedirs(os.path.dirname(path), exist_ok=True)
     bpy.ops.export_scene.fbx(filepath=path, use_selection=True, object_types={'MESH'}, apply_unit_scale=True,

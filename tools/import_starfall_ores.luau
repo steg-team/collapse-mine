@@ -5,6 +5,7 @@
 	1) 블렌더에서 tools/blender/build_starfall_ores.py 실행 → ~/Downloads/CollapseMine/StarfallOres.fbx
 	2) Studio 가져오기(Ctrl+M)로 가져옴. Workspace에 StarfallOres 모델이 생김
 	3) 이 스크립트 실행 → ServerStorage.OreModels.Starfall.<광석> 모델 6개
+	4) 무늬: 견본의 StardustRock·NebulaSwirl·MeteorRock에 Studio AI 텍스처(generate_texture)를 입히고 견본을 틀로 다시 복사
 	   (SHOW_PREVIEW = true면 허브 광장 앞에 견본을 한 줄로 세워 보여 줌)
 
 	MeshPart 이름 규칙: SF_<광석>_<재질>. 빛·반짝임은 블렌더에서 안 넘어오니 여기서 Neon·PointLight·ParticleEmitter로 입힌다.
@@ -31,18 +32,14 @@ local ORES = {
 local LOOK = {
 	MeteorRock = { Color3.fromRGB(52, 40, 34), Enum.Material.Basalt, 0 },
 	MeteorLava = { Color3.fromRGB(255, 110, 30), Enum.Material.Neon, 0 },
-	StardustRock = { Color3.fromRGB(26, 32, 70), Enum.Material.Slate, 0 },
+	StardustRock = { Color3.fromRGB(26, 32, 70), Enum.Material.SmoothPlastic, 0 },
 	StardustSpeck = { Color3.fromRGB(255, 245, 210), Enum.Material.Neon, 0 },
-	NebulaBase = { Color3.fromRGB(80, 34, 120), Enum.Material.Glass, 0 },
-	NebulaPink = { Color3.fromRGB(250, 110, 210), Enum.Material.Neon, 0 },
-	NebulaBlue = { Color3.fromRGB(90, 130, 255), Enum.Material.Neon, 0 },
-	CometIce = { Color3.fromRGB(190, 230, 255), Enum.Material.Ice, 0 },
-	CometGlow = { Color3.fromRGB(120, 210, 255), Enum.Material.Neon, 0.35 },
-	CrystalShard = { Color3.fromRGB(255, 240, 150), Enum.Material.Neon, 0 },
-	CrystalBase = { Color3.fromRGB(56, 52, 66), Enum.Material.Slate, 0 },
-	StarGold = { Color3.fromRGB(255, 200, 50), Enum.Material.Foil, 0 },
-	StarCore = { Color3.fromRGB(255, 245, 170), Enum.Material.Neon, 0 },
-	StarRock = { Color3.fromRGB(50, 44, 40), Enum.Material.Basalt, 0 },
+	NebulaSwirl = { Color3.fromRGB(150, 80, 200), Enum.Material.SmoothPlastic, 0 },
+	CometIce = { Color3.fromRGB(200, 235, 255), Enum.Material.Glacier, 0 },
+	CometAura = { Color3.fromRGB(110, 200, 255), Enum.Material.ForceField, 0 }, -- 일렁이는 빛 구슬
+	CrystalShard = { Color3.fromRGB(255, 245, 170), Enum.Material.Neon, 0 },
+	CrystalGlow = { Color3.fromRGB(255, 170, 215), Enum.Material.Neon, 0.2 },
+	StarGold = { Color3.fromRGB(255, 190, 40), Enum.Material.Neon, 0 },
 }
 
 -- 광석별 빛과 반짝임
