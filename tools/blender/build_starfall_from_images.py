@@ -63,7 +63,7 @@ def largest_island(g):
     return lab == max(sizes, key=sizes.get) if sizes else g
 
 
-def inflate(name, ore, color_img, size=3.0, N=64, depth=0.42, back=0.85):
+def inflate(name, ore, color_img, size=3.0, N=64, depth=0.42, back=0.85, rim_smooth=3):
     _, px = load(name)
     H, W = px.shape[:2]
     m = fg_mask(px)
@@ -110,6 +110,10 @@ def inflate(name, ore, color_img, size=3.0, N=64, depth=0.42, back=0.85):
                 for lp, k in zip(b.loops, q):
                     lp[uvl].uv = uv(*k)
     bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-4)
+    # 격자로 뜬 실루엣은 테두리가 계단이라 Roblox에서 빗살 무늬가 생긴다 → 테두리 선만 살짝 둥글게
+    rim = [v for v in bm.verts if abs(v.co.y) < 1e-6]
+    for _ in range(rim_smooth):
+        bmesh.ops.smooth_vert(bm, verts=rim, factor=0.5, use_axis_x=True, use_axis_y=False, use_axis_z=True)
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     me = bpy.data.meshes.new(ore); bm.to_mesh(me); bm.free()
     ob = bpy.data.objects.new(ore, me)
