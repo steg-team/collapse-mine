@@ -7,6 +7,7 @@
 	- 이벤트 = "방금 이런 일이 일어났다" 알림. 이름은 대상 + 과거형 동사 (PascalCase).
 	- "지금 상태가 어때?"는 이벤트가 아니라 담당 모듈의 조회 함수로 묻는다 (맨 아래 참고).
 	- 인자는 아래 주석의 순서 그대로 넘긴다. 플레이어 대상 이벤트는 첫 인자가 player.
+	- mineId 는 Config/Mines.luau 의 광산 id (예: "basic").
 	- 서버 내부 이벤트만 여기 둔다. 클라이언트 UI용 Remote는 각 담당 폴더에서 관리.
 ]]
 
@@ -24,11 +25,11 @@ local Events = {
 	OreMined = "OreMined",
 
 	-- A → C : 전설 이상 광물 발견 (C가 서버 전체 공지)
-	-- (player, oreId: string, stageId: number, depth: number)
+	-- (player, oreId: string, mineId: string, depth: number)
 	LegendaryFound = "LegendaryFound",
 
 	-- A → C : 광산 입장 완료 (C의 튜토리얼·퀘스트)
-	-- (player, stageId: number)
+	-- (player, mineId: string)
 	StageEntered = "StageEntered",
 
 	-- ───────── B: 경제 ─────────
@@ -43,7 +44,7 @@ local Events = {
 
 	-- B → C : 탈출로 수확 확정 (C의 "최고 탈출 수확" 랭킹, D-009)
 	-- PlayerEscaped를 받은 B가 가방 가치를 계산해서 쏜다.
-	-- (player, stageId: number, haulValue: number)
+	-- (player, mineId: string, haulValue: number)
 	HaulSecured = "HaulSecured",
 
 	-- B → A, C : 곡괭이 구매·강화 (A는 성능 갱신, C는 퀘스트·튜토리얼)
@@ -53,20 +54,20 @@ local Events = {
 	-- ───────── C: 붕괴 ─────────
 
 	-- C → A, B : 붕괴 경보, 카운트다운 시작 (B의 카나리아 불안 연출 등)
-	-- (stageId: number, endsAt: number) -- endsAt = 붕괴 시각 (os.time 기준)
+	-- (mineId: string, endsAt: number) -- endsAt = 붕괴 시각 (workspace:GetServerTimeNow() 기준)
 	CollapseWarning = "CollapseWarning",
 
 	-- C → A, B : 카운트다운 종료, 실제 붕괴 (A는 통로 막힘 + 광맥 재생 타이머 시작)
 	-- 직후 C가 플레이어별로 PlayerEscaped / PlayerTrapped 를 쏜다.
-	-- (stageId: number)
+	-- (mineId: string)
 	CollapseOccurred = "CollapseOccurred",
 
 	-- C → B : 붕괴 전에 탈출 성공 (B는 수확 확정 후 HaulSecured, 탈출 보너스 지급)
-	-- (player, stageId: number, bonus: number)
+	-- (player, mineId: string, bonus: number)
 	PlayerEscaped = "PlayerEscaped",
 
 	-- C → B : 붕괴 때 갇힘 (B는 가방 일부 차감, 비율은 B가 결정)
-	-- (player, stageId: number)
+	-- (player, mineId: string)
 	PlayerTrapped = "PlayerTrapped",
 
 	-- ───────── C: 서비스 ─────────
@@ -83,14 +84,14 @@ local Events = {
 --[[
 	이벤트가 아닌 조회 함수 (C 제공) — "지금 상태"가 필요할 때 직접 호출
 
-	Monetization.HasPass(player, passName: string) -> boolean
+	Payments.HasPass(player, passName: string) -> boolean
 		게임패스 보유 여부. 입장 시 캐시, 게임 중 구매 시 갱신되므로 매번 호출해도 됨.
 
-	Monetization.GetMultiplier(player, kind: "MineSpeed" | "SellPrice") -> number
+	Payments.GetMultiplier(player, kind: "MineSpeed" | "SellPrice") -> number
 		패스 + 부스트를 합친 최종 배수. 부스트가 만료되면 자동으로 1.
 		A는 채굴 속도, B는 판매가 계산할 때 호출. (예전 BoostPurchased 이벤트 대체)
 
-	Collapse.GetRemainingTime(stageId: number) -> number?
+	Collapse.GetRemainingTime(mineId: string) -> number?
 		붕괴까지 남은 초. 경보 중이 아니면 nil. A가 압력 등급 계산에 사용.
 ]]
 
