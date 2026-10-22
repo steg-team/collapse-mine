@@ -7,8 +7,9 @@
 - ~/Downloads/CollapseMine/tex/SF_<광석>_Emissive.png 빛 마스크 (흰색만 빛남. 광석별 규칙은 emissive_mask)
 - ~/Downloads/CollapseMine/StarfallOresTex.fbx        메시 6개 (SFT_<광석>, 탄젠트 포함)
 
-메시: 그림 실루엣을 격자로 떠서 앞뒤로 둥글게 부풀림. UV = 그림 좌표라 앞·대각선에서 보면 그림 그대로다.
-한계: 정확히 옆에서 보면 무늬가 늘어나 보인다.
+메시: 그림 실루엣을 격자로 떠서 앞뒤로 둥글게 부풀림. 앞뒤를 보는 면은 UV = 그림 좌표라 그림 그대로 보이고,
+옆·위·아래를 보는 면은 side_uv가 광석 안쪽 무늬 조각을 둘러 입혀 늘어난 줄무늬를 없앤다 (텍스처는 그대로, UV만 다름).
+한계: 옆면 무늬는 그림 조각의 거울 반복이라 앞면과 경계에서 살짝 이어지지 않는다.
 """
 import bpy, bmesh, os
 import numpy as np
@@ -127,6 +128,43 @@ def inflate(name, ore, color_img, size=3.0, N=64, depth=0.42, back=0.85):
     return ob
 
 
+def _pingpong(p, L):
+    t = p % (2 * L)
+    return t if t <= L else 2 * L - t
+
+
+def side_uv(ob, fn, size=3.0, ratio=1.8):
+    """옆·위·아래를 보는 면은 그림을 늘리는 대신 광석 안쪽 무늬 조각을 둘러 입힌다.
+    둘레 방향(각도)·두께 방향으로 거울 반복(ping-pong)이라 이음새 없이 이어지고, 무늬 크기는 앞면과 같다."""
+    import math
+    _, px = load(fn)
+    H, W = px.shape[:2]
+    m = fg_mask(px)
+    ys, xs = np.nonzero(m)
+    span = max(xs.max() - xs.min(), ys.max() - ys.min())
+    d = dist_inside(m, iters=300)
+    py, pxx = np.unravel_index(np.argmax(d), d.shape)
+    L = 2 * min(d.max() * 0.7, span * 0.22)  # 무늬 조각 한 변(px): 실루엣 안쪽에서 가장 넓은 곳
+    dens = span / size
+    R = size * 0.4
+    bm = bmesh.new(); bm.from_mesh(ob.data)
+    uvl = bm.loops.layers.uv.active
+    for f in bm.faces:
+        f.smooth = True
+        n = f.normal
+        if abs(n.y) >= max(abs(n.x), abs(n.z)) * ratio:
+            continue  # 앞·뒤를 보는 면은 그림 그대로
+        c = f.calc_center_median(); th0 = math.atan2(c.z, c.x)
+        for lp in f.loops:
+            co = lp.vert.co; th = math.atan2(co.z, co.x)
+            if th - th0 > math.pi: th -= 2 * math.pi
+            elif th0 - th > math.pi: th += 2 * math.pi
+            u = pxx - L / 2 + _pingpong(th * R * dens + 10 * L, L)
+            v = py - L / 2 + _pingpong(co.y * dens + 10 * L, L)
+            lp[uvl].uv = (u / W, v / H)
+    bm.to_mesh(ob.data); bm.free()
+
+
 def save(name, arr):
     h, w = arr.shape[:2]
     im = bpy.data.images.get(name) or bpy.data.images.new(name, w, h, alpha=True)
@@ -181,6 +219,7 @@ def build():
         if old:
             bpy.data.objects.remove(old, do_unlink=True)
         ob = inflate(fn, "SFT_" + key, cimg, depth=depth)
+        side_uv(ob, fn)
         ob.location = (-12.5 + i * 5, 4, 0)
         ob.location.z -= min((ob.matrix_world @ v.co).z for v in ob.data.vertices)
         obs.append(ob)
