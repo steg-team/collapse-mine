@@ -5,13 +5,19 @@ local RS = game:GetService("ReplicatedStorage")
 local CS = game:GetService("CollectionService")
 local Debris = game:GetService("Debris")
 
-local Mines = require(RS:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("Mines"))
+local Shared = RS:WaitForChild("Shared")
+local Mines = require(Shared:WaitForChild("Config"):WaitForChild("Mines"))
+local Events = require(Shared:WaitForChild("Events"))
+local EventBus = require(Shared:WaitForChild("EventBus"))
 local ev = RS:WaitForChild("Remotes"):WaitForChild("MineHit")
 local Terrain = workspace.Terrain
 
 local REACH = 14       -- 캐릭터에서 이 거리 안만 캘 수 있음
 local COOLDOWN = 0.3
 local lastHit = {}
+
+-- 이 등급 이상을 캐면 LegendaryFound (C가 서버 전체 공지)
+local LEGENDARY_GRADES = { ["전설"] = true, ["신화"] = true, ["???"] = true }
 
 local function setupPlayer(plr: Player)
 	if plr:FindFirstChild("leaderstats") then return end
