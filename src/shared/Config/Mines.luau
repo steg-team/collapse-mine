@@ -47,8 +47,9 @@ export type Mine = {
 	layers: { Layer },
 	ores: { Ore },
 	-- 이 등급 광물은 벽 표면에 안 나오고 땅 속에만 묻혀서, 지형을 파야 나온다.
-	-- chance = 벽 광석 자리마다 그 뒤 땅 속에 하나 묻을 확률, depth = 광물 윗면에서 벽 표면까지 흙 두께
-	buried: { grades: { string }, chance: number, depth: NumberRange }?,
+	-- 서버(OreSpawner)가 켜질 때·붕괴 뒤에 광산 흙 전체(굴 밖 꽉 찬 땅)에 랜덤으로 count개 묻는다.
+	-- regrowDelay = 붕괴 뒤 다시 묻기까지 초
+	buried: { grades: { string }, count: number, regrowDelay: number }?,
 	-- interval: 붕괴 주기(초) 범위, 매 주기 이 안에서 랜덤 / warning: 경보 길이(초) / offset: 첫 붕괴를 미루는 시간(초), 광산끼리 엇갈리게 (D-013)
 	collapse: { interval: NumberRange, warning: number, offset: number },
 	cave: {
@@ -94,7 +95,7 @@ Mines.list = {
 			{ name = "Lantern", displayName = "광부의 녹슨 등불", grade = "전설", value = 480, weight = 0.5, minDepth = 80, hardness = 4,
 				color = Color3.fromRGB(150, 90, 50), material = Enum.Material.CorrodedMetal, model = "Stage01/Lantern" },
 		},
-		buried = { grades = { "희귀", "에픽", "전설" }, chance = 0.35, depth = NumberRange.new(4, 9) }, -- 임시값
+		buried = { grades = { "희귀", "에픽", "전설" }, count = 1500, regrowDelay = 5 }, -- 임시값
 		collapse = { interval = NumberRange.new(480, 720), warning = 60, offset = 0 }, -- 8~12분 랜덤, 임시값 (초)
 		cave = {
 			seed = 7,
