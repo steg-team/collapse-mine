@@ -189,7 +189,7 @@ flowchart LR
 | 탈출 성공 · 갇힘 | C → B | 플레이어, 광산 |
 | 퀘스트 완료 · 출석 보상 | C → B | 플레이어, 보상 |
 
-부스트·게임패스 효과는 이벤트 대신 C의 조회 함수(`Monetization.GetMultiplier` 등)로 묻는다. → [D-011](decisions.md#d-011-역할-분담-최신화와-이벤트-계약-정리)
+부스트·게임패스 효과는 이벤트 대신 C의 조회 함수(`Payments.GetMultiplier` 등)로 묻는다. → [D-011](decisions.md#d-011-역할-분담-최신화와-이벤트-계약-정리)
 
 **미리 정할 것**
 

@@ -1,0 +1,7 @@
+--!strict
+-- C(이벤트·서비스) 서버 모듈을 게임 시작 때 미리 불러온다.
+-- Payments 는 처음 require 될 때부터 패스 보유 조회를 시작하므로,
+-- A·B 가 처음 물어보기 전에 캐시가 채워져 있도록 여기서 먼저 깨운다.
+
+local Social = script.Parent
+require(Social:WaitForChild("Payments"))
