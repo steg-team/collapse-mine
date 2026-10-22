@@ -9,6 +9,7 @@ local Shared = RS:WaitForChild("Shared")
 local Mines = require(Shared:WaitForChild("Config"):WaitForChild("Mines"))
 local Events = require(Shared:WaitForChild("Events"))
 local EventBus = require(Shared:WaitForChild("EventBus"))
+local FloorGuard = require(script.Parent:WaitForChild("FloorGuard"))
 local ev = RS:WaitForChild("Remotes"):WaitForChild("MineHit")
 local Terrain = workspace.Terrain
 
@@ -26,6 +27,11 @@ local function setupPlayer(plr: Player)
 	local coins = Instance.new("IntValue"); coins.Name = "Coins"; coins.Parent = ls
 	-- 곡괭이 등급 (임시: 업그레이드·저장은 경제 담당이 붙일 예정, PickaxeUpgraded 이벤트)
 	if plr:GetAttribute("PickaxeTier") == nil then plr:SetAttribute("PickaxeTier", 1) end
+end
+
+-- 서버가 켜질 때(지형이 원래 모양일 때) 광산마다 길바닥을 훑어 둔다
+for _, m in Mines.list do
+	task.spawn(FloorGuard.build, m)
 end
 
 Players.PlayerAdded:Connect(setupPlayer)
@@ -121,6 +127,11 @@ ev.OnServerEvent:Connect(function(plr, target, hitPos)
 			math.clamp(hitPos.Y, mine.bottom + r, mine.top - SURFACE_CRUST - r),
 			hitPos.Z
 		)
+		-- 길바닥(굴·방·출구 비탈의 원래 바닥)은 못 파게: 공이 바닥에 닿으면 위로 올림 (FloorGuard)
+		-- 바닥 정보를 다 읽기 전(서버 켜진 직후 몇 초)엔 아예 안 파이게
+		if not FloorGuard.isReady(mine.id) then return end
+		center = FloorGuard.clampDig(mine.id, center, r)
+		if center.Y > mine.top - SURFACE_CRUST - r then return end -- 올리다 지표 보호선을 넘으면 포기
 		Terrain:FillBall(center, r, Enum.Material.Air)
 	end
 end)

@@ -2,9 +2,10 @@
 -- 광석 랜덤 배치 + 붕괴 뒤 광맥 재생 (A)
 --
 -- 벽에 보이는 광석(일반·고급)은 맵에 박힌 자리 그대로 쓰고, 그 자리들을 "벽 표면 자리"로 기억한다.
--- 땅 속에 묻는 광석(Mines 설정 buried.grades)은 서버가 켜질 때마다 벽 표면 자리 중 아무 데나 골라
--- 그 뒤 흙 속에 새로 묻는다. 그래서 서버마다 위치가 달라 외워서 캐러 갈 수 없다.
--- 맵 생성기(tools/generate_mine.luau)가 미리 묻어 둔 광석은 Studio 확인용이라 시작할 때 치운다.
+-- 땅 속에 묻는 광석(Mines 설정 buried.grades)은 서버가 켜질 때마다 광산 흙 전체(굴 밖 꽉 찬 땅)의
+-- 아무 데나 buried.count개 랜덤으로 묻는다. 서버마다 위치가 달라 외워서 캐러 갈 수 없고,
+-- 어디를 파든 가끔 나온다. 깊을수록 비싼 광물(설정 minDepth)이 섞인다.
+-- 예전에 맵에 미리 묻어 둔 광석(속성 Buried)이 있으면 시작할 때 치운다.
 --
 -- 붕괴(CollapseOccurred)가 나면 그 광산의 묻힌 광석을 전부 새 자리로 다시 묻고,
 -- 캐서 비어 있는 벽 광석 자리도 다시 채운다 ("붕괴가 끝이 아니라 다음 광맥의 시작", game-design 광맥 재생).
@@ -16,6 +17,7 @@ local CS = game:GetService("CollectionService")
 local Shared = RS:WaitForChild("Shared")
 local Mines = require(Shared:WaitForChild("Config"):WaitForChild("Mines"))
 local Events = require(Shared:WaitForChild("Events"))
+local FloorGuard = require(script.Parent:WaitForChild("FloorGuard"))
 local EventBus = require(Shared:WaitForChild("EventBus"))
 
 local Terrain = workspace.Terrain
@@ -87,32 +89,19 @@ local function isEffect(d: Instance): boolean
 	return false
 end
 
--- 광석 하나 만들기. buried면 표면 자리에서 (광석 높이 + depth)만큼 흙 속으로. 실패하면 nil
+-- 광석 하나 만들기. 벽 광석은 surfaceCf(표면에 바닥을 붙인 자리), 묻는 광석은 흙 속 한 점. 실패하면 nil
 local function spawnOre(f: Field, o: Mines.Ore, surfaceCf: CFrame, mult: number, buried: boolean): Model?
 	local tpl = findTemplate(o.model)
 	if not tpl then return nil end
 	local m = f.mine
-	local up = surfaceCf.UpVector
 	local model = tpl:Clone()
 	model:ScaleTo(rng:NextNumber(1.1, 1.5))
 	local cf = surfaceCf * CFrame.Angles(0, rng:NextNumber(0, math.pi * 2), 0)
-	if buried and m.buried then
-		local _, size = model:GetBoundingBox()
-		cf -= up * (size.Y + rng:NextNumber(m.buried.depth.Min, m.buried.depth.Max))
-	end
 	model:PivotTo(cf)
-	if buried then
-		-- 덮이지 않았으면 4씩 더 깊이, 두 번 해도 안 되면 이 자리는 포기
-		local tries = 0
-		while not isCovered(model) do
-			tries += 1
-			if tries > 2 then
-				model:Destroy()
-				return nil
-			end
-			cf -= up * 4
-			model:PivotTo(cf)
-		end
+	-- 묻는 광석은 흙에 완전히 덮여야 함 (굴이나 플레이어가 판 구멍에 걸치면 이 자리는 포기)
+	if buried and not isCovered(model) then
+		model:Destroy()
+		return nil
 	end
 	for _, d in model:GetDescendants() do
 		if d:IsA("BasePart") then d.Anchored = true end
@@ -136,29 +125,33 @@ local function spawnOre(f: Field, o: Mines.Ore, surfaceCf: CFrame, mult: number,
 	return model
 end
 
--- 묻힌 광석 개수: 설정값, 없으면 벽 자리 수 × 0.35
-local function buriedCount(f: Field): number
-	local b = f.mine.buried
-	if not b then return 0 end
-	return b.count or math.floor(#f.anchors * 0.35)
-end
-
--- 묻힌 광석 전부 새 자리로
+-- 묻힌 광석 전부 새 자리로: 광산 원기둥 안 아무 점이나 뽑아서, 흙 속이고 길바닥 바로 밑이 아니면 묻는다
 local function reburyAll(f: Field)
 	for _, o in f.ores:GetChildren() do
 		if o:GetAttribute("Origin") == "Buried" then o:Destroy() end
 	end
-	if #f.anchors == 0 then return end
-	local want = buriedCount(f)
+	local m = f.mine
+	if not m.buried then return end
+	local want = m.buried.count
+	local yLo, yHi = m.bottom + 6, m.top - 10 -- 지표 바로 밑·바닥 끝은 피함
 	local placed, attempts = 0, 0
-	while placed < want and attempts < want * 6 do
+	while placed < want and attempts < want * 5 do
 		attempts += 1
-		local a = f.anchors[rng:NextInteger(1, #f.anchors)]
-		local o = pickOre(f.mine, a.cf.Position.Y, true)
-		if o and spawnOre(f, o, a.cf, a.mult, true) then placed += 1 end
-		if attempts % 20 == 0 then task.wait() end
+		-- 원 안에 고르게 (반지름에 sqrt)
+		local ang = rng:NextNumber(0, math.pi * 2)
+		local rad = (m.radius - 12) * math.sqrt(rng:NextNumber())
+		local p = m.origin + Vector3.new(math.cos(ang) * rad, 0, math.sin(ang) * rad)
+		p = Vector3.new(p.X, rng:NextNumber(yLo, yHi), p.Z)
+		-- 길바닥 밑(보호 칸 근처)엔 묻지 않음: 바닥을 못 파니 영영 못 캐는 광석이 됨
+		local underFloor = FloorGuard.isProtected(m.id, p + Vector3.new(0, 4, 0)) or FloorGuard.isProtected(m.id, p + Vector3.new(0, 8, 0))
+		local o = not underFloor and pickOre(m, p.Y, true) or nil
+		if o then
+			local cf = CFrame.new(p) * CFrame.Angles(rng:NextNumber(0, 6.28), rng:NextNumber(0, 6.28), rng:NextNumber(0, 6.28))
+			if spawnOre(f, o, cf, 1, true) then placed += 1 end
+		end
+		if attempts % 25 == 0 then task.wait() end
 	end
-	print(("[OreSpawner] %s: 묻힌 광석 %d개 새로 묻음"):format(f.mine.id, placed))
+	print(("[OreSpawner] %s: 묻힌 광석 %d개 새로 묻음 (시도 %d)"):format(m.id, placed, attempts))
 end
 
 -- 캐서 비어 있는 벽 광석 자리 다시 채우기. 플레이어가 벽을 파냈으면 지금 표면을 다시 찾는다
@@ -205,6 +198,9 @@ local function setup(m: Mines.Mine)
 		end
 	end
 	fields[m.id] = f
+	-- 길바닥 정보(FloorGuard, MiningServer가 훑음)가 준비되면 묻기 (최대 60초 기다림)
+	local t0 = os.clock()
+	while not FloorGuard.isReady(m.id) and os.clock() - t0 < 60 do task.wait(0.5) end
 	reburyAll(f)
 end
 
@@ -216,7 +212,7 @@ end
 EventBus.On(Events.CollapseOccurred, function(stageId: number)
 	for _, f in fields do
 		if f.mine.order == stageId then
-			task.delay(f.mine.buried and f.mine.buried.regrowDelay or 5, function()
+			task.delay(if f.mine.buried then f.mine.buried.regrowDelay else 5, function()
 				reburyAll(f)
 				refillWalls(f)
 			end)
