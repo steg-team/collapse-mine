@@ -70,6 +70,15 @@ ev.OnServerEvent:Connect(function(plr, target, hitPos)
 	if ore then
 		local orePos = if ore:IsA("Model") then ore:GetPivot().Position else (ore :: BasePart).Position
 		if (orePos - root.Position).Magnitude > REACH + 4 then return end
+		-- 땅 속에 묻혀 있던 광석은 빛·반짝임을 꺼 둔 상태 (생성기). 파서 처음 맞히면 켜서 "찾았다" 느낌
+		if ore:GetAttribute("Buried") then
+			ore:SetAttribute("Buried", nil)
+			for _, d in ore:GetDescendants() do
+				if d:IsA("Light") or d:IsA("ParticleEmitter") or d:IsA("Highlight") or d:IsA("Fire") then
+					d.Enabled = true
+				end
+			end
+		end
 		local maxHp = ore:GetAttribute("Hardness") or 1
 		local hp = ore:GetAttribute("HP") or maxHp
 		hp -= 1
