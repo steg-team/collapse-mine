@@ -70,6 +70,12 @@ local function onRamp(x: number, up: number, z: number): CFrame
 end
 local MOUTH_Z = Z_TOP - 6 -- 동굴 아가리 문틀 자리 (지표 위)
 
+-- 굴 크기: 좁아 보이지 않게 넉넉히 (사람 키 약 5)
+local W = 16 -- 굴 폭
+local H = 12 -- 굴 높이
+-- 문 자리 천장 한계: 지표 바로 아래 잔디 칸(top~0)은 남긴다
+local CEIL = (M.top - 1) - gateFloor.Y
+
 local rec = CHS:TryBeginRecording("BuildMineExit")
 local old = root:FindFirstChild("ExitGate")
 if old then old:Destroy() end
@@ -85,37 +91,36 @@ local rampMid = -(FLAT + RAMP / 2)
 local rampLen = math.sqrt(RAMP * RAMP + RISE * RISE) + 4
 
 -- 채우기
--- (a) 문 위쪽 지표 아래 칸: 예전 실행에서 너무 높게 판 자리 메우기
-T:FillBlock(CFrame.new(gateFloor.X, M.top - 2, gateFloor.Z) * rot * CFrame.new(0, 0, -2), Vector3.new(24, 4, 20), Enum.Material.Ground)
+-- (a) 문 위쪽 잔디 칸(top~0): 예전 실행에서 너무 높게 판 자리 메우기
+T:FillBlock(CFrame.new(gateFloor.X, M.top / 2, gateFloor.Z) * rot * CFrame.new(0, 0, -2), Vector3.new(W + 12, -M.top, 22), Enum.Material.Grass)
 -- (b) 지표 위 바위 언덕 (풀밭에서 솟은 둔덕).
--- 비탈 천장(바닥 + 9)이 지표 위로 올라오는 구간 전체를 덮어야 굴 지붕이 남는다.
--- 안 덮으면 지붕 없는 도랑이 돼서 풀밭으로 뛰어나갈 수 있다. 언덕 꼭대기 = 지표 + 13, 굴 천장 = 지표 + 10 이하
-local hillFrom = -(FLAT + RAMP * (RISE - 9) / RISE) + 4 -- 천장이 지표에 닿는 z (+여유)
-local mound = L(0, RISE - 2, MOUTH_Z + 3)
-for z = hillFrom, MOUTH_Z + 3, -7 do
-	T:FillBall(L(0, RISE + 1, z).Position, 12, Enum.Material.Rock)
+-- 비탈 천장(바닥 + H)이 지표 위로 올라오는 구간 전체를 덮어야 굴 지붕이 남는다.
+-- 안 덮으면 지붕 없는 도랑이 돼서 풀밭으로 뛰어나갈 수 있다. 언덕 꼭대기 ≈ 지표 + H + 4
+local hillFrom = math.min(0, -(FLAT + RAMP * (RISE - H - 2) / RISE) + 6) -- 천장이 지표에 닿는 z (+여유)
+local mound = L(0, RISE, MOUTH_Z + 3)
+for z = hillFrom, MOUTH_Z + 3, -6 do
+	T:FillBall(L(0, RISE + 3, z).Position, W / 2 + 8, Enum.Material.Rock)
 end
-T:FillBall(mound.Position, 13, Enum.Material.Rock)
-T:FillBall((mound * CFrame.new(5, 3, 4)).Position, 8, Enum.Material.Rock)
-T:FillBall((mound * CFrame.new(-6, 2, 3)).Position, 8, Enum.Material.Rock)
+T:FillBall(mound.Position, W / 2 + 10, Enum.Material.Rock)
+T:FillBall((mound * CFrame.new(W / 2, 3, 5)).Position, 9, Enum.Material.Rock)
+T:FillBall((mound * CFrame.new(-W / 2, 2, 4)).Position, 9, Enum.Material.Rock)
 -- (c) 굴 바닥: 예전 평평한 굴(바닥 0)을 비탈 아래로 메움
-T:FillBlock(L(0, -2, -(FLAT / 2) + 1), Vector3.new(14, 4, FLAT + 2), floorMat)
-T:FillBlock(onRamp(0, -4, rampMid), Vector3.new(14, 8, rampLen), floorMat)
+T:FillBlock(L(0, -2, -(FLAT / 2) + 1), Vector3.new(W + 4, 4, FLAT + 2), floorMat)
+T:FillBlock(onRamp(0, -4, rampMid), Vector3.new(W + 4, 8, rampLen), floorMat)
 -- (d) 아가리 앞 풀밭 바닥 고르기
-T:FillBlock(L(0, RISE - 2, MOUTH_Z - 6), Vector3.new(16, 4, 14), Enum.Material.Grass)
+T:FillBlock(L(0, RISE - 2, MOUTH_Z - 7), Vector3.new(W + 8, 4, 16), Enum.Material.Grass)
 task.wait()
 
 -- 파기
--- (e) 문 앞 공간: 방 가장자리 천장이 낮아서 문틀이 들어가게 넓힘 (지표 아래 한 칸은 남김)
-local ceil = (M.top - 4.2) - gateFloor.Y
-T:FillBlock(L(0, ceil / 2, 1.5), Vector3.new(18, ceil, 7), AIR)
+-- (e) 문 앞 공간: 방 가장자리 천장이 낮아서 문틀이 들어가게 넓고 높게
+T:FillBlock(L(0, CEIL / 2, 2), Vector3.new(W + 10, CEIL, 9), AIR)
 -- (f) 굴: 평지 + 비탈
-T:FillBlock(L(0, 4.5, -(FLAT / 2) + 1), Vector3.new(10, 9, FLAT + 2), AIR)
-T:FillBlock(onRamp(0, 4.5, rampMid), Vector3.new(10, 9, rampLen), AIR)
--- (g) 언덕을 관통하는 아가리 통로 + 둥근 천장 + 아가리 앞 트임
-T:FillBlock(L(0, RISE + 4.5, MOUTH_Z + 4), Vector3.new(10, 9, 22), AIR)
-T:FillCylinder(L(0, RISE + 5.5, MOUTH_Z + 4) * CFrame.Angles(math.rad(90), 0, 0), 22, 4.5, AIR)
-T:FillBlock(L(0, RISE + 6, MOUTH_Z - 9), Vector3.new(16, 12, 10), AIR)
+local h1 = math.min(H, CEIL)
+T:FillBlock(L(0, h1 / 2, -(FLAT / 2) + 1), Vector3.new(W, h1, FLAT + 2), AIR)
+T:FillBlock(onRamp(0, H / 2, rampMid), Vector3.new(W, H, rampLen), AIR)
+-- (g) 언덕을 관통하는 아가리 통로 + 아가리 앞 트임
+T:FillBlock(L(0, RISE + H / 2, MOUTH_Z + 4), Vector3.new(W, H, 22), AIR)
+T:FillBlock(L(0, RISE + H / 2 + 1, MOUTH_Z - 10), Vector3.new(W + 8, H + 2, 12), AIR)
 task.wait(0.2) -- 방금 바꾼 지형이 레이캐스트에 반영되도록
 
 -- 2) 파트 도우미 ------------------------------------------------------------------
@@ -151,9 +156,11 @@ local function frame(base: CFrame, half: number, h: number)
 		part("BeamCog", Vector3.new(0.7, 0.6, 2.1), base * CFrame.new(i * (half / 3.2), h + 1.5, 0), WOOD_DARK, Enum.Material.Wood)
 	end
 end
-frame(L(0, 0, 0), 5.6, 8)
-frame(L(0, 0, -5), 4.6, 7.4)
-frame(L(0, RISE, MOUTH_Z), 4.8, 7.6)
+-- 문 높이: 문 자리 천장(CEIL) 아래에 들보·토막까지 들어가게
+local GATE_H = math.min(H - 1.5, CEIL - 2.2)
+frame(L(0, 0, 0), W / 2 - 0.5, GATE_H)
+frame(L(0, 0, -5), W / 2 - 1.2, GATE_H - 0.5)
+frame(L(0, RISE, MOUTH_Z), W / 2 - 1, H - 2)
 
 -- 4) 간판 ------------------------------------------------------------------------
 local function label(board: BasePart, face: Enum.NormalId, ppS: number, lines: { { any } })
@@ -178,14 +185,14 @@ local function label(board: BasePart, face: Enum.NormalId, ppS: number, lines: {
 	gui.Parent = board
 end
 -- 방 쪽 문 들보 명판 (파트 뒷면 +Z = 방 쪽)
-local plaque = part("Sign", Vector3.new(4.6, 1.15, 0.25), L(0, 8.5, 1.02), WOOD_DARK, Enum.Material.Wood)
+local plaque = part("Sign", Vector3.new(4.6, 1.15, 0.25), L(0, GATE_H + 0.5, 1.02), WOOD_DARK, Enum.Material.Wood)
 label(plaque, Enum.NormalId.Back, 60, { { "출구", 1, Enum.Font.GothamBold } })
 for _, s in { -1, 1 } do
-	part("SignBolt", Vector3.new(0.3, 0.3, 0.15), L(s * 2.05, 8.5, 1.18), Color3.fromRGB(240, 190, 60), Enum.Material.Metal)
+	part("SignBolt", Vector3.new(0.3, 0.3, 0.15), L(s * 2.05, GATE_H + 0.5, 1.18), Color3.fromRGB(240, 190, 60), Enum.Material.Metal)
 end
 -- 방에서 문을 볼 때 왼쪽 표지판, 화살표가 문을 가리킴
-part("SignPost", Vector3.new(0.6, 6.2, 0.6), L(-8.5, 3.1, 7.5), WOOD, Enum.Material.Wood, true)
-local arrowBoard = part("SignBoard", Vector3.new(5.2, 2.4, 0.3), L(-7.7, 5.2, 7.85), WOOD, Enum.Material.Wood)
+part("SignPost", Vector3.new(0.6, 6.2, 0.6), L(-(W / 2 + 2), 3.1, 7.5), WOOD, Enum.Material.Wood, true)
+local arrowBoard = part("SignBoard", Vector3.new(5.2, 2.4, 0.3), L(-(W / 2 + 1.2), 5.2, 7.85), WOOD, Enum.Material.Wood)
 label(arrowBoard, Enum.NormalId.Back, 50, { { "출구 →", 0.6, Enum.Font.GothamBold }, { "허브로 돌아가기", 0.4, Enum.Font.Gotham } })
 
 -- 5) 레일 (방 쪽 평지에만) -----------------------------------------------------------
@@ -237,7 +244,7 @@ local function torchOnWall(fromLocal: Vector3, towardLocal: Vector3)
 	torchCount += 1
 end
 for _, s in { -1, 1 } do
-	torchOnWall(Vector3.new(s * 6.6, 5.5, 2.5), Vector3.new(0, 0, -1)) -- 방 쪽 문 양옆
+	torchOnWall(Vector3.new(s * (W / 2 + 2.5), 5.5, 3), Vector3.new(0, 0, -1)) -- 방 쪽 문 양옆
 	for _, z in { -14, -26, -38, -50 } do
 		if z > Z_TOP then torchOnWall(Vector3.new(0, floorAt(z) + 5.5, z), Vector3.new(s, 0, 0)) end -- 비탈 양쪽 벽
 	end
@@ -251,13 +258,13 @@ for _, c in pad:GetChildren() do
 	if c:IsA("BillboardGui") then c.Parent = backup end
 end
 -- 아가리 문 바로 안쪽에서 굴 단면 전체를 덮는 투명 상자: 누구든 지나가면 닿게 됨
-pad.Size = Vector3.new(10, 9, 3)
-pad.CFrame = L(0, RISE + 4.5, MOUTH_Z + 3)
+pad.Size = Vector3.new(W, H, 3)
+pad.CFrame = L(0, RISE + H / 2, MOUTH_Z + 3)
 pad.Transparency = 1
 pad.CanCollide, pad.CanQuery, pad.CastShadow = false, false, false
 if not CS:HasTag(pad, "MineExit") then CS:AddTag(pad, "MineExit") end
 -- 판정을 놓쳐도 풀밭으로 못 나가게 아가리 바로 바깥에 투명 벽
-local wall = part("ExitBlocker", Vector3.new(14, 12, 1), L(0, RISE + 6, MOUTH_Z - 2), Color3.new(1, 1, 1), Enum.Material.SmoothPlastic, true)
+local wall = part("ExitBlocker", Vector3.new(W + 6, H + 4, 1), L(0, RISE + H / 2 + 1, MOUTH_Z - 2), Color3.new(1, 1, 1), Enum.Material.SmoothPlastic, true)
 wall.Transparency, wall.CanQuery = 1, false
 
 model:SetAttribute("MineId", MINE_ID)
