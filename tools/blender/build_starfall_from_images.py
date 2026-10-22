@@ -169,6 +169,104 @@ def side_uv(ob, fn, size=3.0, ratio=1.8):
     bm.to_mesh(ob.data); bm.free()
 
 
+def build_solid(key, fn, depth, color_img, size=3.0, N=72, back=0.85, voxel=0.045, target=6000, ratio=1.6):
+    """빈틈없는 광석 메시. inflate는 테두리가 계단이라 실금·접힘이 생겨 Roblox에서 옆구리가 뚫려 보였다.
+    그래서 실루엣×부풀림 높이를 작은 블록으로 쌓아 닫힌 부피를 만들고, 리메시·스무스·데시메이트로 다듬은 뒤
+    UV를 위치로 다시 계산한다 (앞뒤를 보는 면 = 그림 좌표, 나머지 = 안쪽 무늬 조각 둘러 입히기)."""
+    import math
+    _, px = load(fn)
+    H, W = px.shape[:2]
+    m = fg_mask(px)
+    ys, xs = np.nonzero(m)
+    x0, x1, y0, y1 = xs.min(), xs.max(), ys.min(), ys.max()
+    span = max(x1 - x0, y1 - y0); cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+    g = np.zeros((N, N), bool)
+    for j in range(N):
+        for i in range(N):
+            u = cx - span / 2 + span * (i + 0.5) / N; v = cy - span / 2 + span * (j + 0.5) / N
+            g[j, i] = m[int(np.clip(v, 0, H - 1)), int(np.clip(u, 0, W - 1))]
+    g = largest_island(g)
+    d = dist_inside(g)
+    for _ in range(10):
+        p = np.pad(d, 1)
+        d = np.where(g, (p[:-2, 1:-1] + p[2:, 1:-1] + p[1:-1, :-2] + p[1:-1, 2:] + p[1:-1, 1:-1] * 2) / 6, 0)
+    t = np.clip(d / max(d.max(), 1e-6), 0, 1) ** 0.8
+    bulge = np.sqrt(np.clip(1 - (1 - t) ** 2, 0, 1)) * depth * size
+    cell = size / N
+    K = int(math.ceil(depth * size / cell)) + 1
+    ks = (np.arange(-K, K) + 0.5) * cell
+    occ = g[:, :, None] & (ks[None, None, :] >= -np.maximum(bulge, cell)[:, :, None]) \
+        & (ks[None, None, :] <= np.maximum(bulge * back, cell)[:, :, None])
+    bm = bmesh.new(); vmap = {}
+
+    def V(a, b, c):
+        k = (a, b, c)
+        if k not in vmap:
+            vmap[k] = bm.verts.new(((a - N / 2) * cell, (b - K) * cell, (c - N / 2) * cell))
+        return vmap[k]
+    pad = np.pad(occ, 1)
+    for j, i, k in zip(*np.nonzero(occ)):  # x=i, y=k, z=j
+        if not pad[j + 1, i, k + 1]: bm.faces.new([V(i, k, j), V(i, k, j + 1), V(i, k + 1, j + 1), V(i, k + 1, j)])
+        if not pad[j + 1, i + 2, k + 1]: bm.faces.new([V(i + 1, k, j), V(i + 1, k + 1, j), V(i + 1, k + 1, j + 1), V(i + 1, k, j + 1)])
+        if not pad[j, i + 1, k + 1]: bm.faces.new([V(i, k, j), V(i, k + 1, j), V(i + 1, k + 1, j), V(i + 1, k, j)])
+        if not pad[j + 2, i + 1, k + 1]: bm.faces.new([V(i, k, j + 1), V(i + 1, k, j + 1), V(i + 1, k + 1, j + 1), V(i, k + 1, j + 1)])
+        if not pad[j + 1, i + 1, k]: bm.faces.new([V(i, k, j), V(i + 1, k, j), V(i + 1, k, j + 1), V(i, k, j + 1)])
+        if not pad[j + 1, i + 1, k + 2]: bm.faces.new([V(i, k + 1, j), V(i, k + 1, j + 1), V(i + 1, k + 1, j + 1), V(i + 1, k + 1, j)])
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    name = "SFT_" + key
+    old = bpy.data.objects.get(name)
+    if old:
+        bpy.data.objects.remove(old, do_unlink=True)
+    me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()
+    ob = bpy.data.objects.new(name, me)
+    col = bpy.data.collections.get("StarfallTex") or bpy.data.collections.new("StarfallTex")
+    if col.name not in bpy.context.scene.collection.children:
+        bpy.context.scene.collection.children.link(col)
+    col.objects.link(ob)
+    mat = bpy.data.materials.new(name + "_Mat"); mat.use_nodes = True
+    nt = mat.node_tree
+    bsdf = next((n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED'), None) or nt.nodes.new("ShaderNodeBsdfPrincipled")
+    out = next((n for n in nt.nodes if n.type == 'OUTPUT_MATERIAL'), None) or nt.nodes.new("ShaderNodeOutputMaterial")
+    nt.links.new(bsdf.outputs[0], out.inputs[0])
+    tex = nt.nodes.new("ShaderNodeTexImage"); tex.image = color_img
+    nt.links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
+    me.materials.append(mat)
+    for o in bpy.context.selected_objects:
+        o.select_set(False)
+    bpy.context.view_layer.objects.active = ob; ob.select_set(True)
+    md = ob.modifiers.new("rm", 'REMESH'); md.mode = 'VOXEL'; md.voxel_size = voxel
+    bpy.ops.object.modifier_apply(modifier=md.name)
+    sm = ob.modifiers.new("sm", 'SMOOTH'); sm.factor = 0.6; sm.iterations = 6
+    bpy.ops.object.modifier_apply(modifier=sm.name)
+    n = len(ob.data.polygons)
+    if n > target:
+        dc = ob.modifiers.new("dc", 'DECIMATE'); dc.ratio = target / n
+        bpy.ops.object.modifier_apply(modifier=dc.name)
+    dm = dist_inside(m, iters=300)
+    py, pxx = np.unravel_index(np.argmax(dm), dm.shape)
+    L = 2 * min(dm.max() * 0.7, span * 0.22); dens = span / size; R = size * 0.4
+    me = ob.data
+    if not me.uv_layers:
+        me.uv_layers.new(name="UVMap")
+    bm = bmesh.new(); bm.from_mesh(me); uvl = bm.loops.layers.uv.verify()
+    for f in bm.faces:
+        f.smooth = True; nn = f.normal
+        if abs(nn.y) >= max(abs(nn.x), abs(nn.z)) * ratio:
+            for lp in f.loops:
+                co = lp.vert.co
+                lp[uvl].uv = ((cx - span / 2 + span * (co.x / size + 0.5)) / W, (cy - span / 2 + span * (co.z / size + 0.5)) / H)
+        else:
+            c = f.calc_center_median(); th0 = math.atan2(c.z, c.x)
+            for lp in f.loops:
+                co = lp.vert.co; th = math.atan2(co.z, co.x)
+                if th - th0 > math.pi: th -= 2 * math.pi
+                elif th0 - th > math.pi: th += 2 * math.pi
+                lp[uvl].uv = ((pxx - L / 2 + _pingpong(th * R * dens + 10 * L, L)) / W,
+                              (py - L / 2 + _pingpong(co.y * dens + 10 * L, L)) / H)
+    bm.to_mesh(me); bm.free()
+    return ob
+
+
 def save(name, arr):
     h, w = arr.shape[:2]
     im = bpy.data.images.get(name) or bpy.data.images.new(name, w, h, alpha=True)
@@ -222,8 +320,7 @@ def build():
         old = bpy.data.objects.get("SFT_" + key)
         if old:
             bpy.data.objects.remove(old, do_unlink=True)
-        ob = inflate(fn, "SFT_" + key, cimg, depth=depth)
-        side_uv(ob, fn)
+        ob = build_solid(key, fn, depth, cimg)  # 예전: inflate + side_uv (옆구리 구멍 문제)
         ob.location = (-12.5 + i * 5, 4, 0)
         ob.location.z -= min((ob.matrix_world @ v.co).z for v in ob.data.vertices)
         obs.append(ob)
