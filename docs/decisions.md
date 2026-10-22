@@ -134,3 +134,10 @@ AI 에이전트는 구현 전에 이 문서와 `game-design.md`를 읽고, 둘�
   - 다른 기능은 `PlayerDataLoaded` 이후 `PlayerData.get(player)`로 읽는다. 쓰기는 B가 하고, C는 `social` 칸만 쓴다.
 - 이유: 서버를 옮길 때 데이터가 덮어써지거나 복제되는 것을 막으려면 세션 잠금이 필요하고, 직접 짜면 버그가 곧 데이터 유실이다. 키를 하나로 두면 저장이 한 번에 처리돼 칸끼리 어긋나지 않는다. 경보 중 접속 끊기로 갇힘 차감을 피하는 꼼수를 막되, 평소 튕김에는 손해가 없게 한다.
 - 영향: `src/server/Economy/PlayerData.luau`, `EconomyInit.server.luau`, `src/shared/Config/Economy.luau`(갇힘 차감 비율, 임시값), `Events.luau` 조회 함수 주석. 코인은 당분간 `leaderstats.Coins` 값을 저장한다 (A의 채굴 코드가 직접 더하는 동안). Studio에서 실제로 저장하려면 게임 설정 → 보안 → "Studio에서 API 서비스 사용"을 켠다 (꺼져 있으면 저장 없이 돌아감).
+
+## D-015 PR은 올린 사람이 직접 머지
+
+- 2026-10-22 / 채택 / 이우진
+- 결정: 리뷰 필수 규칙과 `.github/CODEOWNERS`(자동 리뷰 요청)를 없앤다. 각자 올린 PR은 본인이 직접 머지한다. 다른 담당 폴더·`shared/`·`Core/`·`docs/`·이벤트 계약을 건드리면 PR에 해당 담당을 멘션해서 알린다. main과 충돌이 나면 올린 사람이 푼다.
+- 이유: 3명이 서로 리뷰를 기다리느라 머지가 밀리고, 자동 리뷰 요청이 매번 쌓였다. `main` 브랜치 보호도 꺼져 있어 리뷰가 실제로 막는 역할을 하지 않았다.
+- 영향: `AGENTS.md`, `README.md`, `docs/README.md`, `game-design.md`의 협업 규칙.

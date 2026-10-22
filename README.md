@@ -47,7 +47,7 @@ src/
 1. `main`에서 새 브랜치 만들기: `git checkout -b feat/기능이름`
 2. `rojo serve` 실행 → Studio 상단 **Rojo** 플러그인에서 **Connect**
 3. VS Code에서 코드 수정 → 저장하면 Studio에 바로 반영
-4. 커밋 → push → GitHub에서 PR → 다른 담당자 리뷰 후 `main`에 머지
+4. 커밋 → push → GitHub에서 PR → 올린 사람이 직접 `main`에 머지 (다른 담당에 영향이 있으면 PR에 멘션)
 
 ### 주의
 
@@ -55,7 +55,7 @@ src/
   코드 테스트는 각자 로컬 복사본 플레이스(파일 → 다른 이름으로 저장)에서 하고,
   팀 크리에이트 플레이스에는 머지된 `main`만 연결해서 반영합니다.
 - 확률, 판매가, 결제 검증은 **서버 코드에서만** 처리합니다.
-- 이벤트를 추가·변경할 때는 `src/shared/Events.luau`를 고치고 관련 담당자 모두 리뷰합니다.
+- 이벤트를 추가·변경할 때는 `src/shared/Events.luau`를 고치고 관련 담당자 모두에게 PR 멘션으로 알립니다.
 
 ## 담당
 
@@ -65,7 +65,6 @@ src/
 | B | 경제 | `Economy/` |
 | C | 이벤트·서비스 | `Social/` |
 
-폴더별 리뷰어는 `.github/CODEOWNERS`에서 지정합니다.
 
 ## tools/ (Studio에서 직접 실행하는 스크립트)
 
