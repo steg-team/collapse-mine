@@ -14,6 +14,7 @@ local Terrain = workspace.Terrain
 
 local REACH = 14       -- 캐릭터에서 이 거리 안만 캘 수 있음
 local COOLDOWN = 0.3
+local SURFACE_CRUST = 4 -- 지표(광산 top) 아래 이만큼은 절대 안 파임 = 지형 한 칸
 local lastHit = {}
 
 -- 이 등급 이상을 캐면 LegendaryFound (C가 서버 전체 공지)
@@ -102,6 +103,15 @@ ev.OnServerEvent:Connect(function(plr, target, hitPos)
 		local mine = Mines.findAt(hitPos)
 		if not mine or hitPos.Y > mine.top - 1 then return end
 		local _, li = Mines.layerAt(mine, hitPos.Y)
-		Terrain:FillBall(hitPos, digRadius(li), Enum.Material.Air)
+		local r = digRadius(li)
+		-- 파내는 공이 지표·바닥을 뚫지 않게 공 중심을 안쪽으로 당긴다.
+		-- 굴 천장이 지표에서 몇 스터드밖에 안 돼서, 위를 파면 공 윗부분이 잔디까지 뚫고 밖으로 탈출할 수 있었다.
+		-- 지형 칸이 4스터드라 공 끝이 칸 경계(top - SURFACE_CRUST)를 넘지 않아야 위 칸이 남는다.
+		local center = Vector3.new(
+			hitPos.X,
+			math.clamp(hitPos.Y, mine.bottom + r, mine.top - SURFACE_CRUST - r),
+			hitPos.Z
+		)
+		Terrain:FillBall(center, r, Enum.Material.Air)
 	end
 end)
