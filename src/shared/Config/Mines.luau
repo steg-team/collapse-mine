@@ -93,10 +93,10 @@ Mines.list = {
 				color = Color3.fromRGB(230, 150, 40), material = Enum.Material.Glass, model = "Stage01/Amber" },
 			{ name = "CavePearl", displayName = "동굴 진주", grade = "에픽", value = 140, weight = 2.5, minDepth = 60, hardness = 3,
 				color = Color3.fromRGB(245, 240, 225), material = Enum.Material.SmoothPlastic, model = "Stage01/CavePearl" },
-			{ name = "Lantern", displayName = "광부의 녹슨 등불", grade = "전설", value = 480, weight = 0.5, minDepth = 80, hardness = 4,
+			{ name = "Lantern", displayName = "광부의 녹슨 등불", grade = "전설", value = 480, weight = 0.2, minDepth = 80, hardness = 4,
 				color = Color3.fromRGB(150, 90, 50), material = Enum.Material.CorrodedMetal, model = "Stage01/Lantern" },
 		},
-		digFinds = { grades = { "희귀", "에픽", "전설" }, chance = NumberRange.new(0.008, 0.025) }, -- 임시값 (곡괭이 0.35초마다 → 깊은 곳에서 대략 15~40초에 하나)
+		digFinds = { grades = { "희귀", "에픽", "전설" }, chance = NumberRange.new(0.004, 0.012) }, -- 임시값 (곡괭이 0.35초마다 → 깊이 40 호박석 약 1분, 깊이 100 등불 약 20분)
 		oreRegrowDelay = 5, -- 임시값 (초)
 		collapse = { interval = NumberRange.new(480, 720), warning = 60, offset = 0 }, -- 8~12분 랜덤, 임시값 (초)
 		cave = {
