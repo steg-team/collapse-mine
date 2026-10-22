@@ -8,6 +8,9 @@
 	4) 무늬: 견본의 StardustRock·NebulaSwirl에 Studio AI 텍스처(generate_texture, Quality)를 입히고
 	   견본을 틀로 다시 복사 (견본 모델을 Clone → PivotTo(CFrame.new()) → OreModels.Starfall에 교체).
 	   AI 텍스처 결과는 SurfaceAppearance로 붙고, 프롬프트는 docs/decisions.md D-010 참고
+	   참고 이미지로 칠하기: generate_texture의 hintImage에 { type = "image", mimeType = "image/jpeg", data = <base64> }를 넣는다
+	   (원본 그림 조각: ~/Downloads/CollapseMine/ref/ref_<광석>.jpg). Fast 모드는 결과를 MeshPart.TextureID로 붙이므로
+	   남아 있는 SurfaceAppearance를 지우고 Color를 흰색으로 둬야 무늬 색이 그대로 보인다.
 	   (SHOW_PREVIEW = true면 허브 광장 앞에 견본을 한 줄로 세워 보여 줌)
 
 	MeshPart 이름 규칙: SF_<광석>_<재질>. 빛·반짝임은 블렌더에서 안 넘어오니 여기서 Neon·PointLight·ParticleEmitter로 입힌다.
