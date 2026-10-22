@@ -103,6 +103,24 @@ pl.Color, pl.Range, pl.Brightness = Color3.fromRGB(255, 190, 110), 20, 1.4
 pl.Parent = lamp
 lamp.Parent = portal
 
+-- 화로 받침 아래 돌 기초: 화로 자리 바닥이 울퉁불퉁해서 받침 가장자리가 떠 보임.
+-- 받침 아랫면(BRAZIERS의 바닥 y)에서 땅 속 7스터드까지 원기둥을 박아 메운다.
+local BRAZIERS = { { -32, 6.36, 10 }, { 32, 4.70, 10 } } -- build_entrance_props.py 와 같은 값 (x, 바닥 y, z)
+local FOOTING_DEPTH = 7
+for _, old in portal:GetChildren() do
+	if old.Name == "BrazierFooting" then old.Parent = bin end
+end
+for _, b in BRAZIERS do
+	local f = Instance.new("Part")
+	f.Name = "BrazierFooting"
+	f.Shape = Enum.PartType.Cylinder
+	f.Size = Vector3.new(FOOTING_DEPTH, 6.4, 6.4)
+	f.CFrame = MOUTH * CFrame.new(b[1], b[2] - FOOTING_DEPTH / 2 + 0.05, b[3]) * CFrame.Angles(0, 0, math.pi / 2)
+	f.Color, f.Material = LOOK.StoneDark[1], LOOK.StoneDark[2]
+	f.Anchored = true
+	f.Parent = portal
+end
+
 meshFolder.Parent = portal
 if rec then CHS:FinishRecording(rec, Enum.FinishRecordingOperation.Commit) end
 print(("[ImportEntranceProps] 메시 %d개, 횃불 불 %d개, 백업 %s"):format(#meshFolder:GetChildren(), #torchFires:GetChildren(), bin:GetFullName()))
