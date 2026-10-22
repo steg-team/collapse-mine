@@ -32,6 +32,7 @@ export type Ore = {
 	hardness: number,
 	color: Color3,
 	material: Enum.Material,
+	model: string?,
 }
 
 export type Mine = {
@@ -45,7 +46,10 @@ export type Mine = {
 	bottom: number,
 	layers: { Layer },
 	ores: { Ore },
-	-- interval: 붕괴 주기(초) 범위, 매 주기 이 안에서 랜덤 / warning: 경보 길이(초) / offset: 첫 붕괴를 미루는 시간(초), 광산끼리 엇갈리게 (D-012)
+	-- 이 등급 광물은 벽 표면에 안 나오고 땅 속에만 묻혀서, 지형을 파야 나온다.
+	-- chance = 벽 광석 자리마다 그 뒤 땅 속에 하나 묻을 확률, depth = 광물 윗면에서 벽 표면까지 흙 두께
+	buried: { grades: { string }, chance: number, depth: NumberRange }?,
+	-- interval: 붕괴 주기(초) 범위, 매 주기 이 안에서 랜덤 / warning: 경보 길이(초) / offset: 첫 붕괴를 미루는 시간(초), 광산끼리 엇갈리게 (D-013)
 	collapse: { interval: NumberRange, warning: number, offset: number },
 	cave: {
 		seed: number,
@@ -54,6 +58,7 @@ export type Mine = {
 		roomSpacing: NumberRange,
 		subBranchChance: number,
 		tunnelRadius: number,
+		roomScale: number?, -- 방 반경·높이 배율 (기본 1)
 	},
 }
 
@@ -73,16 +78,23 @@ Mines.list = {
 			{ name = "흙층", top = -4, bottom = -50, material = Enum.Material.Ground, hardness = 1 },
 			{ name = "바위층", top = -50, bottom = -125, material = Enum.Material.Slate, hardness = 2 },
 		},
-		ores = { -- 임시값
-			{ name = "Coal", displayName = "석탄", grade = "일반", value = 3, weight = 45, minDepth = 0, hardness = 1,
-				color = Color3.fromRGB(40, 40, 46), material = Enum.Material.Slate },
-			{ name = "Copper", displayName = "구리", grade = "일반", value = 5, weight = 30, minDepth = 0, hardness = 2,
-				color = Color3.fromRGB(200, 115, 60), material = Enum.Material.Metal },
-			{ name = "Zinc", displayName = "아연", grade = "일반", value = 7, weight = 18, minDepth = 30, hardness = 2,
-				color = Color3.fromRGB(165, 178, 190), material = Enum.Material.Metal },
-			{ name = "Iron", displayName = "철", grade = "고급", value = 12, weight = 7, minDepth = 60, hardness = 3,
-				color = Color3.fromRGB(150, 110, 95), material = Enum.Material.CorrodedMetal },
+		-- 1스테이지 "흙 동굴" 광물 6종 (D-012). 가치·확률·경도 모두 임시값
+		-- model = ServerStorage.OreModels 아래 광물 틀 경로. 틀이 없으면 color·material로 만든 돌 파트를 쓴다.
+		ores = {
+			{ name = "Coal", displayName = "석탄", grade = "일반", value = 2, weight = 50, minDepth = 0, hardness = 1,
+				color = Color3.fromRGB(40, 40, 46), material = Enum.Material.Slate, model = "Stage01/Coal" },
+			{ name = "Copper", displayName = "구리", grade = "일반", value = 5, weight = 30, minDepth = 0, hardness = 1,
+				color = Color3.fromRGB(200, 115, 60), material = Enum.Material.Metal, model = "Stage01/Copper" },
+			{ name = "Quartz", displayName = "석영", grade = "고급", value = 15, weight = 12, minDepth = 15, hardness = 2,
+				color = Color3.fromRGB(235, 235, 245), material = Enum.Material.Glass, model = "Stage01/Quartz" },
+			{ name = "Amber", displayName = "호박석", grade = "희귀", value = 45, weight = 5, minDepth = 35, hardness = 2,
+				color = Color3.fromRGB(230, 150, 40), material = Enum.Material.Glass, model = "Stage01/Amber" },
+			{ name = "CavePearl", displayName = "동굴 진주", grade = "에픽", value = 140, weight = 2.5, minDepth = 60, hardness = 3,
+				color = Color3.fromRGB(245, 240, 225), material = Enum.Material.SmoothPlastic, model = "Stage01/CavePearl" },
+			{ name = "Lantern", displayName = "광부의 녹슨 등불", grade = "전설", value = 480, weight = 0.5, minDepth = 80, hardness = 4,
+				color = Color3.fromRGB(150, 90, 50), material = Enum.Material.CorrodedMetal, model = "Stage01/Lantern" },
 		},
+		buried = { grades = { "희귀", "에픽", "전설" }, chance = 0.35, depth = NumberRange.new(4, 9) }, -- 임시값
 		collapse = { interval = NumberRange.new(480, 720), warning = 60, offset = 0 }, -- 8~12분 랜덤, 임시값 (초)
 		cave = {
 			seed = 7,
@@ -90,7 +102,8 @@ Mines.list = {
 			hubRooms = 4,
 			roomSpacing = NumberRange.new(40, 60),
 			subBranchChance = 0.45,
-			tunnelRadius = 5,
+			tunnelRadius = 7, -- 굴 폭 약 14 (좁아 보이지 않게)
+			roomScale = 1.4,
 		},
 	},
 } :: { Mine }

@@ -9,7 +9,8 @@
 	  3) 같은 id로 다시 실행하면 그 광산만 지우고 새로 짓는다. seed를 바꾸면 다른 모양.
 
 	만들어지는 것 (workspace.Mines.<id>)
-	  Ores/      광석 파트 (태그 "Ore", 속성 MineId·Ore·DisplayName·Grade·OreValue·Hardness·Layer)
+	  Ores/      광석 (태그 "Ore", 속성 MineId·Ore·DisplayName·Grade·OreValue·Hardness·Layer)
+             설정에 model이 있으면 ServerStorage.OreModels의 광물 틀(Model)을 복사, 없으면 색 돌 파트
 	  Rooms/     투명 방 구역 (속성 RoomType=Entrance/Hub/Side/End, Layer, CollapseRisk)
 	  Lights/    램프
 	  Entrance   허브에서 오면 도착하는 자리 (투명 파트)
@@ -31,13 +32,21 @@ local AIR = Enum.Material.Air
 local O = M.origin
 local C = M.cave
 local rng = Random.new(C.seed)
+local S = C.roomScale or 1 -- 방 크기·높이 배율 (굴 폭은 tunnelRadius)
 
 -- 폴더 준비 ------------------------------------------------------------------
 local minesRoot = workspace:FindFirstChild("Mines") or Instance.new("Folder")
 minesRoot.Name = "Mines"
 minesRoot.Parent = workspace
+-- 예전 광산(광석·방·램프)은 지우지 않고 ServerStorage.MineBackups로 옮긴다 (지형은 따로 백업해야 함)
 local old = minesRoot:FindFirstChild(M.id)
-if old then old:Destroy() end
+if old then
+	local bk = game:GetService("ServerStorage"):FindFirstChild("MineBackups") or Instance.new("Folder")
+	bk.Name = "MineBackups"
+	bk.Parent = game:GetService("ServerStorage")
+	old.Name = M.id .. "_" .. os.date("%m%d_%H%M")
+	old.Parent = bk
+end
 local root = Instance.new("Folder")
 root.Name = M.id
 root:SetAttribute("MineId", M.id)
@@ -58,40 +67,149 @@ local function flat(v: Vector3) return Vector3.new(v.X, 0, v.Z) end
 local function distFromCenter(p: Vector3) return (flat(p) - flat(O)).Magnitude end
 local function depthOf(y) return M.top - y end
 
-local function pickOre(y)
-	local d = depthOf(y)
+-- 광석은 굴을 다 판 뒤에 박는다. 굴을 파는 도중에 박으면 나중에 지나가는 굴이 벽을 지워 광석이 공중에 뜬다.
+-- 그래서 여기서는 자리(pos)와 벽 쪽 방향(dir)만 모아 둔다.
+-- 광석 종류·크기는 따로 만든 oreRng로 정해서, 광석 표를 바꿔도 굴 모양(rng 순서)은 그대로 유지된다.
+local oreRng = Random.new(C.seed + 1000)
+local oreRequests = {}
+local function makeOre(pos: Vector3, valueMult: number, dir: Vector3?)
+	table.insert(oreRequests, { pos = pos, mult = valueMult, dir = dir })
+end
+
+local terrainOnly = RaycastParams.new()
+terrainOnly.FilterType = Enum.RaycastFilterType.Include
+terrainOnly.FilterDescendantsInstances = { T }
+
+-- ── 광석 박기 공통 (tools/generate_mine.luau 와 tools/replace_mine_ores.luau 에 똑같이 들어 있음. 한쪽을 고치면 다른 쪽도) ──
+-- 벽 표면에는 묻는 등급(M.buried.grades)이 아닌 광물만 보이게 박고,
+-- 묻는 등급은 벽 표면에서 depth만큼 땅 속에 숨겨서 지형을 파야만 나오게 한다.
+-- 묻힌 광석은 빛·반짝임·외곽선을 꺼 둔다 (MiningServer가 처음 맞을 때 다시 켬).
+local function isBuriedGrade(o): boolean
+	return M.buried ~= nil and table.find(M.buried.grades, o.grade) ~= nil
+end
+
+local function pickFrom(r: Random, y: number, wantBuried: boolean)
+	local d = M.top - y
 	local total, pool = 0, {}
 	for _, o in M.ores do
-		if d >= o.minDepth then total += o.weight; table.insert(pool, o) end
+		if d >= o.minDepth and isBuriedGrade(o) == wantBuried then total += o.weight; table.insert(pool, o) end
 	end
-	local r = rng:NextNumber(0, total)
+	if #pool == 0 then return nil end
+	local n = r:NextNumber(0, total)
 	for _, o in pool do
-		r -= o.weight
-		if r <= 0 then return o end
+		n -= o.weight
+		if n <= 0 then return o end
 	end
 	return pool[#pool]
 end
 
-local function makeOre(pos: Vector3, valueMult: number)
-	local o = pickOre(pos.Y)
-	local layer, li = Mines.layerAt(M, pos.Y)
-	local p = Instance.new("Part")
-	p.Name = o.name
-	local s = rng:NextNumber(2.5, 4.5)
-	p.Size = Vector3.new(s, s * rng:NextNumber(0.7, 1.3), s * rng:NextNumber(0.7, 1.3))
-	p.CFrame = CFrame.new(pos) * CFrame.Angles(rng:NextNumber(0, 6.28), rng:NextNumber(0, 6.28), rng:NextNumber(0, 6.28))
-	p.Anchored = true
-	p.Material, p.Color = o.material, o.color
-	p:SetAttribute("Vein", true)
-	p:SetAttribute("MineId", M.id)
-	p:SetAttribute("Ore", o.name)
-	p:SetAttribute("DisplayName", o.displayName)
-	p:SetAttribute("Grade", o.grade)
-	p:SetAttribute("OreValue", o.value * valueMult)
-	p:SetAttribute("Hardness", layer.hardness + o.hardness - 1)
-	p:SetAttribute("Layer", li)
-	CS:AddTag(p, "Ore")
-	p.Parent = oresF
+local function findTemplate(path: string?): Model?
+	if not path then return nil end
+	local node: Instance? = game:GetService("ServerStorage"):FindFirstChild("OreModels")
+	for part in string.gmatch(path, "[^/]+") do
+		node = node and node:FindFirstChild(part)
+	end
+	return (node and node:IsA("Model")) and node or nil
+end
+
+-- 묻힌 광석이 흙에 완전히 덮였는지: 상자 꼭짓점·가운데가 모두 꽉 찬 지형 칸 안인지
+-- (벽이 얇으면 옆 굴로 삐져나올 수 있어서 확인)
+local function isCovered(inst: PVInstance): boolean
+	local cf, size = inst:GetBoundingBox()
+	for _, sx in { -0.5, 0, 0.5 } do
+		for _, sy in { -0.5, 0.5 } do
+			for _, sz in { -0.5, 0.5 } do
+				local p = cf:PointToWorldSpace(Vector3.new(sx * size.X, sy * size.Y, sz * size.Z))
+				local lo = Vector3.new(math.floor(p.X / 4) * 4, math.floor(p.Y / 4) * 4, math.floor(p.Z / 4) * 4)
+				local mats, occ = workspace.Terrain:ReadVoxels(Region3.new(lo, lo + Vector3.new(4, 4, 4)), 4)
+				if mats[1][1][1] == Enum.Material.Air or occ[1][1][1] < 0.99 then return false end
+			end
+		end
+	end
+	return true
+end
+
+local function spawnOre(r: Random, o, surfaceCf: CFrame, up: Vector3, mult: number, buried: boolean)
+	local inst: PVInstance
+	local cf = surfaceCf
+	local tpl = findTemplate(o.model)
+	if tpl then
+		local m = tpl:Clone()
+		m:ScaleTo(r:NextNumber(1.1, 1.5))
+		if buried then
+			local _, size = m:GetBoundingBox()
+			cf = cf - up * (size.Y + r:NextNumber(M.buried.depth.Min, M.buried.depth.Max))
+		end
+		m:PivotTo(cf)
+		if buried then
+			-- 덮이지 않았으면 4씩 더 깊이, 두 번 해도 안 되면 이 자리는 포기
+			local tries = 0
+			while not isCovered(m) do
+				tries += 1
+				if tries > 2 then m:Destroy(); return nil end
+				cf = cf - up * 4
+				m:PivotTo(cf)
+			end
+		end
+		for _, d in m:GetDescendants() do
+			if d:IsA("BasePart") then d.Anchored = true end
+			if buried and (d:IsA("Light") or d:IsA("ParticleEmitter") or d:IsA("Highlight") or d:IsA("Fire")) then
+				d.Enabled = false
+			end
+		end
+		inst = m
+	else
+		-- 틀이 없는 광물은 색 돌덩이
+		local p = Instance.new("Part")
+		local s = r:NextNumber(2.5, 4.5)
+		p.Size = Vector3.new(s, s * r:NextNumber(0.7, 1.3), s * r:NextNumber(0.7, 1.3))
+		if buried then cf = cf - up * (s + r:NextNumber(M.buried.depth.Min, M.buried.depth.Max)) end
+		p.CFrame = cf * CFrame.new(0, p.Size.Y * 0.3, 0) * CFrame.Angles(r:NextNumber(0, 6.28), r:NextNumber(0, 6.28), r:NextNumber(0, 6.28))
+		p.Anchored = true
+		p.Material, p.Color = o.material, o.color
+		inst = p
+	end
+	local layer, li = Mines.layerAt(M, cf.Position.Y)
+	inst.Name = o.name
+	inst:SetAttribute("Vein", true)
+	inst:SetAttribute("MineId", M.id)
+	inst:SetAttribute("Ore", o.name)
+	inst:SetAttribute("DisplayName", o.displayName)
+	inst:SetAttribute("Grade", o.grade)
+	inst:SetAttribute("OreValue", o.value * mult)
+	inst:SetAttribute("Hardness", layer.hardness + o.hardness - 1)
+	inst:SetAttribute("Layer", li)
+	if buried then inst:SetAttribute("Buried", true) end
+	CS:AddTag(inst, "Ore")
+	inst.Parent = oresF
+	return inst
+end
+
+-- 벽 표면 한 점(hit)에: 보이는 광석 하나 + 확률로 그 뒤 땅 속에 묻힌 광석 하나
+local function placeAtWall(r: Random, hit: RaycastResult, mult: number): number
+	local up = hit.Normal
+	local base = hit.Position - up * 0.35 -- 조금 파묻어서 벽에서 자라난 것처럼
+	local cross = up:Cross(Vector3.yAxis)
+	local look = cross.Magnitude > 0.1 and cross.Unit or Vector3.xAxis
+	local surfaceCf = CFrame.fromMatrix(base, look, up) * CFrame.Angles(0, r:NextNumber(0, math.pi * 2), 0)
+	local n = 0
+	local o = pickFrom(r, base.Y, false)
+	if o and spawnOre(r, o, surfaceCf, up, mult, false) then n += 1 end
+	if M.buried and r:NextNumber() < M.buried.chance then
+		local b = pickFrom(r, base.Y, true)
+		if b and spawnOre(r, b, surfaceCf, up, mult, true) then n += 1 end
+	end
+	return n
+end
+-- ── 광석 박기 공통 끝 ──
+
+-- 모아 둔 자리마다: 벽 쪽(살짝 아래)으로 쏴서 맞은 땅 표면에 박는다
+local function placeOre(req)
+	local dir: Vector3 = req.dir or Vector3.new(oreRng:NextNumber(-1, 1), 0, oreRng:NextNumber(-1, 1))
+	if dir.Magnitude < 0.01 then dir = Vector3.xAxis end
+	local castDir = (flat(dir).Unit + Vector3.new(0, -0.35, 0)).Unit
+	local hit = workspace:Raycast(req.pos - castDir * 3, castDir * 12, terrainOnly)
+	if hit then placeAtWall(oreRng, hit, req.mult) end
 end
 
 local function lamp(pos: Vector3, range: number)
@@ -121,15 +239,15 @@ end
 -- 방: 바닥 평평한 원통 + 낮은 돔
 local rooms = {}
 local function room(c: Vector3, R: number, kind: string)
-	T:FillCylinder(CFrame.new(c + Vector3.new(0, 5, 0)), 10, R, AIR); tick()
-	T:FillCylinder(CFrame.new(c + Vector3.new(0, 11, 0)), 4, R * 0.65, AIR); tick()
+	T:FillCylinder(CFrame.new(c + Vector3.new(0, 5 * S, 0)), 10 * S, R, AIR); tick()
+	T:FillCylinder(CFrame.new(c + Vector3.new(0, 11 * S, 0)), 4 * S, R * 0.65, AIR); tick()
 	local frac = math.clamp(depthOf(c.Y) / (M.top - M.bottom), 0, 1)
 	local risk = (kind == "Entrance" or kind == "Hub") and 0 or (0.05 + 0.25 * frac + (kind == "End" and 0.1 or 0))
 	local _, li = Mines.layerAt(M, c.Y)
 	local m = Instance.new("Part")
 	m.Name = "Room_" .. kind
-	m.Size = Vector3.new(R * 2, 12, R * 2)
-	m.Position = c + Vector3.new(0, 6, 0)
+	m.Size = Vector3.new(R * 2, 12 * S, R * 2)
+	m.Position = c + Vector3.new(0, 6 * S, 0) -- 바닥 = Position.Y - Size.Y / 2
 	m.Anchored, m.CanCollide, m.CanQuery, m.Transparency = true, false, false, 1
 	m:SetAttribute("Room", true)
 	m:SetAttribute("MineId", M.id)
@@ -141,9 +259,9 @@ local function room(c: Vector3, R: number, kind: string)
 	for _ = 1, n do
 		local a = rng:NextNumber(0, math.pi * 2)
 		local d = R - rng:NextNumber(0.5, 2)
-		makeOre(c + Vector3.new(math.cos(a) * d, rng:NextNumber(1, 6), math.sin(a) * d), kind == "End" and 2 or 1)
+		makeOre(c + Vector3.new(math.cos(a) * d, rng:NextNumber(1, 6) * S, math.sin(a) * d), kind == "End" and 2 or 1, Vector3.new(math.cos(a), 0, math.sin(a)))
 	end
-	lamp(c + Vector3.new(0, 9, 0), math.max(24, R * 2.2))
+	lamp(c + Vector3.new(0, 9 * S, 0), math.max(24, R * 2.2))
 	table.insert(rooms, { c = c, R = R, kind = kind })
 end
 
@@ -159,8 +277,9 @@ T:FillCylinder(CFrame.new(O + Vector3.new(0, M.bottom - 6, 0)), 12, FR, last.mat
 root:SetAttribute("GenProgress", 0.1)
 
 -- 2) 입구 방 + 허브 방 무리 ---------------------------------------------------
-local entranceFloor = Vector3.new(O.X, M.top - 16, O.Z)
-room(entranceFloor, 16, "Entrance")
+-- 입구 방 천장(바닥 + 13S)이 지표 아래 지형 한 칸(4)을 남기게
+local entranceFloor = Vector3.new(O.X, M.top - math.ceil(13 * S + 3), O.Z)
+room(entranceFloor, 16 * S, "Entrance")
 
 local entrance = Instance.new("Part")
 entrance.Name = "Entrance"
@@ -191,9 +310,9 @@ exitPad.Parent = root
 local hubs = { { c = entranceFloor } }
 for i = 1, C.hubRooms do
 	local ang = (i - 1) / C.hubRooms * math.pi * 2 + rng:NextNumber(-0.3, 0.3)
-	local c = entranceFloor + Vector3.new(math.cos(ang) * 42, -4 - 3 * i, math.sin(ang) * 42)
+	local c = entranceFloor + Vector3.new(math.cos(ang) * 42 * S, -4 - 3 * i, math.sin(ang) * 42 * S)
 	corridor(entranceFloor, c)
-	room(c, rng:NextNumber(10, 13), "Hub")
+	room(c, rng:NextNumber(10, 13) * S, "Hub")
 	table.insert(hubs, { c = c })
 end
 root:SetAttribute("GenProgress", 0.2)
@@ -201,7 +320,7 @@ root:SetAttribute("GenProgress", 0.2)
 -- 3) 굴 갈래 -----------------------------------------------------------------
 -- 바닥이 지층 범위를 벗어나지 않게
 local minFloor = M.bottom + 8
-local maxFloor = M.top - 14
+local maxFloor = M.top - (TR * 2 + 4) -- 굴 천장이 지표 아래 지형 한 칸(4)을 남기게
 
 local function walkBranch(start: Vector3, heading: number, targetFloor: number, maxLen: number, depth: number)
 	local P = start
@@ -234,13 +353,13 @@ local function walkBranch(start: Vector3, heading: number, targetFloor: number, 
 		if steps % 9 == 0 then
 			-- 굴 벽에 가끔 광석
 			local perp = Vector3.new(-math.sin(h), 0, math.cos(h)) * (rng:NextNumber() < 0.5 and 1 or -1)
-			if rng:NextNumber() < 0.5 then makeOre(P + perp * (TR - 0.6) + Vector3.new(0, rng:NextNumber(1.5, 4), 0), 1) end
+			if rng:NextNumber() < 0.5 then makeOre(P + perp * (TR - 0.6) + Vector3.new(0, rng:NextNumber(1.5, 4), 0), 1, perp) end
 		end
 		if steps % 22 == 0 then lamp(P + Vector3.new(0, TR * 2 - 1.5, 0), 26) end
 		if len >= nextRoomAt and len < maxLen - 20 then
 			local perp = Vector3.new(-math.sin(h), 0, math.cos(h)) * side
 			side = -side
-			local R = rng:NextNumber(8, 12)
+			local R = rng:NextNumber(8, 12) * S
 			local rc = P + perp * (R + 6)
 			if distFromCenter(rc) < M.radius - R - 8 then
 				corridor(P, rc)
@@ -259,7 +378,7 @@ local function walkBranch(start: Vector3, heading: number, targetFloor: number, 
 	local ec = P + perp * 6
 	if distFromCenter(ec) > M.radius - 16 then ec = P end
 	corridor(P, ec)
-	room(ec, rng:NextNumber(11, 14), "End")
+	room(ec, rng:NextNumber(11, 14) * S, "End")
 end
 
 for b = 1, C.branches do
@@ -274,6 +393,12 @@ for b = 1, C.branches do
 	local target = rng:NextNumber(minFloor, maxFloor - 15)
 	walkBranch(best.c, ang, target, rng:NextNumber(M.radius * 0.75, M.radius * 1.05), 0)
 	root:SetAttribute("GenProgress", 0.2 + 0.8 * b / C.branches)
+end
+
+-- 4) 광석 박기 (굴을 다 판 뒤) ------------------------------------------------
+for i, req in oreRequests do
+	placeOre(req)
+	if i % 25 == 0 then task.wait() end
 end
 
 -- 마무리 ---------------------------------------------------------------------

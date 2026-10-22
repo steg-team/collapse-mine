@@ -89,7 +89,7 @@ local Banner = table.freeze({
 	} :: { [AnnounceKind]: { bg: Color3, stroke: Color3, icon: string } }),
 })
 
--- ───────── 4. 광맥 붕괴 (D-012) ─────────
+-- ───────── 4. 광맥 붕괴 (D-013) ─────────
 
 local Collapse = table.freeze({
 	announceAt = table.freeze({ 30, 10 }), -- 경보 중 이 남은 시간(초)에 공지. 경보 시작·붕괴 순간 공지는 따로

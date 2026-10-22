@@ -5,13 +5,20 @@ local RS = game:GetService("ReplicatedStorage")
 local CS = game:GetService("CollectionService")
 local Debris = game:GetService("Debris")
 
-local Mines = require(RS:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("Mines"))
+local Shared = RS:WaitForChild("Shared")
+local Mines = require(Shared:WaitForChild("Config"):WaitForChild("Mines"))
+local Events = require(Shared:WaitForChild("Events"))
+local EventBus = require(Shared:WaitForChild("EventBus"))
 local ev = RS:WaitForChild("Remotes"):WaitForChild("MineHit")
 local Terrain = workspace.Terrain
 
 local REACH = 14       -- 캐릭터에서 이 거리 안만 캘 수 있음
 local COOLDOWN = 0.3
+local SURFACE_CRUST = 4 -- 지표(광산 top) 아래 이만큼은 절대 안 파임 = 지형 한 칸
 local lastHit = {}
+
+-- 이 등급 이상을 캐면 LegendaryFound (C가 서버 전체 공지)
+local LEGENDARY_GRADES = { ["전설"] = true, ["신화"] = true, ["???"] = true }
 
 local function setupPlayer(plr: Player)
 	if plr:FindFirstChild("leaderstats") then return end
@@ -50,16 +57,52 @@ ev.OnServerEvent:Connect(function(plr, target, hitPos)
 	swing(tool)
 
 	-- 광석: 경도(Hardness)만큼 때려야 깨짐
-	if typeof(target) == "Instance" and target:IsA("BasePart") and CS:HasTag(target, "Ore") then
-		if (target.Position - root.Position).Magnitude > REACH + 4 then return end
-		local hp = target:GetAttribute("HP") or target:GetAttribute("Hardness") or 1
+	-- 광석은 파트 하나(예전 방식)거나 광물 틀 모델(태그·속성이 모델에 있음). 모델이면 맞은 파트에서 모델을 찾는다.
+	local ore: Instance? = nil
+	if typeof(target) == "Instance" and target:IsA("BasePart") then
+		if CS:HasTag(target, "Ore") then
+			ore = target
+		else
+			local m = target:FindFirstAncestorWhichIsA("Model")
+			if m and CS:HasTag(m, "Ore") then ore = m end
+		end
+	end
+	if ore then
+		local orePos = if ore:IsA("Model") then ore:GetPivot().Position else (ore :: BasePart).Position
+		if (orePos - root.Position).Magnitude > REACH + 4 then return end
+		-- 땅 속에 묻혀 있던 광석은 빛·반짝임을 꺼 둔 상태 (생성기). 파서 처음 맞히면 켜서 "찾았다" 느낌
+		if ore:GetAttribute("Buried") then
+			ore:SetAttribute("Buried", nil)
+			for _, d in ore:GetDescendants() do
+				if d:IsA("Light") or d:IsA("ParticleEmitter") or d:IsA("Highlight") or d:IsA("Fire") then
+					d.Enabled = true
+				end
+			end
+		end
+		local maxHp = ore:GetAttribute("Hardness") or 1
+		local hp = ore:GetAttribute("HP") or maxHp
 		hp -= 1
 		if hp <= 0 then
-			plr.leaderstats.Coins.Value += target:GetAttribute("OreValue") or 0
-			target:Destroy()
+			plr.leaderstats.Coins.Value += ore:GetAttribute("OreValue") or 0
+			if LEGENDARY_GRADES[ore:GetAttribute("Grade")] then
+				local mine = Mines.findAt(orePos)
+				local stageId = mine and mine.order or 0
+				local depth = mine and math.max(0, math.floor(mine.top - orePos.Y)) or 0
+				-- (player, oreId, stageId, depth) — Events.luau 계약
+				EventBus.Fire(Events.LegendaryFound, plr, ore:GetAttribute("Ore") or ore.Name, stageId, depth)
+			end
+			ore:Destroy()
 		else
-			target:SetAttribute("HP", hp)
-			target.Transparency = math.min(0.6, target.Transparency + 0.1)
+			ore:SetAttribute("HP", hp)
+			if ore:IsA("Model") then
+				-- 맞을수록 조금씩 작아져서 "깎이는" 느낌 (처음 크기의 최대 30%까지)
+				local base = ore:GetAttribute("BaseScale")
+				if base == nil then base = ore:GetScale(); ore:SetAttribute("BaseScale", base) end
+				ore:ScaleTo(base * (1 - 0.3 * (1 - hp / maxHp)))
+			else
+				local p = ore :: BasePart
+				p.Transparency = math.min(0.6, p.Transparency + 0.1)
+			end
 		end
 		return
 	end
@@ -69,6 +112,15 @@ ev.OnServerEvent:Connect(function(plr, target, hitPos)
 		local mine = Mines.findAt(hitPos)
 		if not mine or hitPos.Y > mine.top - 1 then return end
 		local _, li = Mines.layerAt(mine, hitPos.Y)
-		Terrain:FillBall(hitPos, digRadius(li), Enum.Material.Air)
+		local r = digRadius(li)
+		-- 파내는 공이 지표·바닥을 뚫지 않게 공 중심을 안쪽으로 당긴다.
+		-- 굴 천장이 지표에서 몇 스터드밖에 안 돼서, 위를 파면 공 윗부분이 잔디까지 뚫고 밖으로 탈출할 수 있었다.
+		-- 지형 칸이 4스터드라 공 끝이 칸 경계(top - SURFACE_CRUST)를 넘지 않아야 위 칸이 남는다.
+		local center = Vector3.new(
+			hitPos.X,
+			math.clamp(hitPos.Y, mine.bottom + r, mine.top - SURFACE_CRUST - r),
+			hitPos.Z
+		)
+		Terrain:FillBall(center, r, Enum.Material.Air)
 	end
 end)
