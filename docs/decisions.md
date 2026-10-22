@@ -106,3 +106,15 @@ AI 에이전트는 구현 전에 이 문서와 `game-design.md`를 읽고, 둘�
 - 이유: 레포 문서가 공유 기획서보다 오래된 광물표였다 (D-011과 같은 이유). 모델 광석이 멀리서도 등급이 보여 캐고 싶어진다.
 - 영향: `tools/generate_mine.luau`(광석을 굴을 다 판 뒤 박음, 광석용 난수를 따로 써서 광물표를 바꿔도 굴 모양 유지), `src/server/Mining/MiningServer.server.luau`. 팀 플레이스에서 광산을 다시 생성해야 반영된다. 판매가 단위는 경제 설계(B)와 맞춰 확정.
 - 보강 (2026-10-22): 굴·방이 좁아 보여서 기본 광산을 크게 다시 생성 (굴 반경 5 → 7, 방 크기·높이 1.4배 `cave.roomScale`, 임시값). 희귀·에픽·전설 광물은 벽 표면에 아예 안 나오고 **땅 속에만 묻혀서 지형을 파야 나오게** 함 (`buried`: 벽 광석 자리마다 35% 확률로 그 뒤 4~9스터드 흙 속에 하나, 묻힌 동안 빛·반짝임 꺼짐, 처음 맞히면 켜짐). 출구는 입구 방 벽의 갱도 문 → 비탈 굴 → 풀밭 위 바위 언덕의 동굴 아가리 (`tools/build_mine_exit.luau`). 예전 광산은 `ServerStorage.MineBackups`(광석·방 폴더 + 지형 TerrainRegion).
+
+## D-014 플레이어 데이터 저장
+
+- 2026-10-22 / 채택 (팀 리뷰 대기) / B 담당
+- 결정:
+  - 플레이어당 DataStore 키 하나(`Player_<UserId>`)에 모든 저장 데이터를 담는다. 세션 잠금·자동 저장은 ProfileStore(loleris, MIT)를 `src/server/Economy/ProfileStore.luau`로 가져와 쓴다.
+  - 저장 칸: `coins`, `pickaxe`(tier·enhance), `canary`, `rebirths`, `bag`(광물마다 ore·weight·pressure·value, 가방 = 인벤토리), `codex`(도감), `stats`(totalEarned·bestOre·bestHaul), `social`(C 전용 칸, 구조는 C가 정함), 스키마 버전 `v`. 게임패스는 저장하지 않고 매번 조회한다.
+  - 붕괴 경보 중에 광산 안에서 접속을 끊으면 갇힘과 같은 비율로 가방을 차감한다. 평소 접속 끊김은 가방을 그대로 둔다.
+  - `PlayerTrapped`를 받으면 같은 비율로 가방을 차감하고, `PlayerEscaped`를 받으면 보너스 코인을 준다.
+  - 다른 기능은 `PlayerDataLoaded` 이후 `PlayerData.get(player)`로 읽는다. 쓰기는 B가 하고, C는 `social` 칸만 쓴다.
+- 이유: 서버를 옮길 때 데이터가 덮어써지거나 복제되는 것을 막으려면 세션 잠금이 필요하고, 직접 짜면 버그가 곧 데이터 유실이다. 키를 하나로 두면 저장이 한 번에 처리돼 칸끼리 어긋나지 않는다. 경보 중 접속 끊기로 갇힘 차감을 피하는 꼼수를 막되, 평소 튕김에는 손해가 없게 한다.
+- 영향: `src/server/Economy/PlayerData.luau`, `EconomyInit.server.luau`, `src/shared/Config/Economy.luau`(갇힘 차감 비율, 임시값), `Events.luau` 조회 함수 주석. 코인은 당분간 `leaderstats.Coins` 값을 저장한다 (A의 채굴 코드가 직접 더하는 동안). Studio에서 실제로 저장하려면 게임 설정 → 보안 → "Studio에서 API 서비스 사용"을 켠다 (꺼져 있으면 저장 없이 돌아감).

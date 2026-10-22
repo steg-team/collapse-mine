@@ -94,4 +94,12 @@ local Events = {
 		붕괴까지 남은 초. 경보 중이 아니면 nil. A가 압력 등급 계산에 사용.
 ]]
 
+--[[
+	이벤트가 아닌 조회 함수 (B 제공, D-014)
+
+	PlayerData.get(player) -> Data?
+		저장 데이터 표 (ServerScriptService.Server.Economy.PlayerData). PlayerDataLoaded 전·퇴장 후엔 nil.
+		쓰기는 B만, C는 data.social 칸만 쓴다.
+]]
+
 return table.freeze(Events)
