@@ -62,6 +62,13 @@ ev.OnServerEvent:Connect(function(plr, target, hitPos)
 		hp -= 1
 		if hp <= 0 then
 			plr.leaderstats.Coins.Value += target:GetAttribute("OreValue") or 0
+			if LEGENDARY_GRADES[target:GetAttribute("Grade")] then
+				local mine = Mines.findAt(target.Position)
+				local stageId = mine and mine.order or 0
+				local depth = mine and math.max(0, math.floor(mine.top - target.Position.Y)) or 0
+				-- (player, oreId, stageId, depth) — Events.luau 계약
+				EventBus.Fire(Events.LegendaryFound, plr, target:GetAttribute("Ore") or target.Name, stageId, depth)
+			end
 			target:Destroy()
 		else
 			target:SetAttribute("HP", hp)
