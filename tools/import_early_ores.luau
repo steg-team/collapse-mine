@@ -31,7 +31,7 @@ local ORES = {
 	{ key = "Silver", name = "은", set = "Stage02", grade = "고급", color = "rbxassetid://115213268152057", glow = c3(230, 235, 245) },
 	{ key = "Magnetite", name = "자철석", set = "Stage02", grade = "희귀", color = "rbxassetid://121422086747493", glow = c3(120, 150, 255) },
 	{ key = "Platinum", name = "백금", set = "Stage02", grade = "에픽", color = "rbxassetid://109492223873840", glow = c3(240, 245, 255) },
-	{ key = "PocketWatch", name = "감독관의 회중시계", set = "Stage02", grade = "전설", color = "rbxassetid://110488569711919", glow = c3(255, 210, 110) },
+	{ key = "PocketWatch", name = "감독관의 회중시계", set = "Stage02", grade = "전설", color = "rbxassetid://75840590962761", glow = c3(255, 210, 110) },
 	{ key = "Limestone", name = "석회석", set = "Stage03", grade = "일반", color = "rbxassetid://104917930480040", glow = c3(240, 230, 200) },
 	{ key = "Calcite", name = "방해석", set = "Stage03", grade = "일반", color = "rbxassetid://77236192916109", glow = c3(255, 200, 130) },
 	{ key = "Azurite", name = "남동석", set = "Stage03", grade = "고급", color = "rbxassetid://131138258257320", glow = c3(70, 110, 255) },

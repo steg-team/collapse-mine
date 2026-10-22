@@ -102,19 +102,26 @@ def emissive_mask(key, rgb):
     return None
 
 
-def build_turn(key, fn, size=3.0, N=96, voxel=0.04, target=6000, loc=(0, 0, 0), roundness=2.0):
-    """roundness: 높이마다 단면을 (|x|/a)^p + (|y|/b)^p <= 1 로 깎는 지수. 2 = 타원(둥근 물건), 클수록 네모, 0 = 깎지 않음"""
+def build_turn(key, fn, size=3.0, N=96, voxel=0.04, target=6000, loc=(0, 0, 0), roundness=2.0, side_core=0.0):
+    """roundness: 높이마다 단면을 (|x|/a)^p + (|y|/b)^p <= 1 로 깎는 지수. 2 = 타원(둥근 물건), 클수록 네모, 0 = 깎지 않음
+    side_core: 옆 그림에서 세로로 이만큼(최대 대비 비율) 이상 찬 열만 두께로 씀. 회중시계처럼 옆 그림에
+               바닥에 펼친 뚜껑·늘어진 사슬이 같이 그려져 몸통이 두꺼워지는 걸 막는다. 0 = 끔"""
     img = bpy.data.images.load(os.path.join(REF, fn), check_existing=True); img.reload()
     W, H = img.size
     px = np.array(img.pixels[:], dtype=np.float32).reshape(H, W, 4)
     m = fg_mask(px)
     cut = split_col(m)
     views = []
-    for a, b in ((0, cut), (cut, W)):
+    for vi, (a, b) in enumerate(((0, cut), (cut, W))):
         mm = np.zeros_like(m); mm[:, a:b] = m[:, a:b]
         mm = keep_main(mm)
-        ys, xs = np.nonzero(mm)
-        views.append((xs.min(), xs.max(), ys.min(), ys.max(), mm))
+        ys, _ = np.nonzero(mm)
+        y0, y1 = ys.min(), ys.max()  # 높이 기준은 자르기 전 전체 (앞 그림과 높이를 맞추려고)
+        if vi == 1 and side_core > 0:
+            cov = mm.sum(0)
+            mm[:, cov < side_core * cov.max()] = False
+        _, xs = np.nonzero(mm)
+        views.append((xs.min(), xs.max(), y0, y1, mm))
     (fx0, fx1, fy0, fy1, fm), (sx0, sx1, sy0, sy1, sm) = views
     hF, hS = fy1 - fy0, sy1 - sy0
     wx = (fx1 - fx0) * size / hF; wy = (sx1 - sx0) * size / hS
@@ -230,13 +237,14 @@ def build_turn(key, fn, size=3.0, N=96, voxel=0.04, target=6000, loc=(0, 0, 0), 
 
 # 단면 둥글기 (기본 2 = 타원). 각진 결정·납작한 종이는 덜 둥글게
 ROUNDNESS = {"Calcite": 6.0, "Coal": 3.0, "Limestone": 3.0, "Magnetite": 3.0, "WetMap": 0.0}
+SIDE_CORE = {"PocketWatch": 0.55}
 
 
 def build_all(ores=TURN_ORES, fbx="EarlyOresTurn.fbx"):
     os.makedirs(OUT, exist_ok=True)
     obs = []
     for i, (key, fn) in enumerate(ores):
-        obs.append(build_turn(key, fn, loc=(-12.5 + (i % 6) * 5, 60 + (i // 6) * 6, 0), roundness=ROUNDNESS.get(key, 2.0)))
+        obs.append(build_turn(key, fn, loc=(-12.5 + (i % 6) * 5, 60 + (i // 6) * 6, 0), roundness=ROUNDNESS.get(key, 2.0), side_core=SIDE_CORE.get(key, 0.0)))
     bpy.ops.object.select_all(action='DESELECT')
     for o in obs:
         o.select_set(True)
