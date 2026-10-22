@@ -10,7 +10,7 @@
 ```
 src/
   server/   → ServerScriptService.Server
-    Core/       공용 기반 코드 (B)
+    Core/       공통 기반 코드 (0단계)
     Mining/     채굴 코어 (A)
     Economy/    경제·성장 (B)
     Social/     소셜·이벤트 (C)
@@ -61,9 +61,9 @@ src/
 
 | 담당 | 기능 | 폴더 |
 |---|---|---|
-| A | 채굴 코어 | `Mining/` |
-| B | 경제·성장 | `Economy/`, `Core/`, `shared/` |
-| C | 소셜·이벤트 | `Social/` |
+| A | 플레이어 + 광산 + 채굴 | `Mining/` |
+| B | 경제 | `Economy/` |
+| C | 이벤트·서비스 | `Social/` |
 
 폴더별 리뷰어는 `.github/CODEOWNERS`에서 지정합니다.
 

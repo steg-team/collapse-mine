@@ -95,4 +95,4 @@ AI 에이전트는 구현 전에 이 문서와 `game-design.md`를 읽고, 둘�
   - 이벤트 계약을 `src/shared/Events.luau` 기준으로 다시 정한다. `CollapseStarted`/`CollapseEnded` → `CollapseWarning`(경보)/`CollapseOccurred`(실제 붕괴) + `PlayerEscaped`/`PlayerTrapped`. `BoostPurchased` 이벤트는 없애고 C의 조회 함수 `Monetization.HasPass`/`GetMultiplier`로 대체. 붕괴까지 남은 시간은 `Collapse.GetRemainingTime`으로 조회.
   - D-009 랭킹 3종 집계를 위해 B → C 이벤트 `OreBagged`(광물 확정 가격), `OreSold`(판매액), `HaulSecured`(탈출 수확 가치)를 추가. 그 밖에 `PlayerDataLoaded`, `StageEntered`, `QuestCompleted`, `DailyLoginClaimed` 추가.
 - 이유: 레포 문서가 공유 기획서보다 오래된 버전이었다. "일어난 일"은 이벤트로, "지금 상태"(패스 보유, 배수, 남은 시간)는 조회 함수로 나누면 상태를 여러 곳에서 따로 들고 있다가 어긋날 일이 없다. 붕괴는 카운트다운이 끝나는 순간이 곧 붕괴라 시작·종료를 나눌 필요가 없다.
-- 영향: `src/shared/Events.luau`, `AGENTS.md`·`game-design.md` 역할·이벤트 표, `CODEOWNERS` 주석. 실제로 이벤트를 쏘고 받는 이벤트 버스 모듈은 아직 없음(공용 코드, B). `친구 초대`(C)와 `리버스`(B)는 공유 기획서에 담당 표기가 없어 기존대로 둔다.
+- 영향: `src/shared/Events.luau`, `AGENTS.md`·`game-design.md` 역할·이벤트 표, `CODEOWNERS` 주석. 이벤트를 쏘고 받는 `src/shared/EventBus.luau` 추가(C 작성). `Core/`·`shared/`는 특정 담당 없이 0단계 공통 기반으로 두고 3명 리뷰 (공유 기획서에 B의 "공용 코드" 담당 표기가 없음). `친구 초대`(C)와 `리버스`(B)는 공유 기획서에 담당 표기가 없어 기존대로 둔다.
