@@ -1,5 +1,5 @@
 --!strict
--- 서버 부스트 UI (C 담당, D-017)
+-- 서버 부스트 UI (C 담당, D-018)
 -- - 화면 왼쪽(출석 📅 아래) 🚀 버튼: 서버 부스트 구매 창
 -- - 오른쪽 위: 부스트 중이면 "🚀 서버 채굴 2배 12:34"
 -- 지급·판정은 서버(Payments.luau). 남은 시간은 ReplicatedStorage.ServerBoost 의 속성 EndsAt(서버 시계).
