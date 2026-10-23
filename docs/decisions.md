@@ -155,3 +155,11 @@ AI 에이전트는 구현 전에 이 문서와 `game-design.md`를 읽고, 둘�
   - 보상 숫자는 `Config/Social.luau`의 `DailyLogin.rewards` (10·20·30·50·70·100·200, 임시값).
 - 이유: 기획서 "Creator Rewards: 붕괴 카운트다운, 출석 보상으로 체류 시간 확보". 연속을 끊으면 처음부터라 매일 들어올 이유가 생긴다.
 - 영향: `src/server/Social/DailyLogin.luau`, `src/client/Social/DailyLoginPanel.client.luau`, `Config/Social.luau`, `tools/create_social_remotes.luau`(`Remotes.DailyLogin` RemoteFunction 추가 — 팀 플레이스에서 다시 실행 필요).
+
+## D-017 2·3스테이지 광산 추가, 광산 이동은 텔레포트
+
+- 2026-10-23 / 채택 / 이우진 (A)
+- 결정: 공유 기획서 2·3스테이지대로 광산 두 개를 추가한다. `iron` 철광 갱도(중심 (-900, 0, -900), 돌 곡괭이, 지층 갱도 바위·철광층, 철·주석·은·자철석·백금·감독관의 회중시계), `groundwater` 지하수 동굴(중심 (900, 0, -900), 철 곡괭이, 지층 석회암·젖은 암반, 석회석·방해석·남동석·공작석·물빛 진주·젖은 광산 지도). 굴 모양 규칙·파다가 발견·길바닥 보호·출구는 기본 광산과 같다. 붕괴는 3분씩 엇갈리게(offset 0·180·360). 가치·확률·경도는 임시값이고 판매가 단위는 B와 맞춰 확정.
+- 광산 사이 이동은 허브에 광산마다 입구를 내지 않고 **텔레포트**로 한다 (텔레포트 UI는 다음 작업). 레포 기획서의 2·3번 예시(철·금 / 수정 동굴 사파이어·루비)는 이걸로 대체.
+- 이유: 광물 모델이 이미 있고 공유 기획서가 최신이다. 허브 남쪽 절벽에 산을 여러 개 붙이면 기본 광산 입구를 덮는다.
+- 영향: `src/shared/Config/Mines.luau`, `game-design.md` 광산 표. 팀 플레이스에 `tools/generate_mine.luau`·`tools/build_mine_exit.luau`로 생성 (MINE_ID = "iron", "groundwater").
