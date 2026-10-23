@@ -156,7 +156,9 @@ if TH.waterfalls then
 		end
 		local head = pts[#pts]
 		T:ReplaceMaterial(Region3.new(head + Vector3.new(-6, 4, -5), head + Vector3.new(6, 40, 9)):ExpandToGrid(4), 4, Enum.Material.Water, Enum.Material.Air)
-		T:FillBlock(CFrame.new(head.X, (head.Y + 2) / 2, head.Z + 1.7), Vector3.new(6, head.Y + 2, 4), Enum.Material.Water)
+		-- 넓고 두껍게 뒤 바위에 붙여서 (얇으면 물길 끝에서 꺾여 떨어지는 ㄱ자에 바위와 틈이 생김) + 꺾이는 모서리를 둥글게
+		T:FillBlock(CFrame.new(head.X + 1, (head.Y + 2) / 2, head.Z), Vector3.new(10, head.Y + 2, 8), Enum.Material.Water)
+		T:FillBall(head + Vector3.new(0, -1, 1), 5, Enum.Material.Water)
 		for _, pt in folder:GetChildren() do
 			if pt.Name == "Stream" and math.abs(pt.Position.X - head.X) < 8 then
 				pt.CFrame = CFrame.new(head.X, head.Y, head.Z + 3)
