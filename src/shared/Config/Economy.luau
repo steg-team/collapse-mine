@@ -45,6 +45,14 @@ local Economy = {
 	-- 카나리아가 반응하는 등급 / 키울 때 받는 등급
 	CANARY_DETECT_GRADES = table.freeze({ ["희귀"] = true, ["에픽"] = true, ["전설"] = true, ["신화"] = true, ["???"] = true }),
 	CANARY_FEED_GRADE = "희귀",
+
+	-- 리버스 (D-024): 가장 좋은 곡괭이 + 코인을 내고 코인·곡괭이·가방을 처음으로. 대신 판매가가 영구로 오른다.
+	-- 필요 코인 = coins × (지금까지 리버스 횟수 + 1). 판매가 배수 = 1 + sellBonus × 리버스 횟수. 숫자는 모두 임시값
+	REBIRTH = table.freeze({
+		needTier = 4,
+		coins = 50000,
+		sellBonus = 0.25,
+	}),
 }
 
 return table.freeze(Economy)
