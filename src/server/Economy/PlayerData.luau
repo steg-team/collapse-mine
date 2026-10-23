@@ -24,6 +24,8 @@ local EventBus = require(Shared:WaitForChild("EventBus"))
 local Mines = require(Shared:WaitForChild("Config"):WaitForChild("Mines"))
 local Economy = require(Shared.Config:WaitForChild("Economy"))
 local ProfileStore = require(script.Parent.ProfileStore)
+-- C의 조회 함수 (D-011: "지금 상태"는 이벤트로 따로 들고 있지 않고 물어본다)
+local Collapse = require(script.Parent.Parent:WaitForChild("Social"):WaitForChild("Collapse"))
 
 export type BagItem = {
 	ore: string,
@@ -60,7 +62,6 @@ local TEMPLATE: Data = {
 
 local store = ProfileStore.New("PlayerData", TEMPLATE)
 local profiles: { [Player]: any } = {}
-local warnedMines: { [string]: boolean } = {}
 local lastMineId: { [Player]: string? } = {}
 local rng = Random.new()
 
@@ -110,7 +111,7 @@ local function load(player: Player)
 	-- 퇴장 때는 PlayerRemoving보다 캐릭터가 먼저 지워지므로, 지워지는 순간 광산 안이었는지 적어 둔다
 	player.CharacterRemoving:Connect(function(char)
 		local root = char:FindFirstChild("HumanoidRootPart") :: BasePart?
-		local mine = root and Mines.findAt(root.Position)
+		local mine = root and Mines.findAreaAt(root.Position) -- C의 isInside와 같은 기준 (출구 비탈 포함)
 		lastMineId[player] = mine and mine.id
 	end)
 
@@ -138,19 +139,13 @@ local function release(player: Player)
 	lastMineId[player] = nil
 
 	-- 경보 중에 광산 안에서 나가면 갇힘과 같은 차감 (나갔다 들어와 차감을 피하는 것 방지)
-	if mineId and warnedMines[mineId] then
+	if mineId and Collapse.GetRemainingTime(mineId) ~= nil then
 		PlayerData.loseBag(profile.Data)
 	end
 	profile:EndSession()
 end
 
 function PlayerData.start()
-	EventBus.On(Events.CollapseWarning, function(mineId: string)
-		warnedMines[mineId] = true
-	end)
-	EventBus.On(Events.CollapseOccurred, function(mineId: string)
-		warnedMines[mineId] = nil
-	end)
 	EventBus.On(Events.PlayerTrapped, function(player: Player)
 		local data = PlayerData.get(player)
 		if data then
