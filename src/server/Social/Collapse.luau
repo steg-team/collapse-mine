@@ -31,6 +31,9 @@ type State = {
 	announced: { [number]: boolean }, -- 이번 경보에서 이미 띄운 공지 (30초, 10초 …)
 	-- 경보 중 광산에 있었던 플레이어 → 마지막으로 광산 안에서 본 시각
 	participants: { [Player]: number },
+	-- 경보 중 광산 안에서 죽은 플레이어. 리셋하면 허브에서 부활해 "광산 밖"이 되므로,
+	-- 이걸 따로 기록하지 않으면 리셋만으로 탈출 성공 + 최대 보너스를 받는다 (리셋 꼼수)
+	diedInside: { [Player]: boolean },
 }
 
 local states: { [string]: State } = {}
@@ -75,6 +78,7 @@ local function startWarning(mine: Mines.Mine, st: State, warningLen: number)
 	st.collapseAt = now() + warningLen
 	st.announced = {}
 	st.participants = {}
+	st.diedInside = {}
 	stateFolder:SetAttribute(mine.id, st.collapseAt)
 
 	EventBus.Fire(Events.CollapseWarning, mine.id, st.collapseAt)
@@ -96,7 +100,7 @@ local function doCollapse(mine: Mines.Mine, st: State)
 
 	for player, lastInside in st.participants do
 		if player.Parent == nil then continue end -- 나간 플레이어
-		if isInside(player, mine) then
+		if isInside(player, mine) or st.diedInside[player] then
 			trapped += 1
 			table.insert(trappedPlayers, player)
 			EventBus.Fire(Events.PlayerTrapped, player, mine.id)
@@ -127,6 +131,7 @@ local function doCollapse(mine: Mines.Mine, st: State)
 	-- 다음 주기 시작
 	st.phase = "idle"
 	st.participants = {}
+	st.diedInside = {}
 	st.collapseAt = now() + rollInterval(mine)
 	stateFolder:SetAttribute(mine.id, nil)
 end
@@ -142,7 +147,12 @@ local function tick()
 		else
 			-- 경보 중: 광산 안에 있는 사람을 참가자로 기록 (경보 중에 새로 들어온 사람 포함)
 			for _, player in Players:GetPlayers() do
-				if isInside(player, mine) then st.participants[player] = t end
+				if isInside(player, mine) then
+					st.participants[player] = t
+					-- 죽었다가 부활해서 다시 광산에 들어왔으면, 이번엔 정말 걸어 나와야 탈출로 친다
+					local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+					if humanoid and humanoid.Health > 0 then st.diedInside[player] = nil end
+				end
 			end
 			-- 남은 시간 공지 (30초, 10초 …)
 			local remaining = st.collapseAt - t
@@ -174,11 +184,43 @@ for _, mine in Mines.list do
 		warningLen = mine.collapse.warning,
 		announced = {},
 		participants = {},
+		diedInside = {},
 	}
 end
 
+-- 경보 중 광산 안에서 죽으면 갇힘으로 친다 (리셋 꼼수 방지)
+local function onDied(player: Player, root: BasePart?)
+	if not root then return end
+	local mine = Mines.findAt(root.Position)
+	local st = mine and states[mine.id]
+	if mine and st and st.phase == "warning" then
+		st.participants[player] = now()
+		st.diedInside[player] = true
+	end
+end
+
+local function watchCharacter(player: Player, char: Model)
+	local humanoid = char:WaitForChild("Humanoid", 10) :: Humanoid?
+	if not humanoid then return end
+	humanoid.Died:Connect(function()
+		-- 죽은 순간의 위치로 판정 (부활하면 허브로 옮겨지기 전에)
+		onDied(player, char:FindFirstChild("HumanoidRootPart") :: BasePart?)
+	end)
+end
+
+local function watchPlayer(player: Player)
+	player.CharacterAdded:Connect(function(char) watchCharacter(player, char) end)
+	if player.Character then task.spawn(watchCharacter, player, player.Character) end
+end
+Players.PlayerAdded:Connect(watchPlayer)
+-- 이 모듈보다 먼저 들어온 플레이어 (Studio 테스트에서 흔함)
+for _, player in Players:GetPlayers() do watchPlayer(player) end
+
 Players.PlayerRemoving:Connect(function(player)
-	for _, st in states do st.participants[player] = nil end
+	for _, st in states do
+		st.participants[player] = nil
+		st.diedInside[player] = nil
+	end
 end)
 
 -- Studio 테스트: Command Bar 에서 workspace:SetAttribute("CollapseTest", "basic") → 바로 짧은 경보 시작
