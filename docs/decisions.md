@@ -119,9 +119,10 @@ AI 에이전트는 구현 전에 이 문서와 `game-design.md`를 읽고, 둘�
   - **탈출 성공** = 경보 중에 광산 안에 있었던(경보 중 새로 들어온 사람 포함) 플레이어가 붕괴 순간 광산 밖에 있으면. 늦게 나올수록 보너스가 크다 (최소~최대 코인, `Config/Social.luau`).
   - **갇힘** = 붕괴 순간 광산 안. `PlayerTrapped`를 쏘고(가방 차감은 B), 3초 뒤 허브 스폰으로 옮긴다.
   - 서버 공지: 경보 시작, 남은 30초·10초, 붕괴 순간(탈출·갇힘 인원). 정밀 카운트다운 HUD는 다음 작업. 클라이언트는 `ReplicatedStorage.CollapseState`의 속성 `<광산 id>`(붕괴 시각, 서버 시계)로 카운트다운을 그릴 수 있다.
-  - "광산 안"은 `Mines.findAt(위치)`로 판정한다 (광산 반경 안, 지표 아래).
+  - "광산 안"은 `Mines.findAreaAt(위치)`로 판정한다 (광산 반경 안이면 지표 위 포함). 출구 비탈 굴이 지표 위까지 올라가서, 지표 아래만 보는 `findAt`(채굴 가능 판정용)으로는 출구 게이트에 닿기 전에 탈출로 판정됐다 (2026-10-23 수정). 광산 밖으로 나가는 길은 출구 게이트(→ 허브)뿐이다.
 - 이유: 갇힌 사람을 그대로 두면 막힌 통로 안에서 못 나온다. 경보 전에 이미 나간 사람에게 보너스를 주면 "끝까지 버티기"의 의미가 없다.
 - 영향: `src/server/Social/Collapse.luau`, `src/shared/Config/Social.luau`(C 설정 한 파일, 숫자 전부 임시값).
+- 보강 (2026-10-23): **경보 중 광산 안에서 죽으면 갇힘**으로 친다. 리셋하면 허브에서 부활해 "광산 밖"으로 판정돼, 리셋만으로 탈출 성공 + 최대 보너스를 받는 꼼수가 있었다. 부활 후 다시 광산에 들어와 걸어 나오면 탈출로 인정한다.
 
 ## D-014 플레이어 데이터 저장
 
@@ -141,3 +142,16 @@ AI 에이전트는 구현 전에 이 문서와 `game-design.md`를 읽고, 둘�
 - 결정: 리뷰 필수 규칙과 `.github/CODEOWNERS`(자동 리뷰 요청)를 없앤다. 각자 올린 PR은 본인이 직접 머지한다. 다른 담당 폴더·`shared/`·`Core/`·`docs/`·이벤트 계약을 건드리면 PR에 해당 담당을 멘션해서 알린다. main과 충돌이 나면 올린 사람이 푼다.
 - 이유: 3명이 서로 리뷰를 기다리느라 머지가 밀리고, 자동 리뷰 요청이 매번 쌓였다. `main` 브랜치 보호도 꺼져 있어 리뷰가 실제로 막는 역할을 하지 않았다.
 - 영향: `AGENTS.md`, `README.md`, `docs/README.md`, `game-design.md`의 협업 규칙.
+
+## D-016 출석 보상
+
+- 2026-10-23 / 채택 / C 담당
+- 결정:
+  - **7일 주기**. 날마다 보상이 커지고 7일차가 가장 크다. 하루라도 빠지면 1일차부터 다시. 7일차 다음 날은 1일차.
+  - 화면 왼쪽 📅 버튼 → **출석판 UI에서 "받기" 버튼**으로 받는다. 받을 보상이 있으면 접속하자마자 자동으로 열리고, 버튼에 빨간 점이 뜬다.
+  - 하루는 UTC 자정(한국 오전 9시)에 바뀐다 (`dayOffsetHours`로 조정).
+  - 저장은 B의 `PlayerData`에서 C 전용 칸 `data.social.daily = { lastClaimDay, streak }`. 판정은 전부 서버.
+  - 코인 지급은 **B가 `DailyLoginClaimed(player, streak, { coins })`를 받아서** 한다 (C는 기록과 이벤트만).
+  - 보상 숫자는 `Config/Social.luau`의 `DailyLogin.rewards` (10·20·30·50·70·100·200, 임시값).
+- 이유: 기획서 "Creator Rewards: 붕괴 카운트다운, 출석 보상으로 체류 시간 확보". 연속을 끊으면 처음부터라 매일 들어올 이유가 생긴다.
+- 영향: `src/server/Social/DailyLogin.luau`, `src/client/Social/DailyLoginPanel.client.luau`, `Config/Social.luau`, `tools/create_social_remotes.luau`(`Remotes.DailyLogin` RemoteFunction 추가 — 팀 플레이스에서 다시 실행 필요).

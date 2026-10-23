@@ -120,7 +120,22 @@ function Mines.get(id: string): Mine?
 	return byId[id]
 end
 
--- 위치가 어느 광산 영역 안인지 (지표 아래만)
+-- 플레이어가 어느 광산에 "들어가 있는지" (붕괴 탈출·갇힘 판정, 카운트다운 HUD용, D-013)
+-- findAt 과 달리 지표 위도 포함한다. 출구 비탈 굴은 지표(top) 위까지 올라가서,
+-- findAt 으로 재면 출구 게이트에 닿기 전에 이미 "광산 밖"이 돼 탈출 판정이 너무 일찍 나온다.
+-- 광산 밖으로 나가는 길은 출구 게이트(→ 허브 순간이동)뿐이라, 광산 반경 안이면 전부 "광산 안"으로 본다.
+local AREA_CEILING = 150 -- 광산 지표(origin.Y)보다 이만큼 위까지 (출구 언덕보다 충분히 높게)
+function Mines.findAreaAt(pos: Vector3): Mine?
+	for _, m in Mines.list do
+		local flat = Vector3.new(pos.X - m.origin.X, 0, pos.Z - m.origin.Z)
+		if flat.Magnitude <= m.radius and pos.Y <= m.origin.Y + AREA_CEILING and pos.Y >= m.bottom - 10 then
+			return m
+		end
+	end
+	return nil
+end
+
+-- 위치가 어느 광산 영역 안인지 (지표 아래만) — 채굴 가능 여부 판정용
 function Mines.findAt(pos: Vector3): Mine?
 	for _, m in Mines.list do
 		local flat = Vector3.new(pos.X - m.origin.X, 0, pos.Z - m.origin.Z)
