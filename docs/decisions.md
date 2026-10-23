@@ -187,3 +187,15 @@ AI 에이전트는 구현 전에 이 문서와 `game-design.md`를 읽고, 둘�
   - 출석·퀘스트 보상(`DailyLoginClaimed`·`QuestCompleted`)의 코인은 B가 준다. 아이템 보상은 아이템 기능이 생기면.
 - 이유: 기획서 "판매가 = 기본가 × 무게 × 압력 배수". 값을 담을 때 확정해야 붕괴 직전에 캔 광물이 비싸다는 게 유지되고, C의 "최고 광물" 랭킹(`OreBagged`)도 같은 값을 쓴다. 가방이 차면 허브로 올라와야 해서 "더 캘까, 나갈까" 고민이 생긴다. 낱개 판매·팔까 말까 고민(제작 재료)은 제작소가 생길 때 붙인다.
 - 영향: `src/server/Economy/Bag.luau`, `src/client/Economy/BagHud.client.luau`(화면 아래 가방 표시, 플레이어 속성 `BagCount`·`BagCapacity`·`BagValue`), `Config/Economy.luau`. A는 광석이 깨질 때 `OreMined`를 쏘고 코인 직접 지급을 지워야 한다 (`docs/handoff-B.md`).
+
+## D-021 곡괭이 제작과 강화
+
+- 2026-10-23 / 채택 / B 담당
+- 결정:
+  - 곡괭이 단계는 광산 입장 등급(`requiredPickaxe`)과 같다: 1 나무 · 2 돌 · 3 철 · 4 금. 다음 단계는 허브 제작소 `Counter`의 "다음 곡괭이 만들기"(E)로 만든다.
+  - 제작 비용 = 코인 + 가방 속 광물. 재료는 바로 전 광산의 고급·에픽 광물이다: 돌 300코인 + 석영 3, 철 2000코인 + 은 3 + 백금 1, 금 10000코인 + 남동석 3 + 물빛 진주 1 (임시값). 재료는 같은 광물 중 값이 싼 것부터 쓴다.
+  - 강화는 "곡괭이 강화"(F)로 단계마다 +5까지. n강 → n+1강 비용 = 단계별 기본 비용 × (n+1) (나무 50 · 돌 300 · 철 1500 · 금 6000, 임시값). 다음 단계를 만들면 강화는 0부터.
+  - 제작·강화하면 `PickaxeUpgraded(player, tier, enhance)`를 쏘고 플레이어 속성 `PickaxeTier`·`PickaxeEnhance`를 갱신한다. 강화가 성능에 주는 효과는 A가 정한다.
+  - 실패 이유("석영 2개가 더 필요해요")와 판매 결과는 화면 아래 한 줄 알림으로 보여 준다 (속성 `EconomyNotice`).
+- 이유: 기획서 "에픽 이상 광물은 팔면 돈, 모으면 다음 층을 여는 곡괭이" — 재료를 가방에서 쓰게 해서 "팔까, 쓸까"가 생긴다. 다음 광산 재료를 요구하면 순서대로 광산을 거치게 된다. 5단계(최상위)와 용암 광산은 광산이 생기면 추가.
+- 영향: `src/server/Economy/Workshop.luau`, `src/client/Economy/WorkshopPrompt.client.luau`(프롬프트에 내 비용 표시), `BagHud`(알림 줄), `Config/Economy.luau` `PICKAXES`·`ENHANCE_MAX`. 곡괭이 모델을 단계별로 바꾸는 건 A.

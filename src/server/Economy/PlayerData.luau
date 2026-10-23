@@ -115,17 +115,20 @@ local function load(player: Player)
 	profiles[player] = profile
 
 	local data: Data = profile.Data
+	-- A가 읽는 곡괭이 성능 (입장 제한은 Tier, 강화 효과는 Enhance)
 	player:SetAttribute("PickaxeTier", data.pickaxe.tier)
+	player:SetAttribute("PickaxeEnhance", data.pickaxe.enhance)
 
-	-- 퇴장 때는 PlayerRemoving보다 캐릭터가 먼저 지워지므로, 지워지는 순간 광산 안이었는지 적어 둔다
+	-- 퇴장 때는 PlayerRemoving보다 캐릭터가 먼저 지워지므로, 지워지는 순간 광산 안이었는지 적어 둔다.
+	-- 광산에서 리셋하고 허브에서 부활했으면 C가 기억하는 그 광산으로 친다 (C가 PlayerRemoving에서 지우기 전에 읽어야 함)
 	player.CharacterRemoving:Connect(function(char)
 		local root = char:FindFirstChild("HumanoidRootPart") :: BasePart?
 		local mine = root and Mines.findAreaAt(root.Position) -- C의 isInside와 같은 기준 (출구 비탈 포함)
-		lastMineId[player] = mine and mine.id
+		lastMineId[player] = (mine and mine.id) or Collapse.DiedInsideMine(player)
 	end)
 
 	-- ponytail: 채굴 코드(A)가 leaderstats.Coins에 직접 더하는 동안 그 값을 저장한다.
-	-- 판매소가 생겨 코인 흐름이 B로 오면 data.coins를 직접 바꾸고 이 연결은 지운다.
+	-- A가 코인 직접 지급을 지우면(docs/handoff-B.md) data.coins를 직접 바꾸고 이 연결은 지운다.
 	local ls = player:WaitForChild("leaderstats", 10)
 	local coins = ls and ls:FindFirstChild("Coins") :: IntValue?
 	if coins then
