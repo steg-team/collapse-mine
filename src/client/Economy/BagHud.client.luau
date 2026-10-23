@@ -1,10 +1,14 @@
 --!strict
--- 가방 HUD (B 담당, D-020)
--- 화면 아래 가운데에 "가방 3/20 · 120 코인어치"를 띄운다. 꽉 차면 빨갛게 "판매소에서 파세요".
+-- 가방 HUD (B 담당, D-020, 무게 D-027)
+-- 화면 아래 가운데에 "가방 12.4/30kg · 120 코인어치"와 무게 게이지를 띄운다.
+-- 한도를 넘으면 노랑 "무거워서 느려요", 더 안 담기는 무게면 빨강.
 -- 그 위에 판매·제작 결과 한 줄 알림을 잠깐 띄운다.
--- 데이터: 서버 Bag.luau 가 플레이어 속성 BagCount, BagCapacity, BagValue 를 갱신한다.
+-- 데이터: 서버 Bag.luau 가 플레이어 속성 BagKg, BagCapacity(kg), BagValue 를 갱신한다.
 
 local Players = game:GetService("Players")
+local RS = game:GetService("ReplicatedStorage")
+
+local Economy = require(RS:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("Economy"))
 
 local player = Players.LocalPlayer
 
@@ -41,22 +45,52 @@ local corner = Instance.new("UICorner")
 corner.CornerRadius = UDim.new(0, 8)
 corner.Parent = label
 
+-- 무게 게이지: 가방 줄 아래 얇은 막대. 끝 = 더 안 담기는 무게, 흰 눈금 = 한도(여기부터 느려짐)
+local GREEN, YELLOW, RED = Color3.fromRGB(110, 210, 110), Color3.fromRGB(255, 200, 60), Color3.fromRGB(255, 90, 80)
+-- 가방 줄(자동 크기) 안에 넣으면 줄이 같이 늘어나서, 밖에 두고 줄 너비에 맞춘다
+local gauge = Instance.new("Frame")
+gauge.Name = "Gauge"
+gauge.AnchorPoint = Vector2.new(0.5, 0)
+gauge.Position = UDim2.new(0.5, 0, 1, -78) -- 가방 줄(-80에서 위로 자람) 바로 아래
+gauge.BackgroundColor3 = Color3.fromRGB(60, 60, 64)
+gauge.BorderSizePixel = 0
+gauge.Parent = gui
+local function fitGauge()
+	gauge.Size = UDim2.fromOffset(label.AbsoluteSize.X - 16, 4)
+end
+label:GetPropertyChangedSignal("AbsoluteSize"):Connect(fitGauge)
+fitGauge()
+local fill = Instance.new("Frame")
+fill.BorderSizePixel = 0
+fill.Parent = gauge
+local tick = Instance.new("Frame")
+tick.BorderSizePixel = 0
+tick.BackgroundColor3 = Color3.new(1, 1, 1)
+tick.Position = UDim2.fromScale(1 / Economy.BAG_HARD_LIMIT, 0)
+tick.Size = UDim2.new(0, 2, 1, 0)
+tick.Parent = gauge
+
 local function refresh()
-	local count = player:GetAttribute("BagCount")
+	local kg = player:GetAttribute("BagKg")
 	local cap = player:GetAttribute("BagCapacity")
 	local value = player:GetAttribute("BagValue")
-	if typeof(count) ~= "number" or typeof(cap) ~= "number" or typeof(value) ~= "number" then
+	if typeof(kg) ~= "number" or typeof(cap) ~= "number" or typeof(value) ~= "number" then
 		return -- 데이터 로드 전
 	end
 	gui.Enabled = true
-	local full = count >= cap
-	label.Text = if full
-		then `🎒 가방 가득 {count}/{cap} · 판매소에서 파세요`
-		else `🎒 가방 {count}/{cap} · {value} 코인어치`
-	label.TextColor3 = if full then Color3.fromRGB(255, 110, 100) else Color3.new(1, 1, 1)
+	local ratio = kg / cap
+	local color = if ratio >= Economy.BAG_HARD_LIMIT - 0.05 then RED elseif ratio > 1 then YELLOW else GREEN
+	local kgText = string.format("%.1f/%dkg", kg, cap)
+	label.Text = if ratio >= Economy.BAG_HARD_LIMIT - 0.05
+		then `🎒 {kgText} · 너무 무거워요! 팔거나 버리세요`
+		elseif ratio > 1 then `🎒 {kgText} · 무거워서 느려요 · {value} 코인어치`
+		else `🎒 가방 {kgText} · {value} 코인어치`
+	label.TextColor3 = if ratio > 1 then color else Color3.new(1, 1, 1)
+	fill.BackgroundColor3 = color
+	fill.Size = UDim2.fromScale(math.clamp(ratio / Economy.BAG_HARD_LIMIT, 0, 1), 1)
 end
 
-for _, name in { "BagCount", "BagCapacity", "BagValue" } do
+for _, name in { "BagKg", "BagCapacity", "BagValue" } do
 	player:GetAttributeChangedSignal(name):Connect(refresh)
 end
 refresh()

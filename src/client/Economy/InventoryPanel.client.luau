@@ -1,7 +1,7 @@
 --!strict
--- 인벤토리 창 (B 담당, D-022)
--- 화면 아래 가방 버튼(BagHud)을 누르거나 B 키로 연다. 캔 광물마다 이름·무게·압력·값을 보여 주고,
--- 판매소 근처에서는 한 개씩 또는 전부 팔 수 있다 (판매 판정·금액은 서버, Remotes.Bag).
+-- 인벤토리 창 (B 담당, D-022, 무게 D-027)
+-- 화면 아래 가방 버튼(BagHud)을 누르거나 B 키로 연다. 같은 광물·압력끼리 묶어 개수·무게·값·1kg당 값을 보여 주고,
+-- 어디서나 한 개씩 버릴 수 있고, 판매소 근처에서는 묶음별로 또는 전부 팔 수 있다 (판정·금액은 서버, Remotes.Bag).
 
 local Players = game:GetService("Players")
 local RS = game:GetService("ReplicatedStorage")
@@ -125,6 +125,40 @@ local function isNearShop(): boolean
 	return false
 end
 
+-- 같은 광물·같은 압력은 1kg당 값이 같아서 한 줄로 묶는다
+type Group = { ore: string, pressure: string, count: number, kg: number, value: number }
+
+local function groups(): { Group }
+	local byKey: { [string]: Group } = {}
+	local out: { Group } = {}
+	for _, item in items do
+		local key = item.ore .. "|" .. item.pressure
+		local g = byKey[key]
+		if not g then
+			g = { ore = item.ore, pressure = item.pressure, count = 0, kg = 0, value = 0 }
+			byKey[key] = g
+			table.insert(out, g)
+		end
+		g.count += 1
+		g.kg += item.weight
+		g.value += item.value
+	end
+	-- 1kg당 값이 높은 것부터: 버릴 때 아래쪽부터 고르면 된다
+	table.sort(out, function(a, b)
+		return a.value / a.kg > b.value / b.kg
+	end)
+	return out
+end
+
+local function act(action: string, g: Group)
+	if busy then
+		return
+	end
+	busy = true
+	remote:InvokeServer(action, g.ore, g.pressure)
+	busy = false
+end
+
 local function render()
 	for _, c in list:GetChildren() do
 		if c:IsA("Frame") then
@@ -132,15 +166,16 @@ local function render()
 		end
 	end
 	local cap = player:GetAttribute("BagCapacity") or 0
-	title.Text = `가방 {#items}/{cap}`
+	local kg = player:GetAttribute("BagKg") or 0
+	title.Text = string.format("가방 %.1f/%dkg", kg, cap)
 	footer.Text = if #items == 0
 		then "아직 캔 광물이 없어요"
 		elseif nearShop then "값은 판매가 배수를 곱하기 전이에요"
-		else "판매소에 가면 팔 수 있어요"
+		else "무거우면 느려져요. 싼 것부터 버려 보세요"
 	sellAll.Visible = nearShop and #items > 0
 
-	for i, item in items do
-		local info = oreInfo[item.ore]
+	for i, g in groups() do
+		local info = oreInfo[g.ore]
 		local row = Instance.new("Frame")
 		row.Name = `Row{i}`
 		row.LayoutOrder = i
@@ -151,28 +186,30 @@ local function render()
 
 		text(row, {
 			Position = UDim2.new(0, 10, 0, 0),
-			Size = UDim2.new(1, -100, 1, 0),
+			Size = UDim2.new(1, -160, 1, 0),
 			TextXAlignment = Enum.TextXAlignment.Left,
-			TextSize = 15,
+			TextSize = 14,
+			TextTruncate = Enum.TextTruncate.AtEnd,
 			RichText = true,
 			Text = string.format(
-				'<font color="#%s">%s</font>  무게 %.1f · %s · %d 코인',
+				'<font color="#%s">%s</font> %s ×%d · %.1fkg · %d 코인 <font color="#aaaaaa">(%.1f/kg)</font>',
 				(info and GRADE_COLOR[info.grade] or Color3.new(1, 1, 1)):ToHex(),
-				info and info.displayName or item.ore,
-				item.weight,
-				PRESSURE_TEXT[item.pressure] or item.pressure,
-				item.value
+				info and info.displayName or g.ore,
+				PRESSURE_TEXT[g.pressure] or g.pressure,
+				g.count,
+				g.kg,
+				g.value,
+				g.value / g.kg
 			),
 		})
+		local drop = button(row, "버리기", { Name = "Drop", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -82, 0.5, 0), Size = UDim2.fromOffset(70, 28), BackgroundColor3 = Color3.fromRGB(90, 84, 76), TextColor3 = Color3.new(1, 1, 1) })
+		drop.Activated:Connect(function()
+			act("drop", g)
+		end)
 		if nearShop then
 			local sell = button(row, "팔기", { Name = "Sell", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -6, 0.5, 0), Size = UDim2.fromOffset(70, 28) })
 			sell.Activated:Connect(function()
-				if busy then
-					return
-				end
-				busy = true
-				remote:InvokeServer("sell", i, item.ore)
-				busy = false
+				act("sell", g)
 			end)
 		end
 	end
@@ -213,7 +250,7 @@ local bagButton = player.PlayerGui:WaitForChild("BagHud"):WaitForChild("Bag") ::
 bagButton.Activated:Connect(toggle)
 
 -- 가방이 바뀌면(판매·채굴·갇힘) 다시 받아 온다. 서버 판매 결과 문구는 BagHud 알림 줄에 뜬다
-player:GetAttributeChangedSignal("BagCount"):Connect(reload)
+player:GetAttributeChangedSignal("BagKg"):Connect(reload)
 player:GetAttributeChangedSignal("BagValue"):Connect(reload)
 
 -- 창을 연 채 판매소에 다가가거나 멀어지면 버튼을 켜고 끈다
