@@ -4,7 +4,7 @@
 
 	water (지하수 동굴):
 	  - 산·절벽 재질: 바위 → 젖은 짙은 판석, 판석 → 석회암 줄무늬, 눈 → 빙하(푸른빛)
-	  - 입구 양옆(화로 바깥 x ±44) 산 앞면에 지형 물 폭포 두 줄기 + 물방울·물보라 입자 + 아래 물웅덩이
+	  - 입구 양옆(화로 바깥 x ±44) 산 앞면 앞에 곧게 떨어지는 지형 물 폭포 두 줄기 + 물방울·물보라 입자 + 아래 물웅덩이
 	    (파트 물판으로도 해 봤는데 조각조각 끊겨 보여서 지형 물로 함. 화로(±32)를 덮지 않게 바깥으로)
 	  - 입구 화로·횃불 불빛을 푸른색으로
 	공통:
@@ -82,17 +82,28 @@ if TH.waterfalls then
 		return a
 	end
 	for _, sx in { -44, 44 } do
-		-- 높이마다 앞면을 찾아 물 칸을 붙여 쌓음 (앞면이 비스듬해서 높이마다 z가 다름)
-		local lowest = nil
-		for y = 4, 76, 4 do
+		-- 앞면이 들쭉날쭉해서 높이마다 붙이면 물이 끊긴 덩어리가 된다 → 가장 앞으로 나온 면 바로 앞에 곧은 물기둥 하나
+		local hits = {}
+		local zFront = -math.huge
+		for y = 4, 80, 4 do
 			local hit = workspace:Raycast(MOUTH + Vector3.new(sx, y, 80), Vector3.new(0, 0, -120), rp)
 			if hit then
-				T:FillBlock(CFrame.new(hit.Position.X, y, hit.Position.Z + 1.5), Vector3.new(6, 4.2, 3), Enum.Material.Water)
-				local n = Vector3.new(hit.Normal.X, 0, hit.Normal.Z)
-				n = if n.Magnitude > 0.1 then n.Unit else Vector3.zAxis
-				if not lowest or y < lowest.y then lowest = { y = y, pos = hit.Position + n * 3, n = n } end
+				hits[y] = hit.Position.Z
+				zFront = math.max(zFront, hit.Position.Z)
 			end
 		end
+		-- 물이 시작하는 높이: 앞면이 물기둥 바로 뒤에 붙어 있는 가장 높은 곳 (바위에서 물이 나오는 것처럼)
+		local top = 4
+		for y = 80, 4, -4 do
+			if hits[y] and hits[y] >= zFront - 3 then
+				top = y
+				break
+			end
+		end
+		local z = zFront + 1.5
+		T:FillBlock(CFrame.new(MOUTH.X + sx, (top + 2) / 2, z), Vector3.new(6, top + 2, 4), Enum.Material.Water)
+		T:FillBlock(CFrame.new(MOUTH.X + sx, top, z - 3), Vector3.new(6, 4, 4), Enum.Material.Water) -- 시작점 홈
+		local lowest = { y = 2, pos = Vector3.new(MOUTH.X + sx, 2, z + 1.5), n = Vector3.zAxis, top = top }
 		if lowest then
 			-- 바닥 물보라
 			local splash = emitterPart("Splash", Vector3.new(7, 0.2, 2), CFrame.new(lowest.pos.X, 2.2, lowest.pos.Z) + lowest.n * 2)
@@ -105,7 +116,7 @@ if TH.waterfalls then
 			e.SpreadAngle, e.EmissionDirection = Vector2.new(40, 40), Enum.NormalId.Top
 			e.Parent = splash
 			-- 위에서 떨어지는 물방울 줄기
-			local stream = emitterPart("Stream", Vector3.new(6, 0.2, 0.2), CFrame.new(MOUTH.X + sx, 78, lowest.pos.Z) + lowest.n)
+			local stream = emitterPart("Stream", Vector3.new(6, 0.2, 0.2), CFrame.new(MOUTH.X + sx, lowest.top, lowest.pos.Z + 0.7))
 			local d = Instance.new("ParticleEmitter")
 			d.Color, d.LightEmission = ColorSequence.new(Color3.fromRGB(200, 235, 255)), 0.3
 			d.Transparency, d.Size = NumberSequence.new(0.3), NumberSequence.new(0.35)
