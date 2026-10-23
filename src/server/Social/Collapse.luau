@@ -66,9 +66,13 @@ local function isInside(player: Player, mine: Mines.Mine): boolean
 	return root ~= nil and Mines.findAreaAt(root.Position) == mine
 end
 
--- 허브 스폰 위치 (MineTravel 과 같은 위치를 쓴다)
-local function hubSpawn(): CFrame?
-	local hub = workspace:FindFirstChild("CollapseMine") and workspace.CollapseMine:FindFirstChild("Hub")
+-- 갇힌 플레이어를 보낼 허브 스폰. 스테이지마다 허브가 따로 있다 (#17, Mines 설정의 hub = 허브 폴더 이름)
+-- hub 칸이 아직 없으면 기본 허브(Workspace.CollapseMine)
+local DEFAULT_HUB = "CollapseMine"
+local function hubSpawn(mine: Mines.Mine): CFrame?
+	local hubName = (mine :: any).hub or DEFAULT_HUB
+	local root = workspace:FindFirstChild(hubName) or workspace:FindFirstChild(DEFAULT_HUB)
+	local hub = root and root:FindFirstChild("Hub")
 	local sp = hub and hub:FindFirstChild("MineSpawn")
 	return if sp and sp:IsA("BasePart") then sp.CFrame + Vector3.new(0, Config.spawnHeight, 0) else nil
 end
@@ -118,9 +122,9 @@ local function doCollapse(mine: Mines.Mine, st: State)
 
 	-- 갇힌 사람은 잠깐 뒤 허브로 (A가 통로를 막아서 걸어 나올 수 없으므로)
 	task.delay(Config.trappedTeleportDelay, function()
-		local cf = hubSpawn()
+		local cf = hubSpawn(mine)
 		if not cf then
-			warn("[Collapse] 허브 스폰(Workspace.CollapseMine.Hub.MineSpawn)을 찾지 못해 갇힌 플레이어를 옮기지 못함")
+			warn(`[Collapse] {mine.id} 광산의 허브 스폰(Hub.MineSpawn)을 찾지 못해 갇힌 플레이어를 옮기지 못함`)
 			return
 		end
 		for _, player in trappedPlayers do
@@ -171,6 +175,16 @@ end
 local Collapse = {}
 
 -- 붕괴까지 남은 초. 경보 중이 아니면 nil.
+-- 경보 중인 광산에서 죽은 적이 있으면 그 광산 id (아니면 nil)
+-- B(PlayerData)가 퇴장 때 물어본다: 광산 안에서 리셋 → 허브에서 부활 → 붕괴 전에 나가기로 차감을 피하는 것 방지 (#18)
+-- 이벤트(PlayerTrapped)로 보내지 않는 이유: 퇴장 순서상 B가 먼저 데이터를 내려놓으면 이벤트를 받아도 차감할 수 없다
+function Collapse.DiedInsideMine(player: Player): string?
+	for mineId, st in states do
+		if st.phase == "warning" and st.diedInside[player] then return mineId end
+	end
+	return nil
+end
+
 function Collapse.GetRemainingTime(mineId: string): number?
 	local st = states[mineId]
 	if not st or st.phase ~= "warning" then return nil end

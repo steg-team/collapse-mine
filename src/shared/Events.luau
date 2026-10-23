@@ -95,6 +95,9 @@ local Events = {
 
 	Collapse.GetRemainingTime(mineId: string) -> number?
 		붕괴까지 남은 초. 경보 중이 아니면 nil. A가 압력 등급 계산에 사용.
+
+	Collapse.DiedInsideMine(player) -> string?
+		경보 중인 광산 안에서 죽은(리셋 포함) 적이 있으면 그 광산 id. B가 퇴장 때 차감 판정에 사용.
 ]]
 
 --[[
