@@ -10,6 +10,7 @@ local Mines = require(Shared:WaitForChild("Config"):WaitForChild("Mines"))
 local Events = require(Shared:WaitForChild("Events"))
 local EventBus = require(Shared:WaitForChild("EventBus"))
 local FloorGuard = require(script.Parent:WaitForChild("FloorGuard"))
+local OreFactory = require(script.Parent:WaitForChild("OreFactory"))
 local ev = RS:WaitForChild("Remotes"):WaitForChild("MineHit")
 local Terrain = workspace.Terrain
 
@@ -17,6 +18,11 @@ local REACH = 14       -- 캐릭터에서 이 거리 안만 캘 수 있음
 local COOLDOWN = 0.3
 local SURFACE_CRUST = 4 -- 지표(광산 top) 아래 이만큼은 절대 안 파임 = 지형 한 칸
 local lastHit = {}
+local rng = Random.new()
+
+local terrainOnly = RaycastParams.new()
+terrainOnly.FilterType = Enum.RaycastFilterType.Include
+terrainOnly.FilterDescendantsInstances = { workspace.Terrain }
 
 -- 이 등급 이상을 캐면 LegendaryFound (C가 서버 전체 공지)
 local LEGENDARY_GRADES = { ["전설"] = true, ["신화"] = true, ["???"] = true }
@@ -50,6 +56,31 @@ local function swing(tool)
 	Debris:AddItem(a, 0.2)
 end
 
+-- 파다가 발견: 지형을 한 번 팔 때마다 확률로 희귀 이상 광물이 판 자리 벽에 드러난다 (Mines 설정 digFinds).
+-- 미리 묻어 두지 않아서 광산이 바닥나지 않고, 어디를 파든 기회가 같다. 깊을수록 확률이 높다.
+-- 확률·광물 뽑기는 서버에서만 (보안 규칙)
+local function rollDigFind(mine: Mines.Mine, center: Vector3, r: number, digDir: Vector3)
+	local f = mine.digFinds
+	if not f then return end
+	local t = math.clamp((mine.top - center.Y) / (mine.top - mine.bottom), 0, 1)
+	if rng:NextNumber() >= f.chance.Min + (f.chance.Max - f.chance.Min) * t then return end
+	local o = OreFactory.pick(mine, center.Y, true, rng)
+	if not o then return end -- 얕아서 나올 수 있는 광물이 없음
+	local folder = workspace:FindFirstChild("Mines") and workspace.Mines:FindFirstChild(mine.id)
+	local ores = folder and folder:FindFirstChild("Ores")
+	if not ores then return end
+	task.spawn(function()
+		task.wait() -- 방금 판 지형이 레이캐스트에 반영된 뒤
+		-- 판 방향의 안쪽 벽, 없으면 바닥
+		local dir = if digDir.Magnitude > 0.1 then digDir.Unit else Vector3.new(0, -1, 0)
+		local hit = workspace:Raycast(center, dir * (r + 4), terrainOnly)
+			or workspace:Raycast(center, Vector3.new(0, -(r + 4), 0), terrainOnly)
+		if hit then
+			OreFactory.spawn(mine, ores, o, OreFactory.surfaceCFrame(hit), 1, rng, "DigFind")
+		end
+	end)
+end
+
 ev.OnServerEvent:Connect(function(plr, target, hitPos)
 	if typeof(hitPos) ~= "Vector3" then return end
 	local char = plr.Character
@@ -76,15 +107,6 @@ ev.OnServerEvent:Connect(function(plr, target, hitPos)
 	if ore then
 		local orePos = if ore:IsA("Model") then ore:GetPivot().Position else (ore :: BasePart).Position
 		if (orePos - root.Position).Magnitude > REACH + 4 then return end
-		-- 땅 속에 묻혀 있던 광석은 빛·반짝임을 꺼 둔 상태 (생성기). 파서 처음 맞히면 켜서 "찾았다" 느낌
-		if ore:GetAttribute("Buried") then
-			ore:SetAttribute("Buried", nil)
-			for _, d in ore:GetDescendants() do
-				if d:IsA("Light") or d:IsA("ParticleEmitter") or d:IsA("Highlight") or d:IsA("Fire") then
-					d.Enabled = true
-				end
-			end
-		end
 		local maxHp = ore:GetAttribute("Hardness") or 1
 		local hp = ore:GetAttribute("HP") or maxHp
 		hp -= 1
@@ -133,5 +155,6 @@ ev.OnServerEvent:Connect(function(plr, target, hitPos)
 		center = FloorGuard.clampDig(mine.id, center, r)
 		if center.Y > mine.top - SURFACE_CRUST - r then return end -- 올리다 지표 보호선을 넘으면 포기
 		Terrain:FillBall(center, r, Enum.Material.Air)
+		rollDigFind(mine, center, r, center - root.Position)
 	end
 end)

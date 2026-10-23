@@ -81,10 +81,10 @@ terrainOnly.FilterType = Enum.RaycastFilterType.Include
 terrainOnly.FilterDescendantsInstances = { T }
 
 -- ── 광석 박기 공통 (tools/generate_mine.luau 와 tools/replace_mine_ores.luau 에 똑같이 들어 있음. 한쪽을 고치면 다른 쪽도) ──
--- 벽 표면에는 묻는 등급(M.buried.grades)이 아닌 광물만 박는다.
--- 묻는 등급(희귀 이상)은 서버(src/server/Mining/OreSpawner.server.luau)가 켜질 때마다 흙 전체에 랜덤으로 묻는다.
+-- 벽 표면에는 파야 나오는 등급(M.digFinds.grades)이 아닌 광물만 박는다.
+-- 희귀 이상은 서버(MiningServer)가 지형을 팔 때마다 확률로 꺼낸다. 규칙 원본은 src/server/Mining/OreFactory.luau
 local function isBuriedGrade(o): boolean
-	return M.buried ~= nil and table.find(M.buried.grades, o.grade) ~= nil
+	return M.digFinds ~= nil and table.find(M.digFinds.grades, o.grade) ~= nil
 end
 
 local function pickWallOre(r: Random, y: number)
