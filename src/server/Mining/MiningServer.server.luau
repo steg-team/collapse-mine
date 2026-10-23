@@ -2,11 +2,13 @@
 
 local Players = game:GetService("Players")
 local RS = game:GetService("ReplicatedStorage")
+local SSS = game:GetService("ServerScriptService")
 local CS = game:GetService("CollectionService")
 local Debris = game:GetService("Debris")
 
 local Shared = RS:WaitForChild("Shared")
 local Mines = require(Shared:WaitForChild("Config"):WaitForChild("Mines"))
+local Pickaxe = require(Shared:WaitForChild("Config"):WaitForChild("Pickaxe"))
 local Events = require(Shared:WaitForChild("Events"))
 local EventBus = require(Shared:WaitForChild("EventBus"))
 local FloorGuard = require(script.Parent:WaitForChild("FloorGuard"))
@@ -15,7 +17,7 @@ local ev = RS:WaitForChild("Remotes"):WaitForChild("MineHit")
 local Terrain = workspace.Terrain
 
 local REACH = 14       -- 캐릭터에서 이 거리 안만 캘 수 있음
-local COOLDOWN = 0.3
+-- 휘두르는 간격·데미지는 곡괭이 단계·강화·채굴 속도 배수로 정해진다 (Config/Pickaxe.luau, D-026)
 local SURFACE_CRUST = 4 -- 지표(광산 top) 아래 이만큼은 절대 안 파임 = 지형 한 칸
 local lastHit = {}
 local rng = Random.new()
@@ -26,6 +28,43 @@ terrainOnly.FilterDescendantsInstances = { workspace.Terrain }
 
 -- 이 등급 이상을 캐면 LegendaryFound (C가 서버 전체 공지)
 local LEGENDARY_GRADES = { ["전설"] = true, ["신화"] = true, ["???"] = true }
+
+-- 붕괴까지 남은 시간 조회 (C의 Collapse.GetRemainingTime). C 모듈이 Remotes 등을 기다리느라 늦게 뜰 수 있어서
+-- 채굴이 그걸 기다리며 멈추지 않게 따로 불러 둔다. 못 불러온 동안은 "경보 아님"으로 친다
+local Collapse = nil
+task.spawn(function()
+	local social = SSS:WaitForChild("Server"):WaitForChild("Social", 30)
+	local mod = social and social:WaitForChild("Collapse", 30)
+	if mod then
+		local ok, m = pcall(require, mod)
+		if ok then Collapse = m else warn("[MiningServer] Collapse 불러오기 실패: " .. tostring(m)) end
+	end
+end)
+
+-- 압력 등급 (Mines.PRESSURE, D-025): 붕괴 직전 → 초고압, 경보 중이거나 깊은 곳 → 고압, 나머지 상압
+local function pressureAt(mine: Mines.Mine?, y: number): string
+	if not mine then return "Low" end
+	local remaining = Collapse and Collapse.GetRemainingTime(mine.id)
+	if remaining and remaining <= Mines.PRESSURE.extremeSeconds then return "Extreme" end
+	local depthRatio = (mine.top - y) / (mine.top - mine.bottom)
+	if remaining or depthRatio >= Mines.PRESSURE.highDepth then return "High" end
+	return "Low"
+end
+
+-- 무게 배수 (Mines.ORE_WEIGHT). 끝방처럼 가치를 높여 박은 광석은 그 배수만큼 무겁게
+local function weightOf(mine: Mines.Mine?, ore: Instance): number
+	local w = rng:NextNumber(Mines.ORE_WEIGHT.Min, Mines.ORE_WEIGHT.Max)
+	if mine then
+		local name = ore:GetAttribute("Ore")
+		for _, o in mine.ores do
+			if o.name == name and o.value > 0 then
+				w *= math.max(1, (ore:GetAttribute("OreValue") or o.value) / o.value)
+				break
+			end
+		end
+	end
+	return math.floor(w * 100 + 0.5) / 100
+end
 
 local function setupPlayer(plr: Player)
 	if plr:FindFirstChild("leaderstats") then return end
@@ -87,13 +126,14 @@ ev.OnServerEvent:Connect(function(plr, target, hitPos)
 	local root = char and char:FindFirstChild("HumanoidRootPart")
 	local tool = char and char:FindFirstChildOfClass("Tool")
 	if not root or not tool or tool.Name ~= "Pickaxe" then return end
+	local stats = Pickaxe.stats(plr)
 	local now = os.clock()
-	if lastHit[plr] and now - lastHit[plr] < COOLDOWN then return end
+	if lastHit[plr] and now - lastHit[plr] < stats.cooldown * Pickaxe.SERVER_TOLERANCE then return end
 	lastHit[plr] = now
 	if (hitPos - root.Position).Magnitude > REACH then return end
 	swing(tool)
 
-	-- 광석: 경도(Hardness)만큼 때려야 깨짐
+	-- 광석: 경도(Hardness) = 파워 1로 깨는 타수. 곡괭이 파워만큼 HP가 깎인다
 	-- 광석은 파트 하나(예전 방식)거나 광물 틀 모델(태그·속성이 모델에 있음). 모델이면 맞은 파트에서 모델을 찾는다.
 	local ore: Instance? = nil
 	if typeof(target) == "Instance" and target:IsA("BasePart") then
@@ -109,11 +149,13 @@ ev.OnServerEvent:Connect(function(plr, target, hitPos)
 		if (orePos - root.Position).Magnitude > REACH + 4 then return end
 		local maxHp = ore:GetAttribute("Hardness") or 1
 		local hp = ore:GetAttribute("HP") or maxHp
-		hp -= 1
-		if hp <= 0 then
-			plr.leaderstats.Coins.Value += ore:GetAttribute("OreValue") or 0
+		hp -= stats.power
+		if hp <= 1e-6 then
+			-- 코인은 여기서 주지 않는다: 가방에 담고(B) 판매소에서 팔 때 들어간다 (D-020). 값 계산도 B
+			local mine = Mines.findAt(orePos) or Mines.get(ore:GetAttribute("MineId") or "")
+			-- (player, oreId, weight, pressure) — Events.luau 계약
+			EventBus.Fire(Events.OreMined, plr, ore:GetAttribute("Ore") or ore.Name, weightOf(mine, ore), pressureAt(mine, orePos.Y))
 			if LEGENDARY_GRADES[ore:GetAttribute("Grade")] then
-				local mine = Mines.findAt(orePos)
 				local mineId = mine and mine.id or (ore:GetAttribute("MineId") or "")
 				local depth = mine and math.max(0, math.floor(mine.top - orePos.Y)) or 0
 				-- (player, oreId, mineId: string, depth) — Events.luau 계약 (PR #6에서 stageId → mineId)
@@ -140,7 +182,7 @@ ev.OnServerEvent:Connect(function(plr, target, hitPos)
 		local mine = Mines.findAt(hitPos)
 		if not mine or hitPos.Y > mine.top - 1 then return end
 		local _, li = Mines.layerAt(mine, hitPos.Y)
-		local r = digRadius(li)
+		local r = digRadius(li) + stats.digBonus
 		-- 파내는 공이 지표·바닥을 뚫지 않게 공 중심을 안쪽으로 당긴다.
 		-- 굴 천장이 지표에서 몇 스터드밖에 안 돼서, 위를 파면 공 윗부분이 잔디까지 뚫고 밖으로 탈출할 수 있었다.
 		-- 지형 칸이 4스터드라 공 끝이 칸 경계(top - SURFACE_CRUST)를 넘지 않아야 위 칸이 남는다.

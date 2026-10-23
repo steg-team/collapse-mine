@@ -7,16 +7,17 @@ local RS = game:GetService("ReplicatedStorage")
 local player = Players.LocalPlayer
 local mouse = player:GetMouse()
 local ev = RS:WaitForChild("Remotes"):WaitForChild("MineHit")
+-- 휘두르는 간격 = 곡괭이 단계·강화·채굴 속도 배수 (서버와 같은 계산, D-026)
+local Pickaxe = require(RS:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("Pickaxe"))
 
 local TOOL_NAME = "Pickaxe"
-local COOLDOWN = 0.35
 local last = 0
 
 local function hook(tool)
 	if not tool:IsA("Tool") or tool.Name ~= TOOL_NAME or tool:GetAttribute("_hooked") then return end
 	tool:SetAttribute("_hooked", true)
 	tool.Activated:Connect(function()
-		if os.clock() - last < COOLDOWN then return end
+		if os.clock() - last < Pickaxe.stats(player).cooldown then return end
 		last = os.clock()
 		ev:FireServer(mouse.Target, mouse.Hit.Position)
 	end)

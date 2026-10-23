@@ -8,7 +8,10 @@ local Players = game:GetService("Players")
 local RS = game:GetService("ReplicatedStorage")
 local CS = game:GetService("CollectionService")
 
-local Mines = require(RS:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("Mines"))
+local Shared = RS:WaitForChild("Shared")
+local Mines = require(Shared:WaitForChild("Config"):WaitForChild("Mines"))
+local Events = require(Shared:WaitForChild("Events"))
+local EventBus = require(Shared:WaitForChild("EventBus"))
 
 local COOLDOWN = 2
 local lastTravel = {}
@@ -57,7 +60,11 @@ local function bindPortal(part: BasePart)
 			return
 		end
 		local cf = mineEntrance(id)
-		if cf then root.CFrame = cf end
+		if cf then
+			root.CFrame = cf
+			-- (player, mineId) — Events.luau 계약. C의 튜토리얼·퀘스트
+			EventBus.Fire(Events.StageEntered, plr, id)
+		end
 	end)
 end
 
