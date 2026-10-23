@@ -6,6 +6,7 @@
 	흐름
 		OreMined (A) ──▶ 값 확정 · 가방에 담기 ──▶ OreBagged (C 랭킹)
 		판매소 Counter 프롬프트·인벤토리 창 ──▶ 전부 또는 종류별 판매 · 코인 ──▶ OreSold (C 랭킹·퀘스트)
+		판매소 Counter "가방 늘리기" ──▶ 코인으로 무게 한도 +kg (D-028)
 		인벤토리 창 ──▶ 한 개 버리기 (광산 안에서 가볍게 탈출)
 		PlayerEscaped (C) ──▶ 가방 가치 = 탈출 수확 ──▶ HaulSecured (C 랭킹) + 탈출 보너스
 		PlayerTrapped (C) ──▶ 가방 일부 차감
@@ -42,8 +43,35 @@ local Bag = {}
 
 -- 무게 한도 (kg). 이걸 넘으면 느려지고, × BAG_HARD_LIMIT 를 넘으면 더 안 담긴다
 function Bag.capacity(player: Player): number
-	local extra = if Payments.HasPass(player, Social.PassName.BigBag) then Economy.BIG_BAG_EXTRA_KG else 0
-	return Economy.BAG_MAX_KG + extra
+	local kg = Economy.BAG_MAX_KG
+	if Payments.HasPass(player, Social.PassName.BigBag) then
+		kg += Economy.BIG_BAG_EXTRA_KG
+	end
+	local data = PlayerData.get(player)
+	for i = 1, data and data.bagLevel or 0 do
+		kg += Economy.BAG_UPGRADES[i].kg
+	end
+	return kg
+end
+
+-- 판매소 "가방 늘리기" 한 단계. 실패하면 이유를 돌려준다
+function Bag.upgrade(player: Player): (boolean, string)
+	local data = PlayerData.get(player)
+	if not data then
+		return false, "데이터를 불러오는 중이에요"
+	end
+	local spec = Economy.BAG_UPGRADES[data.bagLevel + 1]
+	if not spec then
+		return false, "가방이 가장 커요"
+	end
+	if data.coins < spec.coins then
+		return false, `코인이 {spec.coins - data.coins} 부족해요`
+	end
+	PlayerData.addCoins(player, -spec.coins)
+	data.bagLevel += 1
+	player:SetAttribute("BagLevel", data.bagLevel)
+	Bag.sync(player)
+	return true, `가방이 {Bag.capacity(player)}kg이 됐어요`
 end
 
 local function bagKg(data: PlayerData.Data): number
@@ -360,6 +388,10 @@ function Bag.start()
 		local earned = Bag.sellAll(player)
 		Bag.notify(player, if earned > 0 then `{earned} 코인에 팔았어요` else "가방이 비어 있어요")
 	end)
+	Bag.counterPrompt("Shop", "BagUpgradePrompt", "가방 늘리기", function(player)
+		local _, msg = Bag.upgrade(player)
+		Bag.notify(player, msg)
+	end, Enum.KeyCode.F)
 
 end
 

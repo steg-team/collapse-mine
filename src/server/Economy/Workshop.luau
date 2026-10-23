@@ -144,7 +144,7 @@ function Workshop.feedCanary(player: Player): (boolean, string)
 	return true, `카나리아가 자랐어요 (탐지 {spec.range}m)`
 end
 
--- 리버스: 코인·곡괭이·가방을 처음으로 되돌리고 판매가 보너스를 영구히 얻는다.
+-- 리버스: 코인·곡괭이·가방(내용과 늘린 단계)을 처음으로 되돌리고 판매가 보너스를 영구히 얻는다.
 -- 카나리아·도감·기록·C의 social 칸은 그대로 둔다 (쌓은 수집과 랭킹은 잃지 않게)
 function Workshop.rebirth(player: Player): (boolean, string)
 	local data = PlayerData.get(player)
@@ -161,6 +161,8 @@ function Workshop.rebirth(player: Player): (boolean, string)
 	end
 	data.rebirths += 1
 	data.bag = {}
+	data.bagLevel = 0
+	player:SetAttribute("BagLevel", 0)
 	PlayerData.addCoins(player, -data.coins)
 	data.pickaxe.tier = 1
 	data.pickaxe.enhance = 0

@@ -12,6 +12,13 @@ local Economy = {
 	-- "가방 확장" 게임패스(BigBag)로 늘어나는 무게 (임시값)
 	BIG_BAG_EXTRA_KG = 20,
 	BAG_HARD_LIMIT = 1.5,
+	-- 판매소 "가방 늘리기" (D-028). 단계마다 kg만큼 한도가 늘고 coins를 낸다. 리버스하면 0단계로 (임시값)
+	BAG_UPGRADES = table.freeze({
+		{ kg = 10, coins = 500 },
+		{ kg = 10, coins = 2000 },
+		{ kg = 15, coins = 8000 },
+		{ kg = 15, coins = 25000 },
+	}),
 	-- 한도 × BAG_HARD_LIMIT 일 때 걸음 속도 배수. 완전히 멈추지는 않게 (임시값)
 	BAG_MIN_SPEED = 0.6,
 
