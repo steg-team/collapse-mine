@@ -249,3 +249,14 @@ AI 에이전트는 구현 전에 이 문서와 `game-design.md`를 읽고, 둘�
   - 숫자는 모두 임시값.
 - 이유: 기획서 "판매가 = 기본가 × 무게 × 압력 배수", 압력은 "깊이와 붕괴까지 남은 시간"으로 정한다. 캘 때 코인을 주면 팔 때 또 들어가 두 번 받는다.
 - 영향: `MiningServer.server.luau`, `Config/Mines.luau`. **B**: `PlayerData.luau`의 leaderstats `Changed` 연결(ponytail)을 지워도 된다.
+
+## D-026 곡괭이 성능 (파워·속도·강화 효과)
+
+- 2026-10-23 / 채택 / 이우진 (A)
+- 결정: 곡괭이 단계·강화가 채굴에 주는 효과를 `src/shared/Config/Pickaxe.luau`에 둔다. 서버(판정)와 클라이언트(휘두르는 간격)가 같은 계산을 쓰고, 실제 판정은 서버가 다시 한다.
+  - 단계별 (파워 / 간격 / 지형 반경 보너스): 나무 1 / 0.35초 / +0, 돌 1.5 / 0.32 / +0.3, 철 2.2 / 0.29 / +0.6, 금 3.2 / 0.26 / +0.9.
+  - 강화 1단계마다 파워 +10%, 간격 -3%. 채굴 속도 배수(게임패스·부스트)는 간격을 나눈다.
+  - 광석 `Hardness` = 파워 1로 깨는 타수. 한 번 칠 때 파워만큼 HP가 깎인다.
+  - 숫자는 모두 임시값.
+- 이유: 기획서 "곡괭이 등급을 올리면 새 광산이 열린다"에 더해, 같은 광산에서도 강화하면 손맛이 빨라져야 강화할 이유가 생긴다.
+- 영향: `MiningServer.server.luau`, `PickaxeClient.client.luau`. 읽는 값은 플레이어 속성 `PickaxeTier`·`PickaxeEnhance`(B)와 `MineSpeedMultiplier`(C의 `Payments`가 `GetMultiplier`와 같은 값으로 갱신). 광산 입장 때 `StageEntered(player, mineId)`도 보낸다 (`MineTravel`).

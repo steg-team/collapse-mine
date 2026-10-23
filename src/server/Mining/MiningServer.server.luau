@@ -8,6 +8,7 @@ local Debris = game:GetService("Debris")
 
 local Shared = RS:WaitForChild("Shared")
 local Mines = require(Shared:WaitForChild("Config"):WaitForChild("Mines"))
+local Pickaxe = require(Shared:WaitForChild("Config"):WaitForChild("Pickaxe"))
 local Events = require(Shared:WaitForChild("Events"))
 local EventBus = require(Shared:WaitForChild("EventBus"))
 local FloorGuard = require(script.Parent:WaitForChild("FloorGuard"))
@@ -16,7 +17,7 @@ local ev = RS:WaitForChild("Remotes"):WaitForChild("MineHit")
 local Terrain = workspace.Terrain
 
 local REACH = 14       -- 캐릭터에서 이 거리 안만 캘 수 있음
-local COOLDOWN = 0.3
+-- 휘두르는 간격·데미지는 곡괭이 단계·강화·채굴 속도 배수로 정해진다 (Config/Pickaxe.luau, D-026)
 local SURFACE_CRUST = 4 -- 지표(광산 top) 아래 이만큼은 절대 안 파임 = 지형 한 칸
 local lastHit = {}
 local rng = Random.new()
@@ -125,13 +126,14 @@ ev.OnServerEvent:Connect(function(plr, target, hitPos)
 	local root = char and char:FindFirstChild("HumanoidRootPart")
 	local tool = char and char:FindFirstChildOfClass("Tool")
 	if not root or not tool or tool.Name ~= "Pickaxe" then return end
+	local stats = Pickaxe.stats(plr)
 	local now = os.clock()
-	if lastHit[plr] and now - lastHit[plr] < COOLDOWN then return end
+	if lastHit[plr] and now - lastHit[plr] < stats.cooldown * Pickaxe.SERVER_TOLERANCE then return end
 	lastHit[plr] = now
 	if (hitPos - root.Position).Magnitude > REACH then return end
 	swing(tool)
 
-	-- 광석: 경도(Hardness)만큼 때려야 깨짐
+	-- 광석: 경도(Hardness) = 파워 1로 깨는 타수. 곡괭이 파워만큼 HP가 깎인다
 	-- 광석은 파트 하나(예전 방식)거나 광물 틀 모델(태그·속성이 모델에 있음). 모델이면 맞은 파트에서 모델을 찾는다.
 	local ore: Instance? = nil
 	if typeof(target) == "Instance" and target:IsA("BasePart") then
@@ -147,8 +149,8 @@ ev.OnServerEvent:Connect(function(plr, target, hitPos)
 		if (orePos - root.Position).Magnitude > REACH + 4 then return end
 		local maxHp = ore:GetAttribute("Hardness") or 1
 		local hp = ore:GetAttribute("HP") or maxHp
-		hp -= 1
-		if hp <= 0 then
+		hp -= stats.power
+		if hp <= 1e-6 then
 			-- 코인은 여기서 주지 않는다: 가방에 담고(B) 판매소에서 팔 때 들어간다 (D-020). 값 계산도 B
 			local mine = Mines.findAt(orePos) or Mines.get(ore:GetAttribute("MineId") or "")
 			-- (player, oreId, weight, pressure) — Events.luau 계약
@@ -180,7 +182,7 @@ ev.OnServerEvent:Connect(function(plr, target, hitPos)
 		local mine = Mines.findAt(hitPos)
 		if not mine or hitPos.Y > mine.top - 1 then return end
 		local _, li = Mines.layerAt(mine, hitPos.Y)
-		local r = digRadius(li)
+		local r = digRadius(li) + stats.digBonus
 		-- 파내는 공이 지표·바닥을 뚫지 않게 공 중심을 안쪽으로 당긴다.
 		-- 굴 천장이 지표에서 몇 스터드밖에 안 돼서, 위를 파면 공 윗부분이 잔디까지 뚫고 밖으로 탈출할 수 있었다.
 		-- 지형 칸이 4스터드라 공 끝이 칸 경계(top - SURFACE_CRUST)를 넘지 않아야 위 칸이 남는다.
