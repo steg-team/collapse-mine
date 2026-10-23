@@ -77,6 +77,27 @@ local function bindExit(part: BasePart)
 	end)
 end
 
+-- 스테이지 이동 임시 포탈 (태그 "StagePortal", 속성 MineId = 가는 스테이지) → 그 스테이지 허브 스폰
+-- 텔레포트 UI(D-017)가 생기기 전까지 쓰는 임시. 포탈은 tools/build_stage_portals.luau로 만든다
+local function bindStagePortal(part: BasePart)
+	if not part:IsDescendantOf(workspace) then return end -- ServerStorage 백업 등은 무시
+	part.Touched:Connect(function(hit)
+		local plr, root = playerFromHit(hit)
+		if not plr or not ready(plr) then return end
+		local id = part:GetAttribute("MineId")
+		local mine = typeof(id) == "string" and Mines.get(id)
+		if not mine then return end
+		if (plr:GetAttribute("PickaxeTier") or 1) < mine.requiredPickaxe then
+			-- TODO(UI): 잠김 안내 표시
+			return
+		end
+		local cf = hubSpawn(id)
+		if cf then root.CFrame = cf end
+	end)
+end
+
+for _, p in CS:GetTagged("StagePortal") do bindStagePortal(p) end
+CS:GetInstanceAddedSignal("StagePortal"):Connect(bindStagePortal)
 for _, p in CS:GetTagged("MinePortal") do bindPortal(p) end
 CS:GetInstanceAddedSignal("MinePortal"):Connect(bindPortal)
 for _, p in CS:GetTagged("MineExit") do bindExit(p) end
