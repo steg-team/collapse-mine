@@ -26,9 +26,8 @@ end
 local Workshop = {}
 
 local function coinsOf(player: Player): number
-	local ls = player:FindFirstChild("leaderstats")
-	local coins = ls and ls:FindFirstChild("Coins") :: IntValue?
-	return coins and coins.Value or 0
+	local data = PlayerData.get(player)
+	return data and data.coins or 0
 end
 
 local function upgraded(player: Player, data: PlayerData.Data)
