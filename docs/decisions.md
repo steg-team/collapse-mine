@@ -163,3 +163,14 @@ AI 에이전트는 구현 전에 이 문서와 `game-design.md`를 읽고, 둘�
 - 광산 사이 이동은 허브에 광산마다 입구를 내지 않고 **텔레포트**로 한다 (텔레포트 UI는 다음 작업). 레포 기획서의 2·3번 예시(철·금 / 수정 동굴 사파이어·루비)는 이걸로 대체.
 - 이유: 광물 모델이 이미 있고 공유 기획서가 최신이다. 허브 남쪽 절벽에 산을 여러 개 붙이면 기본 광산 입구를 덮는다.
 - 영향: `src/shared/Config/Mines.luau`, `game-design.md` 광산 표. 팀 플레이스에 `tools/generate_mine.luau`·`tools/build_mine_exit.luau`로 생성 (MINE_ID = "iron", "groundwater").
+
+## D-018 서버 부스트
+
+- 2026-10-23 / 채택 / C 담당
+- 결정:
+  - 개발자 상품(여러 번 구매 가능) 하나: 사면 **서버 전체가 30분 동안 채굴 속도 2배**. 부스트 중에 또 사면 **배수는 그대로, 시간만 30분 연장**.
+  - 서버마다 따로이고 저장하지 않는다 (그 서버가 닫히면 끝). 효과는 `Payments.GetMultiplier(player, "MineSpeed")`에 곱해져서 A 코드는 바꿀 필요 없다.
+  - 결제는 `Payments.luau`의 `ProcessReceipt` 한 곳에서 처리 (게임 전체에 하나만 둘 수 있음). 처리한 영수증 ID를 `data.social.receipts`에 최근 50개 저장해 같은 영수증을 두 번 지급하지 않는다.
+  - 구매 시 서버 공지("OOO님이 서버 전체에 서버 채굴 2배를 선물했습니다!"), 화면 오른쪽 위에 남은 시간, 왼쪽 🚀 버튼으로 구매 창.
+- 이유: 기획서 수익 모델 "서버 부스트 구매 시 OOO님이 서버 전체에 2배를 선물 공지", "첫 버전은 게임패스 2~3개 + 서버 부스트 1개". 배수를 겹치면(4배, 8배) 밸런스가 쉽게 깨진다.
+- 영향: `src/server/Social/Payments.luau`, `src/client/Social/BoostHud.client.luau`, `Config/Social.luau` ServerBoost (`productId`는 대시보드에서 상품을 만든 뒤 채움, 가격·시간 임시값).
