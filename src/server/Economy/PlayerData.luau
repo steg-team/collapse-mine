@@ -72,6 +72,15 @@ function PlayerData.get(player: Player): Data?
 	return profile and profile.Data
 end
 
+-- 코인 지급. 코인을 leaderstats로 저장하는 동안은 거기에 더한다 (load의 ponytail 참고)
+function PlayerData.addCoins(player: Player, amount: number)
+	local ls = player:FindFirstChild("leaderstats")
+	local coins = ls and ls:FindFirstChild("Coins") :: IntValue?
+	if coins and PlayerData.get(player) then
+		coins.Value += math.floor(amount)
+	end
+end
+
 -- 가방에서 TRAPPED_BAG_LOSS 비율만큼 무작위로 뺀다 (내림이라 1개뿐이면 안 잃음)
 function PlayerData.loseBag(data: Data)
 	for _ = 1, math.floor(#data.bag * Economy.TRAPPED_BAG_LOSS) do
@@ -145,22 +154,8 @@ local function release(player: Player)
 	profile:EndSession()
 end
 
+-- 갇힘·탈출 같은 게임 이벤트 처리는 Bag.luau. 여기는 불러오기·저장만.
 function PlayerData.start()
-	EventBus.On(Events.PlayerTrapped, function(player: Player)
-		local data = PlayerData.get(player)
-		if data then
-			PlayerData.loseBag(data)
-		end
-	end)
-	-- 탈출 보너스 지급. 코인을 leaderstats로 저장하는 동안은 거기에 더한다 (load의 ponytail 참고)
-	EventBus.On(Events.PlayerEscaped, function(player: Player, _mineId: string, bonus: number)
-		local ls = player:FindFirstChild("leaderstats")
-		local coins = ls and ls:FindFirstChild("Coins") :: IntValue?
-		if coins and PlayerData.get(player) then
-			coins.Value += bonus
-		end
-	end)
-
 	Players.PlayerAdded:Connect(load)
 	Players.PlayerRemoving:Connect(release)
 	-- 스크립트보다 먼저 들어온 플레이어 (Studio 테스트에서 흔함)

@@ -174,3 +174,16 @@ AI 에이전트는 구현 전에 이 문서와 `game-design.md`를 읽고, 둘�
   - 구매 시 서버 공지("OOO님이 서버 전체에 서버 채굴 2배를 선물했습니다!"), 화면 오른쪽 위에 남은 시간, 왼쪽 🚀 버튼으로 구매 창.
 - 이유: 기획서 수익 모델 "서버 부스트 구매 시 OOO님이 서버 전체에 2배를 선물 공지", "첫 버전은 게임패스 2~3개 + 서버 부스트 1개". 배수를 겹치면(4배, 8배) 밸런스가 쉽게 깨진다.
 - 영향: `src/server/Social/Payments.luau`, `src/client/Social/BoostHud.client.luau`, `Config/Social.luau` ServerBoost (`productId`는 대시보드에서 상품을 만든 뒤 채움, 가격·시간 임시값).
+
+## D-020 가방과 판매소
+
+- 2026-10-23 / 채택 / B 담당
+- 결정:
+  - 캔 광물(`OreMined`)은 가방에 담는 순간 값을 확정한다: **기본가(`Mines.luau` 광물표 `value`) × 무게 × 압력 배수**, 반올림, 최소 1. 압력 배수는 상압(`Low`) 1 · 고압(`High`) 1.5 · 초고압(`Extreme`) 3 (임시값).
+  - `OreMined`의 `weight`는 **무게 배수**(1 = 보통)다. 광물표의 `weight`(출현 확률 가중치)와 다르다.
+  - 가방은 20칸, "가방 확장" 패스(BigBag)는 +20칸 (임시값). 꽉 차면 더 캐도 안 담긴다.
+  - 판매는 허브 판매소 `Counter`의 프롬프트("가방 전부 팔기")로 **가방을 통째로** 판다. 판매액 = 담을 때 확정한 값 × `Payments.GetMultiplier(player, "SellPrice")`.
+  - 탈출(`PlayerEscaped`)하면 그때 가방 전체 가치를 탈출 수확으로 보고 `HaulSecured`를 쏜다.
+  - 출석·퀘스트 보상(`DailyLoginClaimed`·`QuestCompleted`)의 코인은 B가 준다. 아이템 보상은 아이템 기능이 생기면.
+- 이유: 기획서 "판매가 = 기본가 × 무게 × 압력 배수". 값을 담을 때 확정해야 붕괴 직전에 캔 광물이 비싸다는 게 유지되고, C의 "최고 광물" 랭킹(`OreBagged`)도 같은 값을 쓴다. 가방이 차면 허브로 올라와야 해서 "더 캘까, 나갈까" 고민이 생긴다. 낱개 판매·팔까 말까 고민(제작 재료)은 제작소가 생길 때 붙인다.
+- 영향: `src/server/Economy/Bag.luau`, `src/client/Economy/BagHud.client.luau`(화면 아래 가방 표시, 플레이어 속성 `BagCount`·`BagCapacity`·`BagValue`), `Config/Economy.luau`. A는 광석이 깨질 때 `OreMined`를 쏘고 코인 직접 지급을 지워야 한다 (`docs/handoff-B.md`).
