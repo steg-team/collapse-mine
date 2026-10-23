@@ -1,5 +1,5 @@
 --!strict
--- 제작소 프롬프트에 "내" 다음 곡괭이·카나리아·리버스 비용을 적는다 (B 담당, D-021, D-023, D-024)
+-- 제작소·판매소 프롬프트에 "내" 다음 곡괭이·카나리아·리버스·가방 비용을 적는다 (B 담당, D-021, D-023, D-024, D-028)
 -- 프롬프트는 서버 Workshop.luau 가 만들고 모두가 같은 것을 보므로, 문구만 클라이언트에서 플레이어별로 바꾼다.
 -- 실제 비용 확인·차감은 서버가 한다 (여기 숫자는 안내용).
 
@@ -51,7 +51,12 @@ local function texts(): { [string]: string }
 	-- 길면 프롬프트가 옆으로 넓어져 화면을 가린다. 무엇을 잃는지는 ActionText "리버스 (초기화)"와 3초 누르기로 알린다
 	local rebirth = `판매가 ×{1 + (rebirths + 1) * R.sellBonus} 영구 · {Economy.PICKAXES[R.needTier].name} + {R.coins * (rebirths + 1)} 코인`
 
-	return { CraftPrompt = craft, EnhancePrompt = enh, CanaryPrompt = canary, RebirthPrompt = rebirth }
+	local bagLevel = player:GetAttribute("BagLevel") or 0
+	local nextBag = Economy.BAG_UPGRADES[bagLevel + 1]
+	local cap = player:GetAttribute("BagCapacity") or Economy.BAG_MAX_KG
+	local bag = if nextBag then `{cap}kg → {cap + nextBag.kg}kg · {nextBag.coins} 코인` else `{cap}kg (가장 커요)`
+
+	return { CraftPrompt = craft, EnhancePrompt = enh, CanaryPrompt = canary, RebirthPrompt = rebirth, BagUpgradePrompt = bag }
 end
 
 local function refresh()
@@ -62,7 +67,7 @@ local function refresh()
 end
 
 local function track(inst: Instance)
-	if inst:IsA("ProximityPrompt") and inst:IsDescendantOf(workspace) and inst.Parent and inst.Parent.Parent and inst.Parent.Parent.Name == "Workshop" then
+	if inst:IsA("ProximityPrompt") and texts()[inst.Name] then
 		table.insert(prompts, inst)
 		refresh()
 	end
@@ -76,3 +81,5 @@ player:GetAttributeChangedSignal("PickaxeTier"):Connect(refresh)
 player:GetAttributeChangedSignal("PickaxeEnhance"):Connect(refresh)
 player:GetAttributeChangedSignal("CanaryLevel"):Connect(refresh)
 player:GetAttributeChangedSignal("Rebirths"):Connect(refresh)
+player:GetAttributeChangedSignal("BagLevel"):Connect(refresh)
+player:GetAttributeChangedSignal("BagCapacity"):Connect(refresh)
