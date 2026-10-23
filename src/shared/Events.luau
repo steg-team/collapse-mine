@@ -90,6 +90,7 @@ local Events = {
 	Payments.GetMultiplier(player, kind: "MineSpeed" | "SellPrice") -> number
 		패스 + 부스트를 합친 최종 배수. 부스트가 만료되면 자동으로 1.
 		A는 채굴 속도, B는 판매가 계산할 때 호출. (예전 BoostPurchased 이벤트 대체)
+		클라이언트는 플레이어 속성 MineSpeedMultiplier / SellPriceMultiplier 로 같은 값을 읽는다 (서버가 자동 갱신).
 
 	Collapse.GetRemainingTime(mineId: string) -> number?
 		붕괴까지 남은 초. 경보 중이 아니면 nil. A가 압력 등급 계산에 사용.
