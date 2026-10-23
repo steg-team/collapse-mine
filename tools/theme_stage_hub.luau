@@ -6,7 +6,10 @@
 	  - 산·절벽 재질: 바위 → 젖은 짙은 판석, 판석 → 석회암 줄무늬, 눈 → 빙하(푸른빛)
 	  - 입구 양옆(화로 바깥 x ±44) 산 앞면 앞에 곧게 떨어지는 지형 물 폭포 두 줄기 + 물방울·물보라 입자 + 아래 물웅덩이
 	    (파트 물판으로도 해 봤는데 조각조각 끊겨 보여서 지형 물로 함. 화로(±32)를 덮지 않게 바깥으로)
-	  - 입구 화로·횃불 불빛을 푸른색으로
+	  - 입구 화로·횃불 불빛을 푸른색으로 (범위를 줄여 산 전체가 파랗게 물들지 않게)
+	  - 제미나이 시안(2026-10-23)을 대충 따라: 입구 둘레 밝은 회색 돌 테두리, 턱 윗면 이끼, 입구 안쪽 벽 파란 수정,
+	    폭포 뒤 빈틈 바위로 메움, 오른쪽 폭포는 높은 바위 처마 밑에서 쏟아지게
+	  ※ 복사본 허브에 한 번만 실행. 다시 돌리면 2)의 재질 바꾸기가 또 적용돼(판석→석회암) 산 전체가 바뀐다
 	공통:
 	  - 입구 산 오른쪽 어깨 앞면에 구멍(아래가 빈 바위 처마)처럼 보이는 곳을 바위로 메움 (SHOULDER_FILL)
 
@@ -33,6 +36,17 @@ local THEMES = {
 		fire2 = Color3.fromRGB(190, 240, 255),
 		ember = Color3.fromRGB(90, 210, 255),
 		waterfalls = true,
+		lightRange = 16, lightBrightness = 1, -- 입구 불빛(범위 55·22)이 산 앞면 전체를 파랗게 물들여서 줄임. 파란빛은 입구 둘레만
+		frame = Enum.Material.Concrete, -- 입구 둘레 밝은 회색 돌 테두리 (시안: 어두운 산에 밝은 돌 아치. 석회암은 누런색이라 콘크리트)
+		-- 폭포 뒤가 비어 물기둥이 산 앞에 떠 보여서, 물 뒤 빈칸을 바위로 메움 (MOUTH 기준 상대 좌표 min, max)
+		fallBacking = {
+			{ Vector3.new(-50, 0, -10), Vector3.new(-38, 56, 10) },
+			{ Vector3.new(38, 0, -6), Vector3.new(50, 80, 10) },
+		},
+		-- 오른쪽 폭포는 위가 바위라 연못 대신 높은 바위 처마 밑에서 쏟아지게 (x, 물 머리 높이)
+		springs = { { x = 44, top = 80 } },
+		moss = { chance = 0.4, from = { Enum.Material.Slate, Enum.Material.Limestone } }, -- 턱 윗면 이끼
+		crystals = Color3.fromRGB(90, 200, 255), -- 입구 안쪽 벽 파란 수정
 		-- 왼쪽 폭포는 풀밭 턱(y 56) 연못 → 물길 → 폭포 머리. 오른쪽은 위가 바위라 그대로
 		sources = {
 			{ pond = Vector3.new(-58, 56, -7), path = { Vector3.new(-52, 56, 0), Vector3.new(-47, 56, 6), Vector3.new(-44, 56, 11) } },
@@ -167,6 +181,116 @@ if TH.waterfalls then
 	end
 end
 
+-- 3.5) 입구 둘레 테두리·이끼·수정·폭포 뒤 바위 (제미나이 시안을 대충 따라감)
+local rpT = RaycastParams.new()
+rpT.FilterType = Enum.RaycastFilterType.Include
+rpT.FilterDescendantsInstances = { T }
+for _, b in TH.fallBacking or {} do
+	-- 빈칸(Air)만 바위로. 물 칸은 건드리지 않는다
+	local r = Region3.new(MOUTH + b[1], MOUTH + b[2]):ExpandToGrid(4)
+	local mats, occ = T:ReadVoxels(r, 4)
+	for x = 1, mats.Size.X do
+		for y = 1, mats.Size.Y do
+			for z = 1, mats.Size.Z do
+				if mats[x][y][z] == Enum.Material.Air then
+					mats[x][y][z] = Enum.Material.Slate
+					occ[x][y][z] = 1
+				end
+			end
+		end
+	end
+	T:WriteVoxels(r, 4, mats, occ)
+	task.wait()
+end
+for _, s in TH.springs or {} do
+	local x = MOUTH.X + s.x
+	local z = MOUTH.Z + 12.5 -- 물기둥 앞면 z (폭포 만들 때 잰 자리)
+	T:FillBlock(CFrame.new(x, (58 + s.top) / 2, z), Vector3.new(6, s.top - 58 + 4, 4), Enum.Material.Water)
+	-- 머리 위 바위 처마 + 윗면 풀, 양옆 둥글게
+	T:FillBlock(CFrame.new(x, s.top + 6, z - 2.5), Vector3.new(16, 8, 14), Enum.Material.Slate)
+	T:FillBlock(CFrame.new(x, s.top + 10.5, z - 2.5), Vector3.new(16, 1, 14), Enum.Material.Grass)
+	T:FillBall(Vector3.new(x - 8, s.top + 4, z - 0.5), 5, Enum.Material.Slate)
+	T:FillBall(Vector3.new(x + 8, s.top + 4, z - 0.5), 5, Enum.Material.Slate)
+	T:FillBlock(CFrame.new(x, s.top - 1, z), Vector3.new(6, 4, 5), Enum.Material.Water)
+	for _, pt in (hub.Hub:FindFirstChild("Waterfalls") or hub.Hub):GetChildren() do
+		if pt.Name == "Stream" and math.abs(pt.Position.X - x) < 8 then
+			pt.CFrame = CFrame.new(x, s.top + 1, z + 1.5)
+		end
+	end
+end
+if TH.frame then
+	-- 입구 앞면(z 30~62) 둘레만 밝은 돌로. 그 안쪽 굴 벽은 어두운 판석 그대로라 입구가 도드라진다
+	local r = Region3.new(MOUTH + Vector3.new(-36, 0, -8), MOUTH + Vector3.new(36, 64, 24)):ExpandToGrid(4)
+	T:ReplaceMaterial(r, 4, Enum.Material.Slate, TH.frame)
+	task.wait()
+end
+if TH.moss then
+	-- 윗면(위 칸이 비어 있는 칸)만 확률로 풀. 광장 바닥과 입구 바닥은 빼고. 시드 고정이라 다시 돌려도 같은 자리
+	local rng = Random.new(42)
+	local from = {}
+	for _, m in TH.moss.from do from[m] = true end
+	for cx = -96, 95, 32 do
+		local r = Region3.new(MOUTH + Vector3.new(cx, 8, -40), MOUTH + Vector3.new(cx + 32, 120, 40)):ExpandToGrid(4)
+		local mats, occ = T:ReadVoxels(r, 4)
+		local sz = mats.Size
+		local changed = false
+		for x = 1, sz.X do
+			for z = 1, sz.Z do
+				for y = 1, sz.Y - 1 do
+					if from[mats[x][y][z]] and occ[x][y][z] > 0.5 and mats[x][y + 1][z] == Enum.Material.Air then
+						if rng:NextNumber() < TH.moss.chance then
+							mats[x][y][z] = Enum.Material.Grass
+							changed = true
+						end
+					end
+				end
+			end
+		end
+		if changed then T:WriteVoxels(r, 4, mats, occ) end
+		task.wait()
+	end
+end
+if TH.crystals then
+	local old = hub.Hub:FindFirstChild("Crystals")
+	if old then old:Destroy() end
+	local folder = Instance.new("Folder")
+	folder.Name = "Crystals"
+	local rng = Random.new(7)
+	-- 입구 안쪽 양쪽 벽에 몇 무더기. 벽 위치는 입구 가운데서 옆으로 레이캐스트해서 찾는다
+	for _, side in { -1, 1 } do
+		for _, p in { Vector3.new(0, 2, 40), Vector3.new(0, 10, 34), Vector3.new(0, 4, 26), Vector3.new(0, 18, 30) } do
+			local o = Vector3.new(MOUTH.X, p.Y, p.Z)
+			local hit = workspace:Raycast(o, Vector3.new(side * 40, 0, 0), rpT)
+			if hit then
+				local base = hit.Position + hit.Normal * 0.5
+				local cluster = Instance.new("Model")
+				cluster.Name = "Cluster"
+				for i = 1, rng:NextInteger(3, 5) do
+					local c = Instance.new("Part")
+					c.Name = "Crystal"
+					local h = rng:NextNumber(3, 7)
+					c.Size = Vector3.new(1.4, h, 1.4)
+					c.Material = Enum.Material.Glass
+					c.Color = TH.crystals
+					c.Transparency = 0.15
+					c.Anchored, c.CanCollide = true, false
+					c.CastShadow = false
+					-- 벽 쪽 밑동에서 바깥(굴 안쪽)과 위로 비스듬히
+					local tilt = CFrame.Angles(math.rad(rng:NextNumber(-25, 25)), 0, math.rad(side * rng:NextNumber(10, 40)))
+					c.CFrame = CFrame.new(base + Vector3.new(0, 0, rng:NextNumber(-2, 2))) * tilt * CFrame.new(0, h / 2 - 0.5, 0)
+					c.Parent = cluster
+				end
+				local glow = cluster:GetChildren()[1]
+				local l = Instance.new("PointLight")
+				l.Color, l.Range, l.Brightness = TH.crystals, 9, 0.8
+				l.Parent = glow
+				cluster.Parent = folder
+			end
+		end
+	end
+	folder.Parent = hub.Hub
+end
+
 -- 4) 입구 불빛 색
 local portal = hub.Hub.MinePortals:FindFirstChild("Portal_" .. MINE_ID)
 if portal then
@@ -175,6 +299,8 @@ if portal then
 			d.Color, d.SecondaryColor = TH.fire, TH.fire2
 		elseif d:IsA("PointLight") or d:IsA("SpotLight") or d:IsA("SurfaceLight") then
 			d.Color = TH.fire
+			if TH.lightRange and d.Range > TH.lightRange then d.Range = TH.lightRange end
+			if TH.lightBrightness and d.Brightness > TH.lightBrightness then d.Brightness = TH.lightBrightness end
 		elseif d:IsA("BasePart") and d.Material == Enum.Material.Neon and (d.Name == "Ember" or d.Name == "Embers" or d.Name:find("Glass")) then
 			d.Color = TH.ember
 		elseif d:IsA("MeshPart") and (d.Name == "EN_Ember" or d.Name == "EN_Glass") then
