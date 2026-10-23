@@ -15,6 +15,7 @@
 ]]
 
 local MINE_ID = "basic"
+local EXIT_DIR = Vector3.new(1, 0, 0) -- 출구 굴이 뻗는 방향 (generate_mine이 도착 지점을 입구 방 -X쪽, 옛 출구 발판을 +X쪽에 둠)
 
 local CS = game:GetService("CollectionService")
 local CHS = game:GetService("ChangeHistoryService")
@@ -37,13 +38,12 @@ local terrainOnly = RaycastParams.new()
 terrainOnly.FilterType = Enum.RaycastFilterType.Include
 terrainOnly.FilterDescendantsInstances = { T }
 
--- 방 바닥 중심과 반경 (generate_mine의 room(): 표시 파트 아랫면 = 바닥, 지름 = 2R)
-local center = roomPart.Position - Vector3.new(0, roomPart.Size.Y / 2, 0)
+-- 방 바닥 중심과 반경. 가로 위치는 광산 중심(generate_mine이 입구 방을 거기 판다),
+-- 높이·반경은 방 표시 파트 (아랫면 = 바닥, 지름 = 2R)
+-- 표시 파트를 기준으로 방향을 재면 파트가 조금만 밀려도 출구가 엉뚱한 쪽으로 나서, 방향은 고정값을 쓴다
+local center = Vector3.new(M.origin.X, roomPart.Position.Y - roomPart.Size.Y / 2, M.origin.Z)
 local R = roomPart.Size.X / 2
--- 도착 지점 반대쪽 벽 방향
-local away = center - arrival.Position
-local fwd = Vector3.new(away.X, 0, away.Z)
-fwd = fwd.Magnitude > 0.1 and fwd.Unit or Vector3.xAxis
+local fwd = EXIT_DIR.Unit
 
 -- 문 기준 좌표계 G: 원점 = 문 바닥 가운데, -Z(LookVector) = 굴 안쪽, +Z = 방 쪽, +X = 오른쪽
 -- 바닥 높이는 실제 지형 표면에 맞춘다 (방 바닥 y보다 지형이 1~2 높게 덮여 있음)
