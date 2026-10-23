@@ -48,7 +48,8 @@ local function texts(): { [string]: string }
 	end
 	local R = Economy.REBIRTH
 	local rebirths = player:GetAttribute("Rebirths") or 0
-	local rebirth = `코인·곡괭이·가방 초기화 → 판매가 ×{1 + (rebirths + 1) * R.sellBonus} 영구 · {Economy.PICKAXES[R.needTier].name} + {R.coins * (rebirths + 1)} 코인`
+	-- 길면 프롬프트가 옆으로 넓어져 화면을 가린다. 무엇을 잃는지는 ActionText "리버스 (초기화)"와 3초 누르기로 알린다
+	local rebirth = `판매가 ×{1 + (rebirths + 1) * R.sellBonus} 영구 · {Economy.PICKAXES[R.needTier].name} + {R.coins * (rebirths + 1)} 코인`
 
 	return { CraftPrompt = craft, EnhancePrompt = enh, CanaryPrompt = canary, RebirthPrompt = rebirth }
 end
