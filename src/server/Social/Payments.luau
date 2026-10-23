@@ -44,6 +44,9 @@ end
 
 local Payments = {}
 
+-- 아래에서 정의 (loadOwned 가 끝날 때 부르므로 미리 선언)
+local publish: (player: Player) -> ()
+
 local function loadOwned(player: Player)
 	local set: { [string]: boolean } = {}
 	owned[player] = set -- 조회 중에도 HasPass 가 에러 없이 false 를 돌려주게 먼저 넣어둔다
@@ -58,6 +61,7 @@ local function loadOwned(player: Player)
 			end
 		end
 	end
+	publish(player)
 end
 
 -- 게임패스 보유 여부. 입장 직후 조회가 끝나기 전에는 false 가 나올 수 있다.
@@ -92,6 +96,22 @@ function Payments.GetMultiplier(player: Player, kind: MultiplierKind): number
 	return result
 end
 
+-- 최종 배수를 플레이어 속성으로도 올린다: MineSpeedMultiplier, SellPriceMultiplier
+-- 클라이언트(곡괭이 쿨다운 등)는 서버 모듈인 Payments 를 부를 수 없어서, 이 속성을 읽는다.
+--   서버: COOLDOWN / Payments.GetMultiplier(plr, "MineSpeed")
+--   클라: COOLDOWN / (player:GetAttribute("MineSpeedMultiplier") or 1)
+-- 패스 조회 완료·패스 구매·부스트 켜짐/꺼짐 때마다 갱신된다.
+publish = function(player: Player)
+	if player.Parent == nil then return end
+	for _, kind in Social.MultiplierKind do
+		player:SetAttribute(`{kind}Multiplier`, Payments.GetMultiplier(player, kind))
+	end
+end
+
+local function publishAll()
+	for _, player in Players:GetPlayers() do publish(player) end
+end
+
 function Payments.IsBoostActive(): boolean
 	return workspace:GetServerTimeNow() < boostEndsAt
 end
@@ -104,6 +124,11 @@ local function grantBoost(buyer: Player?)
 	-- 이미 켜져 있으면 남은 시간 뒤에 이어 붙인다 (배수는 그대로)
 	boostEndsAt = math.max(boostEndsAt, now) + BOOST.duration
 	boostState:SetAttribute("EndsAt", boostEndsAt)
+	publishAll()
+	-- 끝나는 순간 배수를 다시 1로. 그사이 연장됐으면 아직 켜져 있으니 그냥 넘어간다 (연장분의 delay 가 처리)
+	task.delay(boostEndsAt - now + 0.1, function()
+		if not Payments.IsBoostActive() then publishAll() end
+	end)
 
 	Announcer = Announcer or require(script.Parent:WaitForChild("Announcer"))
 	local who = if buyer then `{buyer.DisplayName}님이` else "누군가"
@@ -173,14 +198,27 @@ MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player: Playe
 	if not purchased then return end
 	local name = nameById[passId]
 	local set = owned[player]
-	if name and set then set[name] = true end
+	if name and set then
+		set[name] = true
+		publish(player)
+	end
 end)
 
-Players.PlayerAdded:Connect(function(player) task.spawn(loadOwned, player) end)
+local function onPlayer(player: Player)
+	task.spawn(loadOwned, player)
+	-- Studio 테스트용 TestPass_<이름> 속성을 바꾸면 배수 속성도 바로 갱신
+	if RunService:IsStudio() then
+		player.AttributeChanged:Connect(function(attr)
+			if string.sub(attr, 1, 9) == "TestPass_" then publish(player) end
+		end)
+	end
+end
+
+Players.PlayerAdded:Connect(onPlayer)
 Players.PlayerRemoving:Connect(function(player) owned[player] = nil end)
 -- 이 모듈이 처음 require 되기 전에 이미 들어와 있던 플레이어 (Studio 테스트에서 흔함)
 for _, player in Players:GetPlayers() do
-	if not owned[player] then task.spawn(loadOwned, player) end
+	if not owned[player] then onPlayer(player) end
 end
 
 return table.freeze(Payments)
