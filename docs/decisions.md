@@ -199,3 +199,13 @@ AI 에이전트는 구현 전에 이 문서와 `game-design.md`를 읽고, 둘�
   - 실패 이유("석영 2개가 더 필요해요")와 판매 결과는 화면 아래 한 줄 알림으로 보여 준다 (속성 `EconomyNotice`).
 - 이유: 기획서 "에픽 이상 광물은 팔면 돈, 모으면 다음 층을 여는 곡괭이" — 재료를 가방에서 쓰게 해서 "팔까, 쓸까"가 생긴다. 다음 광산 재료를 요구하면 순서대로 광산을 거치게 된다. 5단계(최상위)와 용암 광산은 광산이 생기면 추가.
 - 영향: `src/server/Economy/Workshop.luau`, `src/client/Economy/WorkshopPrompt.client.luau`(프롬프트에 내 비용 표시), `BagHud`(알림 줄), `Config/Economy.luau` `PICKAXES`·`ENHANCE_MAX`. 곡괭이 모델을 단계별로 바꾸는 건 A.
+
+## D-022 인벤토리 창과 코인 원본
+
+- 2026-10-23 / 채택 / B 담당
+- 결정:
+  - 화면 아래 가방 버튼(또는 B 키)으로 인벤토리 창을 연다. 캔 광물마다 이름(등급 색)·무게·압력·값을 보여 주고, **판매소 근처에서만** 한 개씩 "팔기" 또는 "전부 팔기"가 켜진다. 판매소 프롬프트("가방 전부 팔기")도 그대로 둔다.
+  - 통신은 `Remotes.Bag`(RemoteFunction, 없으면 서버가 만듦): `"get"` 목록, `"sell", index, oreId` 한 개, `"sellAll"` 전부. 판매 거리·금액은 서버가 판정하고, 결과는 화면 아래 알림 줄로 보여 준다.
+  - 코인의 원본은 `data.coins`다. `leaderstats.Coins`는 화면 표시용 사본이고, A가 채굴 때 직접 더하는 동안만 그 차이를 `data.coins`로 받아 둔다.
+- 이유: 기획서 화면 구성 "아래: 인벤토리 슬롯 (캔 광물, 무게·변이 표시, 가방 용량)". 비싸게 캔 광물은 남기고 싼 것만 팔거나, 제작 재료를 남겨 두려면 낱개 판매가 필요하다 ("팔까, 쓸까").
+- 영향: `src/client/Economy/InventoryPanel.client.luau`, `BagHud`(가방 줄이 버튼으로), `Bag.luau`(`sellOne`, `Remotes.Bag`), `PlayerData.addCoins`.

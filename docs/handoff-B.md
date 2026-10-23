@@ -1,7 +1,7 @@
 # B(경제) 인계 문서
 
 B 담당 기능이 지금 어디까지 됐고, 다른 담당이 무엇을 붙이면 되는지 적는다. 바뀔 때마다 이 문서를 고친다.
-규칙의 근거는 `decisions.md` D-014(데이터 저장), D-020(가방·판매소), D-021(곡괭이 제작·강화).
+규칙의 근거는 `decisions.md` D-014(데이터 저장), D-020(가방·판매소), D-021(곡괭이 제작·강화), D-022(인벤토리 창·코인 원본).
 
 ## 지금 되는 것
 
@@ -10,7 +10,8 @@ B 담당 기능이 지금 어디까지 됐고, 다른 담당이 무엇을 붙이
 | 데이터 저장 | `src/server/Economy/PlayerData.luau` | 동작. ProfileStore, 세션 잠금 |
 | 가방 담기 | `src/server/Economy/Bag.luau` | 동작. **A가 `OreMined`를 쏘기 전까지는 비어 있음** |
 | 판매소 | `Bag.luau` (`Bag.sellAll`) | 동작. 허브 `Shop/Counter`에 "가방 전부 팔기" 프롬프트 |
-| 가방 HUD | `src/client/Economy/BagHud.client.luau` | 동작. 화면 아래 "가방 3/20 · 120 코인어치" |
+| 가방 HUD | `src/client/Economy/BagHud.client.luau` | 동작. 화면 아래 "가방 3/20 · 120 코인어치", 누르면 인벤토리 창 |
+| 인벤토리 창 | `src/client/Economy/InventoryPanel.client.luau` | 동작. 가방 버튼·B 키. 판매소 근처면 한 개씩/전부 팔기 (`Remotes.Bag`) |
 | 탈출 수확·보너스 | `Bag.luau` | `PlayerEscaped` → `HaulSecured` + 보너스 코인 |
 | 갇힘 차감 | `Bag.luau`, `PlayerData.luau` | 갇힘·경보 중 광산 안 퇴장 → 가방 절반 |
 | 출석·퀘스트 코인 | `Bag.luau` | `DailyLoginClaimed`·`QuestCompleted`의 `reward.coins` 지급 |
@@ -47,10 +48,9 @@ B 담당 기능이 지금 어디까지 됐고, 다른 담당이 무엇을 붙이
 
 ## 아직 안 된 것 (B 다음 작업 순서)
 
-1. 코인을 `data.coins`로 직접 관리: A가 코인 직접 지급을 지우면 `PlayerData.luau`의 leaderstats 연결(ponytail 주석)을 걷어낸다.
-2. 낱개 판매·"팔까 말까"(에픽 이상은 제작 재료): 제작이 생기면.
-3. 광산 카나리아, 리버스.
-4. 곡괭이 5단계·용암 광산: 광산 설정이 생기면 `PICKAXES`에 한 줄.
+1. A가 코인 직접 지급을 지우면 `PlayerData.luau`의 leaderstats `Changed` 연결(ponytail 주석)을 지운다. 코인 원본은 이미 `data.coins`.
+2. 광산 카나리아, 리버스.
+3. 곡괭이 5단계·용암 광산: 광산 설정이 생기면 `PICKAXES`에 한 줄.
 
 ## 로컬 테스트 방법
 

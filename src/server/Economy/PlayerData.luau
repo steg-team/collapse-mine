@@ -72,12 +72,17 @@ function PlayerData.get(player: Player): Data?
 	return profile and profile.Data
 end
 
--- 코인 지급. 코인을 leaderstats로 저장하는 동안은 거기에 더한다 (load의 ponytail 참고)
+-- 코인 지급·차감 (음수). 원본은 data.coins, leaderstats.Coins는 화면 표시용 사본
 function PlayerData.addCoins(player: Player, amount: number)
+	local data = PlayerData.get(player)
+	if not data then
+		return
+	end
+	data.coins += math.floor(amount)
 	local ls = player:FindFirstChild("leaderstats")
 	local coins = ls and ls:FindFirstChild("Coins") :: IntValue?
-	if coins and PlayerData.get(player) then
-		coins.Value += math.floor(amount)
+	if coins then
+		coins.Value = data.coins
 	end
 end
 
@@ -127,12 +132,12 @@ local function load(player: Player)
 		lastMineId[player] = (mine and mine.id) or Collapse.DiedInsideMine(player)
 	end)
 
-	-- ponytail: 채굴 코드(A)가 leaderstats.Coins에 직접 더하는 동안 그 값을 저장한다.
-	-- A가 코인 직접 지급을 지우면(docs/handoff-B.md) data.coins를 직접 바꾸고 이 연결은 지운다.
 	local ls = player:WaitForChild("leaderstats", 10)
 	local coins = ls and ls:FindFirstChild("Coins") :: IntValue?
 	if coins then
 		coins.Value = data.coins
+		-- ponytail: 채굴 코드(A)가 아직 leaderstats.Coins에 직접 더한다. 그 차이를 data.coins로 받아 둔다.
+		-- A가 코인 직접 지급을 지우면(docs/handoff-B.md) 이 연결은 지운다.
 		coins.Changed:Connect(function(value)
 			data.coins = value
 		end)

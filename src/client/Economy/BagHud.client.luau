@@ -15,7 +15,10 @@ gui.ResetOnSpawn = false
 gui.Enabled = false
 gui.Parent = player:WaitForChild("PlayerGui")
 
-local label = Instance.new("TextLabel")
+-- 누르면 인벤토리 창이 열린다 (InventoryPanel.client.luau 가 이 버튼 "Bag"을 찾아 연결)
+local label = Instance.new("TextButton")
+label.Name = "Bag"
+label.AutoButtonColor = false
 label.AnchorPoint = Vector2.new(0.5, 1)
 label.Position = UDim2.new(0.5, 0, 1, -80) -- 기본 도구 칸(곡괭이) 바로 위
 label.Size = UDim2.new(0, 0, 0, 0)
@@ -48,8 +51,8 @@ local function refresh()
 	gui.Enabled = true
 	local full = count >= cap
 	label.Text = if full
-		then `가방 가득 {count}/{cap} · 판매소에서 파세요`
-		else `가방 {count}/{cap} · {value} 코인어치`
+		then `🎒 가방 가득 {count}/{cap} · 판매소에서 파세요`
+		else `🎒 가방 {count}/{cap} · {value} 코인어치`
 	label.TextColor3 = if full then Color3.fromRGB(255, 110, 100) else Color3.new(1, 1, 1)
 end
 
@@ -63,6 +66,7 @@ local NOTICE_SECONDS = 3
 
 local notice = label:Clone()
 notice.Name = "Notice"
+notice.Active = false
 notice.Position = UDim2.new(0.5, 0, 1, -118) -- 가방 줄 바로 위
 notice.TextColor3 = Color3.fromRGB(255, 220, 120)
 notice.Visible = false
