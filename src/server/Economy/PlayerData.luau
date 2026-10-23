@@ -111,7 +111,7 @@ local function load(player: Player)
 	-- 퇴장 때는 PlayerRemoving보다 캐릭터가 먼저 지워지므로, 지워지는 순간 광산 안이었는지 적어 둔다
 	player.CharacterRemoving:Connect(function(char)
 		local root = char:FindFirstChild("HumanoidRootPart") :: BasePart?
-		local mine = root and Mines.findAt(root.Position)
+		local mine = root and Mines.findAreaAt(root.Position) -- C의 isInside와 같은 기준 (출구 비탈 포함)
 		lastMineId[player] = mine and mine.id
 	end)
 
