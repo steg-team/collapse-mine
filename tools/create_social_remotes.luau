@@ -4,6 +4,8 @@
 
 	- Announce : 서버 → 클라이언트. 화면 위쪽 서버 공지 배너 (text, kind)
 	  보내는 쪽 src/server/Social/Announcer.luau, 받는 쪽 src/client/Social/AnnounceBanner.client.luau
+	- DailyLogin (RemoteFunction) : 클라이언트 → 서버. 출석판 상태 조회("get") / 보상 받기("claim")
+	  서버 src/server/Social/DailyLogin.luau, 클라이언트 src/client/Social/DailyLoginPanel.client.luau
 ]]
 
 local CHS = game:GetService("ChangeHistoryService")
@@ -13,11 +15,17 @@ local RS = game:GetService("ReplicatedStorage")
 local remotes = RS:FindFirstChild("Remotes") or Instance.new("Folder")
 remotes.Name = "Remotes"; remotes.Parent = RS
 
-for _, name in { "Announce" } do
+-- 이름 → 종류
+local LIST = {
+	Announce = "RemoteEvent",
+	DailyLogin = "RemoteFunction",
+}
+
+for name, className in LIST do
 	if not remotes:FindFirstChild(name) then
-		local ev = Instance.new("RemoteEvent")
+		local ev = Instance.new(className)
 		ev.Name = name; ev.Parent = remotes
-		print("Remotes." .. name .. " 생성")
+		print("Remotes." .. name .. " (" .. className .. ") 생성")
 	end
 end
 

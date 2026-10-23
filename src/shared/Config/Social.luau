@@ -9,6 +9,7 @@
 	  3. 서버 공지           Announce, Banner
 	  4. 광맥 붕괴           Collapse   (광산별 주기·경보 길이는 Config/Mines.luau 의 collapse)
 	  5. 붕괴 카운트다운 HUD  CollapseHud
+	  6. 출석 보상           DailyLogin
 
 	쓰는 법
 	  local Social = require(ReplicatedStorage.Shared.Config.Social)
@@ -119,6 +120,37 @@ local CollapseHud = table.freeze({
 	displayOrder = 49,      -- 공지 배너(50) 바로 아래 층
 })
 
+-- ───────── 6. 출석 보상 (D-016) ─────────
+-- 7일 주기. 하루라도 빠지면 1일차부터 다시. 출석판 UI에서 버튼을 눌러 받는다.
+-- 코인 지급은 B가 DailyLoginClaimed 이벤트를 받아서 한다.
+
+local DailyLogin = table.freeze({
+	-- 1~7일차 보상 코인 (임시값). 7일차를 크게 둬서 "끝까지 채우고 싶게"
+	rewards = table.freeze({ 10, 20, 30, 50, 70, 100, 200 }),
+	-- 하루가 바뀌는 시각을 UTC 기준 몇 시간 미룰지. 0 = UTC 자정 = 한국 오전 9시
+	dayOffsetHours = 0,
+	claimCooldown = 1,       -- 받기 버튼 연타 방지(초)
+
+	-- UI
+	openOnJoin = true,       -- 받을 보상이 있으면 접속하자마자 출석판을 띄움
+	buttonSize = 56,         -- 화면 왼쪽 출석 버튼 크기(px)
+	buttonMargin = 12,
+	cellWidth = 72,          -- 출석판 칸 하나
+	cellHeight = 92,
+	cellGap = 8,
+	panelPadding = 16,
+	cornerRadius = 12,
+	titleSize = 22,
+	textSize = 16,
+	panelColor = Color3.fromRGB(30, 26, 22),
+	cellColor = Color3.fromRGB(60, 52, 44),
+	todayColor = Color3.fromRGB(255, 200, 60),     -- 오늘 받을 칸 테두리
+	claimedColor = Color3.fromRGB(70, 140, 80),    -- 받은 칸
+	buttonColor = Color3.fromRGB(255, 180, 40),
+	disabledColor = Color3.fromRGB(90, 90, 90),
+	displayOrder = 40,
+})
+
 return table.freeze({
 	AnnounceKind = AnnounceKind,
 	MultiplierKind = MultiplierKind,
@@ -128,4 +160,5 @@ return table.freeze({
 	Banner = Banner,
 	Collapse = Collapse,
 	CollapseHud = CollapseHud,
+	DailyLogin = DailyLogin,
 })

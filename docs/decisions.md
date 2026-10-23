@@ -142,3 +142,16 @@ AI 에이전트는 구현 전에 이 문서와 `game-design.md`를 읽고, 둘�
 - 결정: 리뷰 필수 규칙과 `.github/CODEOWNERS`(자동 리뷰 요청)를 없앤다. 각자 올린 PR은 본인이 직접 머지한다. 다른 담당 폴더·`shared/`·`Core/`·`docs/`·이벤트 계약을 건드리면 PR에 해당 담당을 멘션해서 알린다. main과 충돌이 나면 올린 사람이 푼다.
 - 이유: 3명이 서로 리뷰를 기다리느라 머지가 밀리고, 자동 리뷰 요청이 매번 쌓였다. `main` 브랜치 보호도 꺼져 있어 리뷰가 실제로 막는 역할을 하지 않았다.
 - 영향: `AGENTS.md`, `README.md`, `docs/README.md`, `game-design.md`의 협업 규칙.
+
+## D-016 출석 보상
+
+- 2026-10-23 / 채택 / C 담당
+- 결정:
+  - **7일 주기**. 날마다 보상이 커지고 7일차가 가장 크다. 하루라도 빠지면 1일차부터 다시. 7일차 다음 날은 1일차.
+  - 화면 왼쪽 📅 버튼 → **출석판 UI에서 "받기" 버튼**으로 받는다. 받을 보상이 있으면 접속하자마자 자동으로 열리고, 버튼에 빨간 점이 뜬다.
+  - 하루는 UTC 자정(한국 오전 9시)에 바뀐다 (`dayOffsetHours`로 조정).
+  - 저장은 B의 `PlayerData`에서 C 전용 칸 `data.social.daily = { lastClaimDay, streak }`. 판정은 전부 서버.
+  - 코인 지급은 **B가 `DailyLoginClaimed(player, streak, { coins })`를 받아서** 한다 (C는 기록과 이벤트만).
+  - 보상 숫자는 `Config/Social.luau`의 `DailyLogin.rewards` (10·20·30·50·70·100·200, 임시값).
+- 이유: 기획서 "Creator Rewards: 붕괴 카운트다운, 출석 보상으로 체류 시간 확보". 연속을 끊으면 처음부터라 매일 들어올 이유가 생긴다.
+- 영향: `src/server/Social/DailyLogin.luau`, `src/client/Social/DailyLoginPanel.client.luau`, `Config/Social.luau`, `tools/create_social_remotes.luau`(`Remotes.DailyLogin` RemoteFunction 추가 — 팀 플레이스에서 다시 실행 필요).
