@@ -1,6 +1,7 @@
 --[[
 	C(이벤트·서비스)가 쓰는 RemoteEvent를 ReplicatedStorage.Remotes에 만드는 스크립트
 	(Studio 명령창에서 실행, Rojo 동기화 대상 아님. 이미 있으면 그대로 둔다)
+	안 만들어 두면 서버가 실행 중에 만들긴 한다 (SocialRemotes.luau). 다만 경고가 뜨니 플레이스에 저장해 두는 게 좋다.
 
 	- Announce : 서버 → 클라이언트. 화면 위쪽 서버 공지 배너 (text, kind)
 	  보내는 쪽 src/server/Social/Announcer.luau, 받는 쪽 src/client/Social/AnnounceBanner.client.luau

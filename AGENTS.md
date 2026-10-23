@@ -118,7 +118,7 @@ docs/        기획서, 결정 기록 (동기화 안 됨)
   - `basic` 기본 광산 — 중심 (0, 0, -900), 지층 흙(-4~-50)·바위(-50~-125)
   - `iron` 철광 갱도 — 중심 (-900, 0, -900), 지층 갱도 바위(-4~-55)·철광(-55~-125) (D-017)
   - `groundwater` 지하수 동굴 — 중심 (900, 0, -900), 지층 석회암(-4~-55)·젖은 암반(-55~-125) (D-017)
-  - 스테이지마다 허브가 따로 있다 (D-018): `basic` → `Workspace.CollapseMine`, `iron` → `CollapseMine_iron`(x -900), `groundwater` → `CollapseMine_groundwater`(x +900). 복사본은 기본 허브와 구조·이름이 같고 x만 옮김 (`tools/copy_stage_hub.luau`). 폴더 속성 `MineId`, Mines 설정 `hub` 칸이 폴더 이름
+  - 스테이지마다 허브가 따로 있다 (D-019): `basic` → `Workspace.CollapseMine`, `iron` → `CollapseMine_iron`(x -900), `groundwater` → `CollapseMine_groundwater`(x +900). 복사본은 기본 허브와 구조·이름이 같고 x만 옮김 (`tools/copy_stage_hub.luau`). 폴더 속성 `MineId`, Mines 설정 `hub` 칸이 폴더 이름
   - 각 허브의 입구 포탈 → 그 스테이지 광산, 광산 출구 → 그 스테이지 허브의 `MineSpawn`. 스테이지 사이 이동은 텔레포트 (UI 미구현). SpawnLocation은 기본 허브만 켜져 있음
 - 지표(광산 `top` 위)와 허브는 채굴 불가.
 - 이전 맵 백업: `ServerStorage.OldPitBackup`, `HangingNestBackup`, `FirstCaveBackup`, `OldPortalBackup`(나무 아치 포탈)

@@ -40,7 +40,7 @@ export type Mine = {
 	name: string,
 	order: number,
 	requiredPickaxe: number,
-	hub: string?, -- 이 스테이지 허브 = Workspace 폴더 이름 (판매소·제작소·랭킹판·입구, D-018). 출구·텔레포트가 여기로
+	hub: string?, -- 이 스테이지 허브 = Workspace 폴더 이름 (판매소·제작소·랭킹판·입구, D-019). 출구·텔레포트가 여기로
 	origin: Vector3,
 	radius: number,
 	top: number,

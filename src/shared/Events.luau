@@ -22,6 +22,7 @@ local Events = {
 
 	-- A → B, C : 광물 획득 (B는 가방에 넣고 가격 계산, C는 퀘스트 진행)
 	-- (player, oreId: string, weight: number, pressure: "Low" | "High" | "Extreme")
+	-- oreId = Mines.luau 광물표의 name, weight = 무게 배수(1 = 보통, 광물표의 출현 가중치 weight와 다름). D-020
 	OreMined = "OreMined",
 
 	-- A → C : 전설 이상 광물 발견 (C가 서버 전체 공지)
@@ -90,9 +91,13 @@ local Events = {
 	Payments.GetMultiplier(player, kind: "MineSpeed" | "SellPrice") -> number
 		패스 + 부스트를 합친 최종 배수. 부스트가 만료되면 자동으로 1.
 		A는 채굴 속도, B는 판매가 계산할 때 호출. (예전 BoostPurchased 이벤트 대체)
+		클라이언트는 플레이어 속성 MineSpeedMultiplier / SellPriceMultiplier 로 같은 값을 읽는다 (서버가 자동 갱신).
 
 	Collapse.GetRemainingTime(mineId: string) -> number?
 		붕괴까지 남은 초. 경보 중이 아니면 nil. A가 압력 등급 계산에 사용.
+
+	Collapse.DiedInsideMine(player) -> string?
+		경보 중인 광산 안에서 죽은(리셋 포함) 적이 있으면 그 광산 id. B가 퇴장 때 차감 판정에 사용.
 ]]
 
 --[[

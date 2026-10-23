@@ -1,6 +1,6 @@
 --[[
 	스테이지 허브 복사 — 기본 허브(Workspace.CollapseMine: 절벽 분지 + 판매소·제작소·랭킹판 + 입구 산·동굴)를
-	통째로 복사해서 다른 광산 스테이지의 허브를 만든다 (D-018). Studio 명령창에서 실행.
+	통째로 복사해서 다른 광산 스테이지의 허브를 만든다 (D-019). Studio 명령창에서 실행.
 
 	- 지형(절벽·산·입구 굴)은 Terrain:CopyRegion → PasteRegion으로, 오브젝트는 폴더를 복제해 같은 만큼 옮긴다.
 	- 복사본 이름은 CollapseMine_<광산 id>, 속성 MineId. Mines 설정의 hub 칸과 이름을 맞춘다.

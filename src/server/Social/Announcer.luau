@@ -15,8 +15,9 @@ local Social = require(RS:WaitForChild("Shared"):WaitForChild("Config"):WaitForC
 export type Kind = Social.AnnounceKind
 local CONFIG = Social.Announce
 
--- Remotes 는 Studio 에서 관리 (tools/create_social_remotes.luau 로 생성)
-local announceRemote = RS:WaitForChild("Remotes"):WaitForChild("Announce") :: RemoteEvent
+-- Remotes 는 Studio 에서 관리 (tools/create_social_remotes.luau). 없으면 SocialRemotes 가 만든다
+local SocialRemotes = require(script.Parent:WaitForChild("SocialRemotes"))
+local announceRemote = SocialRemotes.get("Announce", "RemoteEvent") :: RemoteEvent
 
 local lastSent: { [string]: number } = {}
 

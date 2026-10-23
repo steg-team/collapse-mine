@@ -1,7 +1,7 @@
 -- 허브 ↔ 광산 이동
 --   허브 포탈 (태그 "MinePortal", 속성 MineId) 을 밟으면 → 해당 광산 입구 방
 --   광산 출구 발판 (태그 "MineExit", 속성 MineId) 을 밟으면 → 그 광산 스테이지의 허브 스폰
---   스테이지마다 허브가 따로 있다 (Mines 설정의 hub = Workspace 폴더 이름, D-018)
+--   스테이지마다 허브가 따로 있다 (Mines 설정의 hub = Workspace 폴더 이름, D-019)
 -- 곡괭이 등급이 모자라면 들어가지 못한다 (Mines 설정의 requiredPickaxe).
 
 local Players = game:GetService("Players")

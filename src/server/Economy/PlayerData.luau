@@ -24,6 +24,8 @@ local EventBus = require(Shared:WaitForChild("EventBus"))
 local Mines = require(Shared:WaitForChild("Config"):WaitForChild("Mines"))
 local Economy = require(Shared.Config:WaitForChild("Economy"))
 local ProfileStore = require(script.Parent.ProfileStore)
+-- C의 조회 함수 (D-011: "지금 상태"는 이벤트로 따로 들고 있지 않고 물어본다)
+local Collapse = require(script.Parent.Parent:WaitForChild("Social"):WaitForChild("Collapse"))
 
 export type BagItem = {
 	ore: string,
@@ -60,7 +62,6 @@ local TEMPLATE: Data = {
 
 local store = ProfileStore.New("PlayerData", TEMPLATE)
 local profiles: { [Player]: any } = {}
-local warnedMines: { [string]: boolean } = {}
 local lastMineId: { [Player]: string? } = {}
 local rng = Random.new()
 
@@ -69,6 +70,20 @@ local PlayerData = {}
 function PlayerData.get(player: Player): Data?
 	local profile = profiles[player]
 	return profile and profile.Data
+end
+
+-- 코인 지급·차감 (음수). 원본은 data.coins, leaderstats.Coins는 화면 표시용 사본
+function PlayerData.addCoins(player: Player, amount: number)
+	local data = PlayerData.get(player)
+	if not data then
+		return
+	end
+	data.coins += math.floor(amount)
+	local ls = player:FindFirstChild("leaderstats")
+	local coins = ls and ls:FindFirstChild("Coins") :: IntValue?
+	if coins then
+		coins.Value = data.coins
+	end
 end
 
 -- 가방에서 TRAPPED_BAG_LOSS 비율만큼 무작위로 뺀다 (내림이라 1개뿐이면 안 잃음)
@@ -105,21 +120,26 @@ local function load(player: Player)
 	profiles[player] = profile
 
 	local data: Data = profile.Data
+	-- A가 읽는 곡괭이 성능 (입장 제한은 Tier, 강화 효과는 Enhance)
 	player:SetAttribute("PickaxeTier", data.pickaxe.tier)
+	player:SetAttribute("PickaxeEnhance", data.pickaxe.enhance)
+	player:SetAttribute("CanaryLevel", data.canary) -- 클라이언트 카나리아 HUD가 탐지 범위를 읽음
+	player:SetAttribute("Rebirths", data.rebirths) -- 제작소 리버스 프롬프트 문구용
 
-	-- 퇴장 때는 PlayerRemoving보다 캐릭터가 먼저 지워지므로, 지워지는 순간 광산 안이었는지 적어 둔다
+	-- 퇴장 때는 PlayerRemoving보다 캐릭터가 먼저 지워지므로, 지워지는 순간 광산 안이었는지 적어 둔다.
+	-- 광산에서 리셋하고 허브에서 부활했으면 C가 기억하는 그 광산으로 친다 (C가 PlayerRemoving에서 지우기 전에 읽어야 함)
 	player.CharacterRemoving:Connect(function(char)
 		local root = char:FindFirstChild("HumanoidRootPart") :: BasePart?
-		local mine = root and Mines.findAt(root.Position)
-		lastMineId[player] = mine and mine.id
+		local mine = root and Mines.findAreaAt(root.Position) -- C의 isInside와 같은 기준 (출구 비탈 포함)
+		lastMineId[player] = (mine and mine.id) or Collapse.DiedInsideMine(player)
 	end)
 
-	-- ponytail: 채굴 코드(A)가 leaderstats.Coins에 직접 더하는 동안 그 값을 저장한다.
-	-- 판매소가 생겨 코인 흐름이 B로 오면 data.coins를 직접 바꾸고 이 연결은 지운다.
 	local ls = player:WaitForChild("leaderstats", 10)
 	local coins = ls and ls:FindFirstChild("Coins") :: IntValue?
 	if coins then
 		coins.Value = data.coins
+		-- ponytail: 채굴 코드(A)가 아직 leaderstats.Coins에 직접 더한다. 그 차이를 data.coins로 받아 둔다.
+		-- A가 코인 직접 지급을 지우면(docs/handoff-B.md) 이 연결은 지운다.
 		coins.Changed:Connect(function(value)
 			data.coins = value
 		end)
@@ -138,34 +158,14 @@ local function release(player: Player)
 	lastMineId[player] = nil
 
 	-- 경보 중에 광산 안에서 나가면 갇힘과 같은 차감 (나갔다 들어와 차감을 피하는 것 방지)
-	if mineId and warnedMines[mineId] then
+	if mineId and Collapse.GetRemainingTime(mineId) ~= nil then
 		PlayerData.loseBag(profile.Data)
 	end
 	profile:EndSession()
 end
 
+-- 갇힘·탈출 같은 게임 이벤트 처리는 Bag.luau. 여기는 불러오기·저장만.
 function PlayerData.start()
-	EventBus.On(Events.CollapseWarning, function(mineId: string)
-		warnedMines[mineId] = true
-	end)
-	EventBus.On(Events.CollapseOccurred, function(mineId: string)
-		warnedMines[mineId] = nil
-	end)
-	EventBus.On(Events.PlayerTrapped, function(player: Player)
-		local data = PlayerData.get(player)
-		if data then
-			PlayerData.loseBag(data)
-		end
-	end)
-	-- 탈출 보너스 지급. 코인을 leaderstats로 저장하는 동안은 거기에 더한다 (load의 ponytail 참고)
-	EventBus.On(Events.PlayerEscaped, function(player: Player, _mineId: string, bonus: number)
-		local ls = player:FindFirstChild("leaderstats")
-		local coins = ls and ls:FindFirstChild("Coins") :: IntValue?
-		if coins and PlayerData.get(player) then
-			coins.Value += bonus
-		end
-	end)
-
 	Players.PlayerAdded:Connect(load)
 	Players.PlayerRemoving:Connect(release)
 	-- 스크립트보다 먼저 들어온 플레이어 (Studio 테스트에서 흔함)
