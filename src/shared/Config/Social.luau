@@ -8,6 +8,7 @@
 	  2. 게임패스            Passes
 	  3. 서버 공지           Announce, Banner
 	  4. 광맥 붕괴           Collapse   (광산별 주기·경보 길이는 Config/Mines.luau 의 collapse)
+	  5. 붕괴 카운트다운 HUD  CollapseHud
 
 	쓰는 법
 	  local Social = require(ReplicatedStorage.Shared.Config.Social)
@@ -101,6 +102,23 @@ local Collapse = table.freeze({
 	testWarning = 15,         -- Studio 테스트(workspace 속성 CollapseTest)용 경보 길이(초)
 })
 
+-- ───────── 5. 붕괴 카운트다운 HUD ─────────
+-- 경보 중인 광산 안에 있을 때만 화면 위쪽(공지 배너 아래)에 "붕괴까지 0:42"를 크게 띄운다.
+
+local CollapseHud = table.freeze({
+	dangerSeconds = 10,     -- 남은 시간이 이 아래면 빨갛게 깜빡임
+	updateInterval = 0.1,   -- 숫자·위치 확인 간격(초)
+	topMargin = 56,         -- 화면 위에서 띄우는 거리(px). 공지 배너(위 8 + 높이 40) 바로 아래
+	textSize = 34,
+	textSizeSmall = 24,     -- 폰 (Banner.smallScreenWidth 보다 좁을 때)
+	strokeThickness = 2,
+	pulseSpeed = 6,         -- 위험 구간 깜빡임 속도 (클수록 빠름)
+	color = Color3.fromRGB(255, 210, 90),      -- 평소 (노랑)
+	dangerColor = Color3.fromRGB(255, 70, 50), -- 위험 구간 (빨강)
+	strokeColor = Color3.fromRGB(30, 10, 5),
+	displayOrder = 49,      -- 공지 배너(50) 바로 아래 층
+})
+
 return table.freeze({
 	AnnounceKind = AnnounceKind,
 	MultiplierKind = MultiplierKind,
@@ -109,4 +127,5 @@ return table.freeze({
 	Announce = Announce,
 	Banner = Banner,
 	Collapse = Collapse,
+	CollapseHud = CollapseHud,
 })

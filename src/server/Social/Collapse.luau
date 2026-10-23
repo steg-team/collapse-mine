@@ -62,7 +62,8 @@ end
 
 local function isInside(player: Player, mine: Mines.Mine): boolean
 	local root = rootOf(player)
-	return root ~= nil and Mines.findAt(root.Position) == mine
+	-- findAreaAt: 출구 비탈 굴(지표 위)까지 광산 안으로 본다. 출구 게이트에 닿아 허브로 가야 탈출
+	return root ~= nil and Mines.findAreaAt(root.Position) == mine
 end
 
 -- 허브 스폰 위치 (MineTravel 과 같은 위치를 쓴다)
@@ -191,7 +192,7 @@ end
 -- 경보 중 광산 안에서 죽으면 갇힘으로 친다 (리셋 꼼수 방지)
 local function onDied(player: Player, root: BasePart?)
 	if not root then return end
-	local mine = Mines.findAt(root.Position)
+	local mine = Mines.findAreaAt(root.Position)
 	local st = mine and states[mine.id]
 	if mine and st and st.phase == "warning" then
 		st.participants[player] = now()
