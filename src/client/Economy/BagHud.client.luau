@@ -1,6 +1,7 @@
 --!strict
 -- 가방 HUD (B 담당, D-020)
 -- 화면 아래 가운데에 "가방 3/20 · 120 코인어치"를 띄운다. 꽉 차면 빨갛게 "판매소에서 파세요".
+-- 그 위에 판매·제작 결과 한 줄 알림을 잠깐 띄운다.
 -- 데이터: 서버 Bag.luau 가 플레이어 속성 BagCount, BagCapacity, BagValue 를 갱신한다.
 
 local Players = game:GetService("Players")
@@ -56,3 +57,30 @@ for _, name in { "BagCount", "BagCapacity", "BagValue" } do
 	player:GetAttributeChangedSignal(name):Connect(refresh)
 end
 refresh()
+
+-- 한 줄 알림 (판매 결과, 제작 실패 이유). 서버 Bag.notify 가 EconomyNotice / EconomyNoticeAt 속성을 올린다
+local NOTICE_SECONDS = 3
+
+local notice = label:Clone()
+notice.Name = "Notice"
+notice.Position = UDim2.new(0.5, 0, 1, -118) -- 가방 줄 바로 위
+notice.TextColor3 = Color3.fromRGB(255, 220, 120)
+notice.Visible = false
+notice.Parent = gui
+
+local shownAt = 0
+player:GetAttributeChangedSignal("EconomyNoticeAt"):Connect(function()
+	local text = player:GetAttribute("EconomyNotice")
+	if typeof(text) ~= "string" then
+		return
+	end
+	notice.Text = text
+	notice.Visible = true
+	local mine = os.clock()
+	shownAt = mine
+	task.delay(NOTICE_SECONDS, function()
+		if shownAt == mine then
+			notice.Visible = false
+		end
+	end)
+end)

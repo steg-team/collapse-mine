@@ -10,7 +10,7 @@
 		PlayerTrapped (C) ──▶ 가방 일부 차감
 		DailyLoginClaimed / QuestCompleted (C) ──▶ 보상 코인
 
-	UI용으로 플레이어 속성 BagCount, BagCapacity, BagValue 를 서버가 갱신한다 (Remote 없이 복제됨).
+	UI용으로 플레이어 속성 BagCount, BagCapacity, BagValue, EconomyNotice(한 줄 알림) 를 서버가 갱신한다 (Remote 없이 복제됨).
 ]]
 
 local RS = game:GetService("ReplicatedStorage")
@@ -49,7 +49,7 @@ local function bagValue(data: PlayerData.Data): number
 end
 
 -- 가방이 바뀔 때마다 부른다 (클라이언트 HUD가 속성을 읽음)
-local function sync(player: Player)
+function Bag.sync(player: Player)
 	local data = PlayerData.get(player)
 	if not data then
 		return
@@ -85,7 +85,7 @@ local function onOreMined(player: Player, oreId: string, weight: number, pressur
 	table.insert(data.bag, { ore = oreId, weight = weight, pressure = pressure, value = value })
 	data.codex[oreId] = true
 	data.stats.bestOre = math.max(data.stats.bestOre, value)
-	sync(player)
+	Bag.sync(player)
 	EventBus.Fire(Events.OreBagged, player, oreId, value)
 end
 
@@ -113,29 +113,38 @@ function Bag.sellAll(player: Player): number
 	end
 	data.stats.totalEarned += earned
 	PlayerData.addCoins(player, earned)
-	sync(player)
+	Bag.sync(player)
 	return earned
 end
 
--- 허브마다 판매소가 있다 (D-018 스테이지별 허브). 이름이 CollapseMine 으로 시작하는 폴더의 Hub/Shop/Counter
-local function setupShops()
+-- 화면 아래 HUD에 한 줄 알림 (판매 결과, 제작 실패 이유 등). 같은 문구가 연달아 와도 다시 뜨게 시각도 같이 올린다
+function Bag.notify(player: Player, text: string)
+	player:SetAttribute("EconomyNotice", text)
+	player:SetAttribute("EconomyNoticeAt", os.clock())
+end
+
+-- 허브마다 있는 건물(Shop, Workshop)의 Counter에 프롬프트를 붙인다 (스테이지별 허브, #17).
+-- 이름이 CollapseMine 으로 시작하는 폴더의 Hub/<building>/Counter. 클라이언트는 name으로 찾아 문구를 바꾼다
+function Bag.counterPrompt(building: string, name: string, actionText: string, onTriggered: (Player) -> (), key: Enum.KeyCode?)
 	for _, hub in workspace:GetChildren() do
-		local counter = hub.Name:sub(1, 12) == "CollapseMine" and hub:FindFirstChild("Hub")
-			and hub.Hub:FindFirstChild("Shop") and hub.Hub.Shop:FindFirstChild("Counter")
-		if counter and counter:IsA("BasePart") and not counter:FindFirstChild("SellPrompt") then
+		local root = hub.Name:sub(1, 12) == "CollapseMine" and hub:FindFirstChild("Hub")
+		local house = root and root:FindFirstChild(building)
+		local counter = house and house:FindFirstChild("Counter")
+		if counter and counter:IsA("BasePart") and not counter:FindFirstChild(name) then
 			local prompt = Instance.new("ProximityPrompt")
-			prompt.Name = "SellPrompt"
-			prompt.ActionText = "가방 전부 팔기"
-			prompt.ObjectText = "판매소"
+			prompt.Name = name
+			prompt.ActionText = actionText
 			prompt.HoldDuration = 0.3
 			prompt.MaxActivationDistance = 10
 			prompt.RequiresLineOfSight = false
+			prompt.KeyboardKeyCode = key or Enum.KeyCode.E -- 한 Counter에 프롬프트가 둘이면 키를 다르게
 			prompt.Parent = counter
 			prompt.Triggered:Connect(function(player: Player)
 				-- 프롬프트 거리는 클라이언트가 판정하므로 서버에서 한 번 더 잰다
-				local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
-				if root and (root.Position - counter.Position).Magnitude <= Economy.SELL_REACH then
-					Bag.sellAll(player)
+				local char = player.Character
+				local hrp = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
+				if hrp and (hrp.Position - counter.Position).Magnitude <= Economy.SELL_REACH then
+					onTriggered(player)
 				end
 			end)
 		end
@@ -149,14 +158,14 @@ local function rewardCoins(player: Player, _id: any, reward: { coins: number? }?
 end
 
 function Bag.start()
-	EventBus.On(Events.PlayerDataLoaded, sync)
+	EventBus.On(Events.PlayerDataLoaded, Bag.sync)
 	EventBus.On(Events.OreMined, onOreMined)
 
 	EventBus.On(Events.PlayerTrapped, function(player: Player)
 		local data = PlayerData.get(player)
 		if data then
 			PlayerData.loseBag(data)
-			sync(player)
+			Bag.sync(player)
 		end
 	end)
 
@@ -177,7 +186,11 @@ function Bag.start()
 	EventBus.On(Events.DailyLoginClaimed, rewardCoins)
 	EventBus.On(Events.QuestCompleted, rewardCoins)
 
-	setupShops()
+	Bag.counterPrompt("Shop", "SellPrompt", "가방 전부 팔기", function(player)
+		local earned = Bag.sellAll(player)
+		Bag.notify(player, if earned > 0 then `{earned} 코인에 팔았어요` else "가방이 비어 있어요")
+	end)
+
 end
 
 return Bag

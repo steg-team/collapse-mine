@@ -1,7 +1,7 @@
 # B(경제) 인계 문서
 
 B 담당 기능이 지금 어디까지 됐고, 다른 담당이 무엇을 붙이면 되는지 적는다. 바뀔 때마다 이 문서를 고친다.
-규칙의 근거는 `decisions.md` D-014(데이터 저장), D-020(가방·판매소).
+규칙의 근거는 `decisions.md` D-014(데이터 저장), D-020(가방·판매소), D-021(곡괭이 제작·강화).
 
 ## 지금 되는 것
 
@@ -14,10 +14,12 @@ B 담당 기능이 지금 어디까지 됐고, 다른 담당이 무엇을 붙이
 | 탈출 수확·보너스 | `Bag.luau` | `PlayerEscaped` → `HaulSecured` + 보너스 코인 |
 | 갇힘 차감 | `Bag.luau`, `PlayerData.luau` | 갇힘·경보 중 광산 안 퇴장 → 가방 절반 |
 | 출석·퀘스트 코인 | `Bag.luau` | `DailyLoginClaimed`·`QuestCompleted`의 `reward.coins` 지급 |
+| 곡괭이 제작·강화 | `src/server/Economy/Workshop.luau` | 동작. 제작소 Counter "다음 곡괭이 만들기"(E)·"곡괭이 강화"(F) |
+| 한 줄 알림 | `Bag.notify`, `BagHud` | 판매 결과·제작 실패 이유를 화면 아래에 3초 |
 
-## A 담당께: 채굴 → 가방 연결
+## A 담당께
 
-`src/server/Mining/MiningServer.server.luau`에서 광석이 깨질 때(`hp <= 0`) 두 가지만 바꾸면 된다.
+채굴 → 가방: `src/server/Mining/MiningServer.server.luau`에서 광석이 깨질 때(`hp <= 0`) 1·2번만 바꾸면 된다.
 
 1. 코인 직접 지급 줄을 지운다. 지우지 않으면 캘 때 한 번, 팔 때 또 한 번 코인이 들어간다.
    ```lua
@@ -31,20 +33,24 @@ B 담당 기능이 지금 어디까지 됐고, 다른 담당이 무엇을 붙이
    - `weight`: **무게 배수**. 1이 보통이고 판매가에 그대로 곱해진다. 예: `rng:NextNumber(0.8, 1.5)` (범위는 A가 정함, 임시값).
    - `pressure`: `"Low"`(상압) / `"High"`(고압) / `"Extreme"`(초고압). 기획서 기준 깊이와 붕괴까지 남은 시간(`Collapse.GetRemainingTime(mineId)`)으로 A가 정한다. 배수는 B가 `Config/Economy.luau`의 `PRESSURE_MULT`로 곱한다 (1 / 1.5 / 3).
 
+3. 곡괭이: B가 제작·강화하면 `PickaxeUpgraded(player, tier, enhance)`가 오고, 플레이어 속성 `PickaxeTier`·`PickaxeEnhance`도 바뀐다 (접속 때도 저장값으로 설정됨).
+   - 강화 효과(파워·속도)는 A가 `PickaxeEnhance`(0~5)로 계산한다.
+   - 단계별 곡괭이 모델 교체도 A. `MiningServer`의 `PickaxeTier` 기본값 1 설정은 그대로 둬도 B 값과 안 부딪힌다.
+
 로컬 복사본의 광산이 예전 광물(`Zinc` 등)로 되어 있으면 표에 없는 이름이라 안 담긴다. 팀 플레이스는 현재 광물표대로라 상관없다.
 
 ## C 담당께
 
 - 판매가 배수 `GetMultiplier(player, "SellPrice")`, 가방 확장 `HasPass(player, "BigBag")`를 B가 읽는다. 게임 중에 BigBag을 사면 다음 광물을 담을 때부터 칸이 늘어난다.
 - `OreBagged`의 값은 판매 배수를 곱하기 전, `OreSold`의 판매액은 곱한 뒤다.
-- 부탁 (PR #18): 경보 중 광산에서 죽고 허브에서 부활한 뒤 붕괴 전에 나가면 지금은 차감이 안 된다. 나갈 때 `diedInside`면 `PlayerTrapped`를 쏴 주면 B는 고칠 게 없다.
+- `Collapse.DiedInsideMine`(#21)을 B가 쓴다. C의 `PlayerRemoving`이 먼저 지울 수 있어서, 캐릭터가 지워지는 순간(퇴장 때 `PlayerRemoving`보다 먼저) 읽어 둔다. 리셋 후 퇴장 4→2 확인.
 
 ## 아직 안 된 것 (B 다음 작업 순서)
 
-1. 곡괭이 제작·강화: 비용 차감, `data.pickaxe` 갱신, `PickaxeUpgraded` 발사. 제작소 `Workshop/Counter`.
-2. 코인을 `data.coins`로 직접 관리: A가 코인 직접 지급을 지우면 `PlayerData.luau`의 leaderstats 연결(ponytail 주석)을 걷어낸다.
-3. 낱개 판매·"팔까 말까"(에픽 이상은 제작 재료): 제작이 생기면.
-4. 광산 카나리아, 리버스.
+1. 코인을 `data.coins`로 직접 관리: A가 코인 직접 지급을 지우면 `PlayerData.luau`의 leaderstats 연결(ponytail 주석)을 걷어낸다.
+2. 낱개 판매·"팔까 말까"(에픽 이상은 제작 재료): 제작이 생기면.
+3. 광산 카나리아, 리버스.
+4. 곡괭이 5단계·용암 광산: 광산 설정이 생기면 `PICKAXES`에 한 줄.
 
 ## 로컬 테스트 방법
 

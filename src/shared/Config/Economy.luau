@@ -19,8 +19,20 @@ local Economy = {
 		Extreme = 3, -- 초고압
 	}),
 
-	-- 판매소 Counter에서 이 거리 밖이면 판매 거부 (ProximityPrompt 거리 + 여유)
+	-- 판매소·제작소 Counter에서 이 거리 밖이면 거부 (ProximityPrompt 거리 + 여유)
 	SELL_REACH = 16,
+
+	-- 곡괭이 단계 (D-021). 단계 = Mines.luau 의 requiredPickaxe. 다음 단계는 코인 + 가방 속 광물로 만든다.
+	-- 재료는 바로 전 광산에서 나오는 고급·에픽 광물 ("팔까, 쓸까"). 숫자는 모두 임시값
+	-- enhanceCost = 이 단계에서 강화 1회 기본 비용. n강 → n+1강은 enhanceCost × (n+1)
+	PICKAXES = table.freeze({
+		{ name = "나무 곡괭이", coins = 0, ores = {}, enhanceCost = 50 },
+		{ name = "돌 곡괭이", coins = 300, ores = { Quartz = 3 }, enhanceCost = 300 },
+		{ name = "철 곡괭이", coins = 2000, ores = { Silver = 3, Platinum = 1 }, enhanceCost = 1500 },
+		{ name = "금 곡괭이", coins = 10000, ores = { Azurite = 3, WaterPearl = 1 }, enhanceCost = 6000 },
+	}),
+	-- 단계마다 강화 상한. 다음 단계를 만들면 강화는 0부터 (임시값)
+	ENHANCE_MAX = 5,
 }
 
 return table.freeze(Economy)
