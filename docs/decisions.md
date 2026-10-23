@@ -155,3 +155,14 @@ AI 에이전트는 구현 전에 이 문서와 `game-design.md`를 읽고, 둘�
   - 보상 숫자는 `Config/Social.luau`의 `DailyLogin.rewards` (10·20·30·50·70·100·200, 임시값).
 - 이유: 기획서 "Creator Rewards: 붕괴 카운트다운, 출석 보상으로 체류 시간 확보". 연속을 끊으면 처음부터라 매일 들어올 이유가 생긴다.
 - 영향: `src/server/Social/DailyLogin.luau`, `src/client/Social/DailyLoginPanel.client.luau`, `Config/Social.luau`, `tools/create_social_remotes.luau`(`Remotes.DailyLogin` RemoteFunction 추가 — 팀 플레이스에서 다시 실행 필요).
+
+## D-017 서버 부스트
+
+- 2026-10-23 / 채택 / C 담당
+- 결정:
+  - 개발자 상품(여러 번 구매 가능) 하나: 사면 **서버 전체가 30분 동안 채굴 속도 2배**. 부스트 중에 또 사면 **배수는 그대로, 시간만 30분 연장**.
+  - 서버마다 따로이고 저장하지 않는다 (그 서버가 닫히면 끝). 효과는 `Payments.GetMultiplier(player, "MineSpeed")`에 곱해져서 A 코드는 바꿀 필요 없다.
+  - 결제는 `Payments.luau`의 `ProcessReceipt` 한 곳에서 처리 (게임 전체에 하나만 둘 수 있음). 처리한 영수증 ID를 `data.social.receipts`에 최근 50개 저장해 같은 영수증을 두 번 지급하지 않는다.
+  - 구매 시 서버 공지("OOO님이 서버 전체에 서버 채굴 2배를 선물했습니다!"), 화면 오른쪽 위에 남은 시간, 왼쪽 🚀 버튼으로 구매 창.
+- 이유: 기획서 수익 모델 "서버 부스트 구매 시 OOO님이 서버 전체에 2배를 선물 공지", "첫 버전은 게임패스 2~3개 + 서버 부스트 1개". 배수를 겹치면(4배, 8배) 밸런스가 쉽게 깨진다.
+- 영향: `src/server/Social/Payments.luau`, `src/client/Social/BoostHud.client.luau`, `Config/Social.luau` ServerBoost (`productId`는 대시보드에서 상품을 만든 뒤 채움, 가격·시간 임시값).

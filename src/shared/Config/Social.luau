@@ -10,6 +10,7 @@
 	  4. 광맥 붕괴           Collapse   (광산별 주기·경보 길이는 Config/Mines.luau 의 collapse)
 	  5. 붕괴 카운트다운 HUD  CollapseHud
 	  6. 출석 보상           DailyLogin
+	  7. 서버 부스트         ServerBoost
 
 	쓰는 법
 	  local Social = require(ReplicatedStorage.Shared.Config.Social)
@@ -151,6 +152,27 @@ local DailyLogin = table.freeze({
 	displayOrder = 40,
 })
 
+-- ───────── 7. 서버 부스트 (D-017) ─────────
+-- 개발자 상품(로벅스, 여러 번 구매 가능)을 사면 서버 전체가 일정 시간 채굴 속도 2배.
+-- 부스트 중에 또 사면 배수는 그대로, 시간만 연장 (배수를 겹치면 밸런스가 깨지므로).
+-- 서버마다 따로이고 저장하지 않는다 (그 서버가 닫히면 끝).
+
+local ServerBoost = table.freeze({
+	productId = 0,           -- 크리에이터 대시보드 → 개발자 상품을 만든 뒤 받은 숫자. 0 이면 구매 창이 안 뜸
+	displayName = "서버 채굴 2배",
+	price = 99,              -- 로벅스 가격 기록용 (실제 가격은 대시보드에서). 임시값
+	duration = 30 * 60,      -- 한 번 살 때 늘어나는 시간(초)
+	multiplier = table.freeze({ MineSpeed = 2 }) :: { [MultiplierKind]: number },
+	receiptHistory = 50,     -- 중복 지급 방지용으로 저장해 두는 최근 영수증 개수
+
+	-- UI
+	buttonOffset = 68,       -- 출석 📅 버튼 아래로 얼마나 띄울지(px)
+	timerTopMargin = 8,      -- 오른쪽 위 남은 시간 표시
+	timerRightMargin = 12,
+	timerTextSize = 18,
+	timerColor = Color3.fromRGB(120, 200, 255),
+})
+
 return table.freeze({
 	AnnounceKind = AnnounceKind,
 	MultiplierKind = MultiplierKind,
@@ -161,4 +183,5 @@ return table.freeze({
 	Collapse = Collapse,
 	CollapseHud = CollapseHud,
 	DailyLogin = DailyLogin,
+	ServerBoost = ServerBoost,
 })
