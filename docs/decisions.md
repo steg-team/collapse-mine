@@ -163,3 +163,10 @@ AI 에이전트는 구현 전에 이 문서와 `game-design.md`를 읽고, 둘�
 - 광산 사이 이동은 허브에 광산마다 입구를 내지 않고 **텔레포트**로 한다 (텔레포트 UI는 다음 작업). 레포 기획서의 2·3번 예시(철·금 / 수정 동굴 사파이어·루비)는 이걸로 대체.
 - 이유: 광물 모델이 이미 있고 공유 기획서가 최신이다. 허브 남쪽 절벽에 산을 여러 개 붙이면 기본 광산 입구를 덮는다.
 - 영향: `src/shared/Config/Mines.luau`, `game-design.md` 광산 표. 팀 플레이스에 `tools/generate_mine.luau`·`tools/build_mine_exit.luau`로 생성 (MINE_ID = "iron", "groundwater").
+
+## D-018 스테이지마다 허브
+
+- 2026-10-23 / 채택 / 이우진 (A)
+- 결정: 기본 허브(`Workspace.CollapseMine`)를 통째로 복사해서 스테이지마다 허브를 하나씩 둔다. 철광 갱도 `CollapseMine_iron`(x -900), 지하수 동굴 `CollapseMine_groundwater`(x +900). 텔레포트는 스테이지 허브로 보내고, 허브 입구 포탈을 지나야 그 스테이지 광산에 들어가며, 광산 출구는 그 스테이지 허브로 나온다. Mines 설정의 `hub` 칸이 허브 폴더 이름. 새로 들어온 사람은 기본 허브에만 생긴다(복사본 SpawnLocation 끔).
+- 이유: 스테이지마다 판매·제작·랭킹을 그 자리에서 할 수 있어야 광산을 오가는 흐름이 끊기지 않는다.
+- 영향: `MineTravel`(출구 → 스테이지 허브), `Config/Mines.luau`(`hub`), `tools/copy_stage_hub.luau`. **B**: 판매소·제작소 `Counter`가 허브마다 있음 (`workspace.CollapseMine...` 고정 경로 대신 모든 허브를 찾아야 함). **C**: 랭킹판이 허브마다 있음, 붕괴 갇힘 때 옮기는 허브 스폰(`Collapse.luau`의 `hubSpawn`)은 그 광산의 `hub`로. 스테이지 사이 텔레포트 UI는 다음 작업.

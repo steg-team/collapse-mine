@@ -1,6 +1,7 @@
 -- 허브 ↔ 광산 이동
 --   허브 포탈 (태그 "MinePortal", 속성 MineId) 을 밟으면 → 해당 광산 입구 방
---   광산 출구 발판 (태그 "MineExit") 을 밟으면 → 허브 스폰
+--   광산 출구 발판 (태그 "MineExit", 속성 MineId) 을 밟으면 → 그 광산 스테이지의 허브 스폰
+--   스테이지마다 허브가 따로 있다 (Mines 설정의 hub = Workspace 폴더 이름, D-018)
 -- 곡괭이 등급이 모자라면 들어가지 못한다 (Mines 설정의 requiredPickaxe).
 
 local Players = game:GetService("Players")
@@ -29,8 +30,11 @@ local function ready(plr)
 	return true
 end
 
-local function hubSpawn(): CFrame?
-	local hub = workspace:FindFirstChild("CollapseMine") and workspace.CollapseMine:FindFirstChild("Hub")
+-- 광산 스테이지의 허브 스폰. 설정에 hub가 없거나 못 찾으면 기본 허브
+local function hubSpawn(mineId: string?): CFrame?
+	local mine = mineId and Mines.get(mineId)
+	local folder = (mine and mine.hub and workspace:FindFirstChild(mine.hub)) or workspace:FindFirstChild("CollapseMine")
+	local hub = folder and folder:FindFirstChild("Hub")
 	local sp = hub and hub:FindFirstChild("MineSpawn")
 	return sp and (sp.CFrame + Vector3.new(0, 4, 0)) or nil
 end
@@ -61,7 +65,7 @@ local function bindExit(part: BasePart)
 	part.Touched:Connect(function(hit)
 		local plr, root = playerFromHit(hit)
 		if not plr or not ready(plr) then return end
-		local cf = hubSpawn()
+		local cf = hubSpawn(part:GetAttribute("MineId"))
 		if cf then root.CFrame = cf end
 	end)
 end
