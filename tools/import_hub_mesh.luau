@@ -105,12 +105,25 @@ local BUILDINGS = {
 					p.Transparency = 1
 				end
 			end
-			-- 간판: 차양이 앞을 가려서 앞쪽 지붕 경사면 위에 눕혀 붙임 (지붕 기울기 32도)
+			-- 간판: 차양이 앞을 가려서 앞쪽 지붕 위에 기둥 두 개로 세워 둠 (눕혀 두면 허브에서 잘 안 보임)
+			local SIGN_Y = 19.2 -- 간판 가운데 높이 (지붕 경사면 16.4 위로 띄움)
 			for _, n in ipairs({ "Sign", "SignFrame" }) do
 				local p = model:FindFirstChild(n)
 				if p then
-					p.CFrame = origin * CFrame.new(0, 16.4 + (n == "SignFrame" and -0.3 or 0), -5.4 + (n == "SignFrame" and 0.2 or 0)) * CFrame.Angles(math.rad(58), 0, 0)
+					p.CFrame = origin * CFrame.new(0, SIGN_Y, -5.4 + (n == "SignFrame" and 0.25 or 0))
 				end
+			end
+			for _, old in model:GetChildren() do
+				if old.Name == "SignPost" then old:Destroy() end
+			end
+			for _, sx in ipairs({ -4.8, 4.8 }) do
+				local post = Instance.new("Part")
+				post.Name = "SignPost"
+				post.Size = Vector3.new(0.5, SIGN_Y - 15.6, 0.5)
+				post.CFrame = origin * CFrame.new(sx, (SIGN_Y + 15.6) / 2 - 0.9, -5.0)
+				post.Anchored = true
+				post.Color, post.Material = Color3.fromRGB(88, 60, 40), Enum.Material.Wood
+				post.Parent = model
 			end
 			-- 수정 진열 상자·지붕 금화에 은은한 빛
 			lightAnchor(model, "GemLight", origin * CFrame.new(8.8, 3, -8.6), Color3.fromRGB(90, 215, 240), 10, 1.2)
