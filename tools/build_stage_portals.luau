@@ -5,7 +5,7 @@
 	- 밟으면 그 스테이지 허브의 MineSpawn으로 (MineTravel: 태그 StagePortal, 속성 MineId = 가는 스테이지)
 	- 그 스테이지 광산의 requiredPickaxe 미만이면 안 간다
 	- 스테이지 사이 텔레포트 UI(D-017)가 생기기 전까지 쓰는 임시 포탈. UI가 생기면 지워도 된다
-	- 허브 3개 모두 같은 자리(허브 기준 x 42, 56)에 "나머지 두 스테이지"로 가는 포탈을 둔다
+	- 허브 3개 모두 입구 오른쪽 벽 앞(허브 기준 x 42, 56 / 지하수 허브는 폭포 피해 55, 66, z 50)에 "나머지 두 스테이지"로 가는 포탈을 둔다
 ]]
 
 local CHS = game:GetService("ChangeHistoryService")
@@ -14,15 +14,16 @@ local CS = game:GetService("CollectionService")
 local HUBS = {
 	{ folder = "CollapseMine", id = "basic", dx = 0 },
 	{ folder = "CollapseMine_iron", id = "iron", dx = -900 },
-	{ folder = "CollapseMine_groundwater", id = "groundwater", dx = 900 },
+	-- 지하수 허브는 입구 오른쪽(x +44)에 폭포·물웅덩이가 있어서 그보다 바깥으로
+	{ folder = "CollapseMine_groundwater", id = "groundwater", dx = 900, slots = { 55, 66 } },
 }
 local STAGES = {
 	basic = { name = "기본 광산", tier = 1, color = Color3.fromRGB(255, 170, 70) },
 	iron = { name = "철광 갱도", tier = 2, color = Color3.fromRGB(255, 110, 60) },
 	groundwater = { name = "지하수 동굴", tier = 3, color = Color3.fromRGB(80, 200, 255) },
 }
-local SLOTS_X = { 42, 56 } -- 허브 기준 x. 절벽 앞면이 z 45~47이라 그 앞 z 42에 세운다
-local Z = 42
+local SLOTS_X = { 42, 56 } -- 허브 기준 x
+local Z = 50 -- 절벽 앞면이 z 45~48 (광장은 +z 쪽)이라 그보다 광장 쪽에 세운다
 local FLOOR_Y = 1.5
 
 local function part(props: { [string]: any }, parent: Instance): Part
@@ -96,7 +97,7 @@ for _, h in HUBS do
 	for _, targetId in { "basic", "iron", "groundwater" } do
 		if targetId ~= h.id then
 			i += 1
-			buildPortal(folder, h.dx + SLOTS_X[i], targetId)
+			buildPortal(folder, h.dx + (h.slots or SLOTS_X)[i], targetId)
 		end
 	end
 	folder.Parent = hub
