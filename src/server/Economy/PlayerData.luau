@@ -123,6 +123,7 @@ local function load(player: Player)
 	-- A가 읽는 곡괭이 성능 (입장 제한은 Tier, 강화 효과는 Enhance)
 	player:SetAttribute("PickaxeTier", data.pickaxe.tier)
 	player:SetAttribute("PickaxeEnhance", data.pickaxe.enhance)
+	player:SetAttribute("CanaryLevel", data.canary) -- 클라이언트 카나리아 HUD가 탐지 범위를 읽음
 
 	-- 퇴장 때는 PlayerRemoving보다 캐릭터가 먼저 지워지므로, 지워지는 순간 광산 안이었는지 적어 둔다.
 	-- 광산에서 리셋하고 허브에서 부활했으면 C가 기억하는 그 광산으로 친다 (C가 PlayerRemoving에서 지우기 전에 읽어야 함)

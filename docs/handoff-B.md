@@ -1,7 +1,7 @@
 # B(경제) 인계 문서
 
 B 담당 기능이 지금 어디까지 됐고, 다른 담당이 무엇을 붙이면 되는지 적는다. 바뀔 때마다 이 문서를 고친다.
-규칙의 근거는 `decisions.md` D-014(데이터 저장), D-020(가방·판매소), D-021(곡괭이 제작·강화), D-022(인벤토리 창·코인 원본).
+규칙의 근거는 `decisions.md` D-014(데이터 저장), D-020(가방·판매소), D-021(곡괭이 제작·강화), D-022(인벤토리 창·코인 원본), D-023(광산 카나리아).
 
 ## 지금 되는 것
 
@@ -16,6 +16,7 @@ B 담당 기능이 지금 어디까지 됐고, 다른 담당이 무엇을 붙이
 | 갇힘 차감 | `Bag.luau`, `PlayerData.luau` | 갇힘·경보 중 광산 안 퇴장 → 가방 절반 |
 | 출석·퀘스트 코인 | `Bag.luau` | `DailyLoginClaimed`·`QuestCompleted`의 `reward.coins` 지급 |
 | 곡괭이 제작·강화 | `src/server/Economy/Workshop.luau` | 동작. 제작소 Counter "다음 곡괭이 만들기"(E)·"곡괭이 강화"(F) |
+| 광산 카나리아 | `src/client/Economy/CanaryHud.client.luau`, `Workshop.feedCanary` | 동작. 광산 안 오른쪽 상태 줄, 제작소 "카나리아 키우기"(G). 새 모델·소리는 아직 |
 | 한 줄 알림 | `Bag.notify`, `BagHud` | 판매 결과·제작 실패 이유를 화면 아래에 3초 |
 
 ## A 담당께
@@ -44,13 +45,15 @@ B 담당 기능이 지금 어디까지 됐고, 다른 담당이 무엇을 붙이
 
 - 판매가 배수 `GetMultiplier(player, "SellPrice")`, 가방 확장 `HasPass(player, "BigBag")`를 B가 읽는다. 게임 중에 BigBag을 사면 다음 광물을 담을 때부터 칸이 늘어난다.
 - `OreBagged`의 값은 판매 배수를 곱하기 전, `OreSold`의 판매액은 곱한 뒤다.
+- 카나리아 HUD가 `ReplicatedStorage.CollapseState`의 광산 속성(붕괴 시각)을 읽는다. 이름이나 형식을 바꾸면 알려 달라.
 - `Collapse.DiedInsideMine`(#21)을 B가 쓴다. C의 `PlayerRemoving`이 먼저 지울 수 있어서, 캐릭터가 지워지는 순간(퇴장 때 `PlayerRemoving`보다 먼저) 읽어 둔다. 리셋 후 퇴장 4→2 확인.
 
 ## 아직 안 된 것 (B 다음 작업 순서)
 
 1. A가 코인 직접 지급을 지우면 `PlayerData.luau`의 leaderstats `Changed` 연결(ponytail 주석)을 지운다. 코인 원본은 이미 `data.coins`.
-2. 광산 카나리아, 리버스.
-3. 곡괭이 5단계·용암 광산: 광산 설정이 생기면 `PICKAXES`에 한 줄.
+2. 리버스.
+3. 카나리아 새 모델(어깨 위)·울음소리: 모델이 생기면.
+4. 곡괭이 5단계·용암 광산: 광산 설정이 생기면 `PICKAXES`에 한 줄.
 
 ## 로컬 테스트 방법
 
