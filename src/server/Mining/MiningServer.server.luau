@@ -2,6 +2,7 @@
 
 local Players = game:GetService("Players")
 local RS = game:GetService("ReplicatedStorage")
+local SSS = game:GetService("ServerScriptService")
 local CS = game:GetService("CollectionService")
 local Debris = game:GetService("Debris")
 
@@ -26,6 +27,43 @@ terrainOnly.FilterDescendantsInstances = { workspace.Terrain }
 
 -- 이 등급 이상을 캐면 LegendaryFound (C가 서버 전체 공지)
 local LEGENDARY_GRADES = { ["전설"] = true, ["신화"] = true, ["???"] = true }
+
+-- 붕괴까지 남은 시간 조회 (C의 Collapse.GetRemainingTime). C 모듈이 Remotes 등을 기다리느라 늦게 뜰 수 있어서
+-- 채굴이 그걸 기다리며 멈추지 않게 따로 불러 둔다. 못 불러온 동안은 "경보 아님"으로 친다
+local Collapse = nil
+task.spawn(function()
+	local social = SSS:WaitForChild("Server"):WaitForChild("Social", 30)
+	local mod = social and social:WaitForChild("Collapse", 30)
+	if mod then
+		local ok, m = pcall(require, mod)
+		if ok then Collapse = m else warn("[MiningServer] Collapse 불러오기 실패: " .. tostring(m)) end
+	end
+end)
+
+-- 압력 등급 (Mines.PRESSURE, D-025): 붕괴 직전 → 초고압, 경보 중이거나 깊은 곳 → 고압, 나머지 상압
+local function pressureAt(mine: Mines.Mine?, y: number): string
+	if not mine then return "Low" end
+	local remaining = Collapse and Collapse.GetRemainingTime(mine.id)
+	if remaining and remaining <= Mines.PRESSURE.extremeSeconds then return "Extreme" end
+	local depthRatio = (mine.top - y) / (mine.top - mine.bottom)
+	if remaining or depthRatio >= Mines.PRESSURE.highDepth then return "High" end
+	return "Low"
+end
+
+-- 무게 배수 (Mines.ORE_WEIGHT). 끝방처럼 가치를 높여 박은 광석은 그 배수만큼 무겁게
+local function weightOf(mine: Mines.Mine?, ore: Instance): number
+	local w = rng:NextNumber(Mines.ORE_WEIGHT.Min, Mines.ORE_WEIGHT.Max)
+	if mine then
+		local name = ore:GetAttribute("Ore")
+		for _, o in mine.ores do
+			if o.name == name and o.value > 0 then
+				w *= math.max(1, (ore:GetAttribute("OreValue") or o.value) / o.value)
+				break
+			end
+		end
+	end
+	return math.floor(w * 100 + 0.5) / 100
+end
 
 local function setupPlayer(plr: Player)
 	if plr:FindFirstChild("leaderstats") then return end
@@ -111,9 +149,11 @@ ev.OnServerEvent:Connect(function(plr, target, hitPos)
 		local hp = ore:GetAttribute("HP") or maxHp
 		hp -= 1
 		if hp <= 0 then
-			plr.leaderstats.Coins.Value += ore:GetAttribute("OreValue") or 0
+			-- 코인은 여기서 주지 않는다: 가방에 담고(B) 판매소에서 팔 때 들어간다 (D-020). 값 계산도 B
+			local mine = Mines.findAt(orePos) or Mines.get(ore:GetAttribute("MineId") or "")
+			-- (player, oreId, weight, pressure) — Events.luau 계약
+			EventBus.Fire(Events.OreMined, plr, ore:GetAttribute("Ore") or ore.Name, weightOf(mine, ore), pressureAt(mine, orePos.Y))
 			if LEGENDARY_GRADES[ore:GetAttribute("Grade")] then
-				local mine = Mines.findAt(orePos)
 				local mineId = mine and mine.id or (ore:GetAttribute("MineId") or "")
 				local depth = mine and math.max(0, math.floor(mine.top - orePos.Y)) or 0
 				-- (player, oreId, mineId: string, depth) — Events.luau 계약 (PR #6에서 stageId → mineId)

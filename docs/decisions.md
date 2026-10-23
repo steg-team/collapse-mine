@@ -239,3 +239,13 @@ AI 에이전트는 구현 전에 이 문서와 `game-design.md`를 읽고, 둘�
   - 곡괭이가 바뀌므로 `PickaxeUpgraded(player, 1, 0)`를 쏜다. 플레이어 속성 `Rebirths`로 횟수를 알린다.
 - 이유: 기획서 "리버스: 초기화 + 영구 배수"(4단계 확장). 판매가에 붙이면 B 안에서 끝나고, 다시 올라가는 길(곡괭이·광산)이 그대로 성장 동기가 된다. 되돌릴 수 없어서 길게 눌러야 하게 했다.
 - 영향: `Workshop.luau`(`rebirth`), `Bag.luau`(`rebirthMult`), `WorkshopPrompt`(조건 표시), `Config/Economy.luau` `REBIRTH`.
+
+## D-025 채굴이 OreMined를 보낸다 (무게·압력 등급)
+
+- 2026-10-23 / 채택 / 이우진 (A)
+- 결정: 광석을 깨면 A는 코인을 직접 주지 않고 `OreMined(player, oreId, weight, pressure)`만 보낸다. 가방 담기·가격은 B (D-020).
+  - 무게 배수: 0.8~1.5 랜덤 (`Mines.ORE_WEIGHT`). 끝방처럼 가치를 높여 박은 광석은 그 배수를 무게에 곱한다.
+  - 압력 등급 (`Mines.PRESSURE`): 붕괴까지 10초 이하 → 초고압(`Extreme`), 붕괴 경보 중이거나 광산 깊이의 절반보다 깊으면 → 고압(`High`), 나머지 → 상압(`Low`). 남은 시간은 `Collapse.GetRemainingTime`.
+  - 숫자는 모두 임시값.
+- 이유: 기획서 "판매가 = 기본가 × 무게 × 압력 배수", 압력은 "깊이와 붕괴까지 남은 시간"으로 정한다. 캘 때 코인을 주면 팔 때 또 들어가 두 번 받는다.
+- 영향: `MiningServer.server.luau`, `Config/Mines.luau`. **B**: `PlayerData.luau`의 leaderstats `Changed` 연결(ponytail)을 지워도 된다.
