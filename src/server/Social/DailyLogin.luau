@@ -21,7 +21,8 @@ local CONFIG = Social.DailyLogin
 local CYCLE = #CONFIG.rewards -- 주기 길이 (보상 개수 = 7일)
 local SECONDS_PER_DAY = 86400
 
-local remote = RS:WaitForChild("Remotes"):WaitForChild("DailyLogin") :: RemoteFunction
+local SocialRemotes = require(script.Parent:WaitForChild("SocialRemotes"))
+local remote = SocialRemotes.get("DailyLogin", "RemoteFunction") :: RemoteFunction
 
 type Daily = { lastClaimDay: number, streak: number }
 
