@@ -40,6 +40,7 @@ export type Mine = {
 	name: string,
 	order: number,
 	requiredPickaxe: number,
+	hub: string?, -- 이 스테이지 허브 = Workspace 폴더 이름 (판매소·제작소·랭킹판·입구, D-019). 출구·텔레포트가 여기로
 	origin: Vector3,
 	radius: number,
 	top: number,
@@ -69,6 +70,7 @@ local Mines = {}
 Mines.list = {
 	{
 		id = "basic",
+		hub = "CollapseMine",
 		name = "기본 광산",
 		order = 1,
 		requiredPickaxe = 1, -- 나무 곡괭이
@@ -111,6 +113,7 @@ Mines.list = {
 	},
 	{
 		id = "iron",
+		hub = "CollapseMine_iron",
 		name = "철광 갱도",
 		order = 2,
 		requiredPickaxe = 2, -- 돌 곡괭이
@@ -152,6 +155,7 @@ Mines.list = {
 	},
 	{
 		id = "groundwater",
+		hub = "CollapseMine_groundwater",
 		name = "지하수 동굴",
 		order = 3,
 		requiredPickaxe = 3, -- 철 곡괭이

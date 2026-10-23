@@ -175,6 +175,14 @@ AI 에이전트는 구현 전에 이 문서와 `game-design.md`를 읽고, 둘�
 - 이유: 기획서 수익 모델 "서버 부스트 구매 시 OOO님이 서버 전체에 2배를 선물 공지", "첫 버전은 게임패스 2~3개 + 서버 부스트 1개". 배수를 겹치면(4배, 8배) 밸런스가 쉽게 깨진다.
 - 영향: `src/server/Social/Payments.luau`, `src/client/Social/BoostHud.client.luau`, `Config/Social.luau` ServerBoost (`productId`는 대시보드에서 상품을 만든 뒤 채움, 가격·시간 임시값).
 
+## D-019 스테이지마다 허브
+
+- 2026-10-23 / 채택 / 이우진 (A)
+- 결정: 기본 허브(`Workspace.CollapseMine`)를 통째로 복사해서 스테이지마다 허브를 하나씩 둔다. 철광 갱도 `CollapseMine_iron`(x -900), 지하수 동굴 `CollapseMine_groundwater`(x +900). 텔레포트는 스테이지 허브로 보내고, 허브 입구 포탈을 지나야 그 스테이지 광산에 들어가며, 광산 출구는 그 스테이지 허브로 나온다. Mines 설정의 `hub` 칸이 허브 폴더 이름. 새로 들어온 사람은 기본 허브에만 생긴다(복사본 SpawnLocation 끔).
+- 이유: 스테이지마다 판매·제작·랭킹을 그 자리에서 할 수 있어야 광산을 오가는 흐름이 끊기지 않는다.
+- 영향: `MineTravel`(출구 → 스테이지 허브), `Config/Mines.luau`(`hub`), `tools/copy_stage_hub.luau`. **B**: 판매소·제작소 `Counter`가 허브마다 있음 (`workspace.CollapseMine...` 고정 경로 대신 모든 허브를 찾아야 함). **C**: 랭킹판이 허브마다 있음, 붕괴 갇힘 때 옮기는 허브 스폰(`Collapse.luau`의 `hubSpawn`)은 그 광산의 `hub`로. 스테이지 사이 텔레포트 UI는 다음 작업.
+- 보강 (2026-10-23): 스테이지 허브는 복사한 뒤 테마를 입힌다 (`tools/theme_stage_hub.luau`). 지하수 동굴 허브: 산을 젖은 짙은 판석 + 석회암 줄무늬 + 푸른 빙하 꼭대기로, 입구 양옆에 폭포 두 줄기와 물웅덩이, 입구 불빛을 푸른색으로. 입구 산 오른쪽 어깨 앞면의 구멍(기본 허브에서 복사된 바위 처마)도 메움. 예전 지형은 `ServerStorage.MineBackups`. 제미나이 시안에 맞춰 입구 둘레 회색 돌 테두리, 턱 이끼, 입구 안쪽 파란 수정, 폭포 뒤 바위, 오른쪽 폭포는 바위 처마 밑에서 쏟아지게 보강. 입구 불빛 범위를 줄여 산 전체가 파랗게 물들지 않게.
+
 ## D-020 가방과 판매소
 
 - 2026-10-23 / 채택 / B 담당
