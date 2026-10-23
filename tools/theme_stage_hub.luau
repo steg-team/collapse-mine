@@ -33,6 +33,10 @@ local THEMES = {
 		fire2 = Color3.fromRGB(190, 240, 255),
 		ember = Color3.fromRGB(90, 210, 255),
 		waterfalls = true,
+		-- 왼쪽 폭포는 풀밭 턱(y 56) 연못 → 물길 → 폭포 머리. 오른쪽은 위가 바위라 그대로
+		sources = {
+			{ pond = Vector3.new(-58, 56, -7), path = { Vector3.new(-52, 56, 0), Vector3.new(-47, 56, 6), Vector3.new(-44, 56, 11) } },
+		},
 	},
 }
 local TH = assert(THEMES[THEME], "없는 테마")
@@ -134,6 +138,31 @@ if TH.waterfalls then
 		task.wait()
 	end
 	folder.Parent = hub.Hub
+
+	-- 폭포 머리: 풀밭 턱 위 연못에서 물길이 흘러와 떨어지게 (MOUTH 기준 상대 좌표, 물 높이 waterY)
+	-- 물길이 닿는 높이 위쪽 물기둥은 지우고, 그 높이부터 떨어지게 다시 세운다
+	for _, src in TH.sources or {} do
+		local pond = MOUTH + src.pond
+		T:FillCylinder(CFrame.new(pond + Vector3.new(0, 2, 0)), 6, 7, Enum.Material.Air)
+		T:FillCylinder(CFrame.new(pond + Vector3.new(0, -1.5, 0)), 3, 7, Enum.Material.Water)
+		local pts = { pond }
+		for _, rel in src.path do table.insert(pts, MOUTH + rel) end
+		for i = 1, #pts - 1 do
+			local a, b = pts[i], pts[i + 1]
+			local cf = CFrame.lookAt((a + b) / 2, b)
+			local len = (b - a).Magnitude + 3
+			T:FillBlock(cf * CFrame.new(0, 2.5, 0), Vector3.new(5, 5, len), Enum.Material.Air)
+			T:FillBlock(cf * CFrame.new(0, -1, 0), Vector3.new(5, 3, len), Enum.Material.Water)
+		end
+		local head = pts[#pts]
+		T:ReplaceMaterial(Region3.new(head + Vector3.new(-6, 4, -5), head + Vector3.new(6, 40, 9)):ExpandToGrid(4), 4, Enum.Material.Water, Enum.Material.Air)
+		T:FillBlock(CFrame.new(head.X, (head.Y + 2) / 2, head.Z + 1.7), Vector3.new(6, head.Y + 2, 4), Enum.Material.Water)
+		for _, pt in folder:GetChildren() do
+			if pt.Name == "Stream" and math.abs(pt.Position.X - head.X) < 8 then
+				pt.CFrame = CFrame.new(head.X, head.Y, head.Z + 3)
+			end
+		end
+	end
 end
 
 -- 4) 입구 불빛 색
