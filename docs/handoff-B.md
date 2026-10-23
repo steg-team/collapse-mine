@@ -8,7 +8,7 @@ B 담당 기능이 지금 어디까지 됐고, 다른 담당이 무엇을 붙이
 | 기능 | 파일 | 상태 |
 |---|---|---|
 | 데이터 저장 | `src/server/Economy/PlayerData.luau` | 동작. ProfileStore, 세션 잠금 |
-| 가방 담기 | `src/server/Economy/Bag.luau` | 동작. **A가 `OreMined`를 쏘기 전까지는 비어 있음** |
+| 가방 담기 | `src/server/Economy/Bag.luau` | 동작. A의 `OreMined`(#26)로 채굴과 연결됨 |
 | 판매소 | `Bag.luau` (`Bag.sellAll`) | 동작. 허브 `Shop/Counter`에 "가방 전부 팔기" 프롬프트 |
 | 가방 HUD | `src/client/Economy/BagHud.client.luau` | 동작. 화면 아래 "가방 3/20 · 120 코인어치", 누르면 인벤토리 창 |
 | 인벤토리 창 | `src/client/Economy/InventoryPanel.client.luau` | 동작. 가방 버튼·B 키. 판매소 근처면 한 개씩/전부 팔기 (`Remotes.Bag`) |
@@ -22,26 +22,10 @@ B 담당 기능이 지금 어디까지 됐고, 다른 담당이 무엇을 붙이
 
 ## A 담당께
 
-채굴 → 가방: `src/server/Mining/MiningServer.server.luau`에서 광석이 깨질 때(`hp <= 0`) 1·2번만 바꾸면 된다.
-
-1. 코인 직접 지급 줄을 지운다. 지우지 않으면 캘 때 한 번, 팔 때 또 한 번 코인이 들어간다.
-   ```lua
-   plr.leaderstats.Coins.Value += ore:GetAttribute("OreValue") or 0
-   ```
-2. 대신 `OreMined`를 쏜다.
-   ```lua
-   EventBus.Fire(Events.OreMined, plr, ore:GetAttribute("Ore") or ore.Name, weight, pressure)
-   ```
-   - `oreId`: `Mines.luau` 광물표의 `name` (예: `"Coal"`). 표에 없는 이름이면 B가 경고만 찍고 담지 않는다.
-   - `weight`: **무게 배수**. 1이 보통이고 판매가에 그대로 곱해진다. 예: `rng:NextNumber(0.8, 1.5)` (범위는 A가 정함, 임시값).
-   - `pressure`: `"Low"`(상압) / `"High"`(고압) / `"Extreme"`(초고압). 기획서 기준 깊이와 붕괴까지 남은 시간(`Collapse.GetRemainingTime(mineId)`)으로 A가 정한다. 배수는 B가 `Config/Economy.luau`의 `PRESSURE_MULT`로 곱한다 (1 / 1.5 / 3).
-
-3. 곡괭이: B가 제작·강화하면 `PickaxeUpgraded(player, tier, enhance)`가 오고, 플레이어 속성 `PickaxeTier`·`PickaxeEnhance`도 바뀐다 (접속 때도 저장값으로 설정됨).
-   - 강화 효과(파워·속도)는 A가 `PickaxeEnhance`(0~5)로 계산한다.
-   - 리버스하면 `PickaxeUpgraded(player, 1, 0)`이 온다 (나무 곡괭이로 돌아감).
-   - 단계별 곡괭이 모델 교체도 A. `MiningServer`의 `PickaxeTier` 기본값 1 설정은 그대로 둬도 B 값과 안 부딪힌다.
-
-로컬 복사본의 광산이 예전 광물(`Zinc` 등)로 되어 있으면 표에 없는 이름이라 안 담긴다. 팀 플레이스는 현재 광물표대로라 상관없다.
+- 채굴 → 가방은 #26(D-025)으로 연결됐다. 광석이 깨지면 `OreMined`만 오고, 코인은 B가 판매 때 준다.
+- `leaderstats.Coins`는 화면 표시용 사본이다. 코인을 바꿀 일이 생기면 직접 고치지 말고 B에 말해 달라 (원본은 `data.coins`, `PlayerData.addCoins`).
+- 곡괭이: B가 제작·강화하면 `PickaxeUpgraded(player, tier, enhance)`가 오고, 플레이어 속성 `PickaxeTier`·`PickaxeEnhance`도 바뀐다. 리버스하면 `(player, 1, 0)`.
+- `oreId`가 `Mines.luau` 광물표에 없는 이름이면 B가 경고만 찍고 담지 않는다.
 
 ## C 담당께
 
@@ -52,9 +36,8 @@ B 담당 기능이 지금 어디까지 됐고, 다른 담당이 무엇을 붙이
 
 ## 아직 안 된 것 (B 다음 작업 순서)
 
-1. A가 코인 직접 지급을 지우면 `PlayerData.luau`의 leaderstats `Changed` 연결(ponytail 주석)을 지운다. 코인 원본은 이미 `data.coins`.
-2. 카나리아 새 모델(어깨 위)·울음소리: 모델이 생기면.
-3. 곡괭이 5단계·용암 광산: 광산 설정이 생기면 `PICKAXES`에 한 줄.
+1. 카나리아 새 모델(어깨 위)·울음소리: 모델이 생기면.
+2. 곡괭이 5단계·용암 광산: 광산 설정이 생기면 `PICKAXES`에 한 줄.
 
 ## 로컬 테스트 방법
 

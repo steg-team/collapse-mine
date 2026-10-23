@@ -137,12 +137,7 @@ local function load(player: Player)
 	local ls = player:WaitForChild("leaderstats", 10)
 	local coins = ls and ls:FindFirstChild("Coins") :: IntValue?
 	if coins then
-		coins.Value = data.coins
-		-- ponytail: 채굴 코드(A)가 아직 leaderstats.Coins에 직접 더한다. 그 차이를 data.coins로 받아 둔다.
-		-- A가 코인 직접 지급을 지우면(docs/handoff-B.md) 이 연결은 지운다.
-		coins.Changed:Connect(function(value)
-			data.coins = value
-		end)
+		coins.Value = data.coins -- 화면 표시용 사본. 코인은 PlayerData.addCoins로만 바꾼다
 	end
 
 	EventBus.Fire(Events.PlayerDataLoaded, player)
