@@ -1,17 +1,20 @@
 --!strict
 --[[
-	가방·판매소 (B 담당, D-020)
-	캔 광물을 가방에 담으며 값을 확정하고, 허브 판매소에서 판다.
+	가방·판매소 (B 담당, D-020, 무게 D-027)
+	캔 광물을 가방에 담으며 값을 확정하고, 허브 판매소에서 판다. 가방은 무게(kg) 하나로 잰다.
 
 	흐름
 		OreMined (A) ──▶ 값 확정 · 가방에 담기 ──▶ OreBagged (C 랭킹)
-		판매소 Counter 프롬프트·인벤토리 창 ──▶ 전부 또는 한 개 판매 · 코인 ──▶ OreSold (C 랭킹·퀘스트)
+		판매소 Counter 프롬프트·인벤토리 창 ──▶ 전부 또는 종류별 판매 · 코인 ──▶ OreSold (C 랭킹·퀘스트)
+		인벤토리 창 ──▶ 한 개 버리기 (광산 안에서 가볍게 탈출)
 		PlayerEscaped (C) ──▶ 가방 가치 = 탈출 수확 ──▶ HaulSecured (C 랭킹) + 탈출 보너스
 		PlayerTrapped (C) ──▶ 가방 일부 차감
 		DailyLoginClaimed / QuestCompleted (C) ──▶ 보상 코인
 
-	UI용으로 플레이어 속성 BagCount, BagCapacity, BagValue, EconomyNotice(한 줄 알림) 를 서버가 갱신한다 (Remote 없이 복제됨).
-	가방 목록·낱개 판매는 Remotes.Bag (아래 onBagRemote).
+	플레이어 속성 (서버가 갱신, Remote 없이 복제됨)
+		BagCount, BagKg, BagCapacity(kg), BagValue, EconomyNotice(한 줄 알림)  — B의 HUD용
+		BagSpeedMultiplier (1 → BAG_MIN_SPEED)  — A가 걸음 속도에 곱한다
+	가방 목록·판매·버리기는 Remotes.Bag (아래 onBagRemote).
 ]]
 
 local Players = game:GetService("Players")
@@ -37,9 +40,24 @@ end
 
 local Bag = {}
 
+-- 무게 한도 (kg). 이걸 넘으면 느려지고, × BAG_HARD_LIMIT 를 넘으면 더 안 담긴다
 function Bag.capacity(player: Player): number
-	local extra = if Payments.HasPass(player, Social.PassName.BigBag) then Economy.BIG_BAG_EXTRA else 0
-	return Economy.BAG_CAPACITY + extra
+	local extra = if Payments.HasPass(player, Social.PassName.BigBag) then Economy.BIG_BAG_EXTRA_KG else 0
+	return Economy.BAG_MAX_KG + extra
+end
+
+local function bagKg(data: PlayerData.Data): number
+	local sum = 0
+	for _, item in data.bag do
+		sum += item.weight
+	end
+	return sum
+end
+
+-- 한도까지 1, 한도 × BAG_HARD_LIMIT 에서 BAG_MIN_SPEED 까지 선형으로 느려짐
+function Bag.speedMultiplier(kg: number, capacity: number): number
+	local over = math.clamp((kg / capacity - 1) / (Economy.BAG_HARD_LIMIT - 1), 0, 1)
+	return 1 - over * (1 - Economy.BAG_MIN_SPEED)
 end
 
 local function bagValue(data: PlayerData.Data): number
@@ -56,9 +74,12 @@ function Bag.sync(player: Player)
 	if not data then
 		return
 	end
+	local kg, cap = bagKg(data), Bag.capacity(player)
 	player:SetAttribute("BagCount", #data.bag)
-	player:SetAttribute("BagCapacity", Bag.capacity(player))
+	player:SetAttribute("BagKg", math.floor(kg * 10 + 0.5) / 10)
+	player:SetAttribute("BagCapacity", cap)
 	player:SetAttribute("BagValue", bagValue(data))
+	player:SetAttribute("BagSpeedMultiplier", Bag.speedMultiplier(kg, cap))
 end
 
 -- 판매가 = 기본가 × 무게 × 압력 배수. 서버에서만 계산 (보안 규칙)
@@ -76,8 +97,10 @@ local function onOreMined(player: Player, oreId: string, weight: number, pressur
 	if not data or typeof(weight) ~= "number" or weight <= 0 then
 		return
 	end
-	if #data.bag >= Bag.capacity(player) then
-		return -- 꽉 참: 안 담긴다. HUD가 "가득"을 보여 준다
+	if bagKg(data) + weight > Bag.capacity(player) * Economy.BAG_HARD_LIMIT then
+		-- 너무 무거움: 안 담긴다. 조용히 사라지면 답답하니 알려 준다
+		Bag.notify(player, "가방이 너무 무거워요! 팔거나 버리세요")
+		return
 	end
 	local value = Bag.priceOf(oreId, weight, pressure)
 	if not value then
@@ -130,15 +153,41 @@ function Bag.sellAll(player: Player): number
 	return sell(player, data, items)
 end
 
--- 한 개 판매 (인벤토리 창). 창을 연 사이 가방이 바뀌었을 수 있어서 광물 이름까지 맞아야 판다
-function Bag.sellOne(player: Player, index: number, oreId: string): number
+-- 인벤토리 창은 같은 광물·같은 압력끼리 한 줄로 묶어 보여 준다. 그 묶음을 판다
+function Bag.sellGroup(player: Player, oreId: string, pressure: string): number
 	local data = PlayerData.get(player)
-	local item = data and data.bag[index]
-	if not data or not item or item.ore ~= oreId then
+	if not data then
 		return 0
 	end
-	table.remove(data.bag, index)
-	return sell(player, data, { item })
+	local sold, kept = {}, {}
+	for _, item in data.bag do
+		table.insert(if item.ore == oreId and item.pressure == pressure then sold else kept, item)
+	end
+	if #sold == 0 then
+		return 0
+	end
+	data.bag = kept
+	return sell(player, data, sold)
+end
+
+-- 묶음에서 한 개 버리기 (어디서나). 같은 묶음은 1kg당 값이 같으니 가장 무거운 것을 버려 많이 가벼워지게 한다
+function Bag.dropOne(player: Player, oreId: string, pressure: string): boolean
+	local data = PlayerData.get(player)
+	if not data then
+		return false
+	end
+	local pick: number? = nil
+	for i, item in data.bag do
+		if item.ore == oreId and item.pressure == pressure and (not pick or item.weight > data.bag[pick].weight) then
+			pick = i
+		end
+	end
+	if not pick then
+		return false
+	end
+	table.remove(data.bag, pick)
+	Bag.sync(player)
+	return true
 end
 
 -- 화면 아래 HUD에 한 줄 알림 (판매 결과, 제작 실패 이유 등). 같은 문구가 연달아 와도 다시 뜨게 시각도 같이 올린다
@@ -210,15 +259,16 @@ function Bag.counterPrompt(building: string, name: string, actionText: string, o
 end
 
 -- 인벤토리 창 (클라이언트 → 서버). Remotes.Bag (RemoteFunction)
---   "get"                → 가방 목록 { {ore, weight, pressure, value} }
---   "sell", index, oreId → 한 개 판매 (판매소 근처만), 판 금액
---   "sellAll"            → 전부 판매 (판매소 근처만), 판 금액
+--   "get"                     → 가방 목록 { {ore, weight, pressure, value} }
+--   "sell", oreId, pressure   → 그 묶음 판매 (판매소 근처만), 판 금액
+--   "sellAll"                 → 전부 판매 (판매소 근처만), 판 금액
+--   "drop", oreId, pressure   → 그 묶음에서 한 개 버리기 (어디서나)
 -- 결과 문구는 Bag.notify 로 HUD 알림 줄에 띄운다
 -- Remote가 없으면 서버가 만든다 (Studio 수작업 없이 Rojo만으로 동작하게)
 local REMOTE_COOLDOWN = 0.15
 local lastCall: { [Player]: number } = {}
 
-local function onBagRemote(player: Player, action: any, index: any, oreId: any): any
+local function onBagRemote(player: Player, action: any, oreId: any, pressure: any): any
 	if typeof(action) ~= "string" then
 		return nil
 	end
@@ -230,22 +280,29 @@ local function onBagRemote(player: Player, action: any, index: any, oreId: any):
 		return data.bag
 	end
 
-	-- 판매만 연타 제한 (목록 조회는 판매 직후 바로 다시 부르므로 막지 않는다)
+	-- 판매·버리기만 연타 제한 (목록 조회는 판매 직후 바로 다시 부르므로 막지 않는다)
 	local t = os.clock()
 	if lastCall[player] and t - lastCall[player] < REMOTE_COOLDOWN then
 		return nil
 	end
 	lastCall[player] = t
+	local group = typeof(oreId) == "string" and typeof(pressure) == "string"
+	if action == "drop" then
+		if group and Bag.dropOne(player, oreId, pressure) then
+			Bag.notify(player, "한 개 버렸어요")
+		end
+		return nil
+	end
 	if not Bag.isNear(player, "Shop") then
 		Bag.notify(player, "판매소에서만 팔 수 있어요")
 		return nil
 	end
 	local earned = 0
 	if action == "sell" then
-		if typeof(index) ~= "number" or index % 1 ~= 0 or typeof(oreId) ~= "string" then
+		if not group then
 			return nil
 		end
-		earned = Bag.sellOne(player, index, oreId)
+		earned = Bag.sellGroup(player, oreId, pressure)
 	elseif action == "sellAll" then
 		earned = Bag.sellAll(player)
 	end

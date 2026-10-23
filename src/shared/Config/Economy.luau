@@ -6,10 +6,14 @@ local Economy = {
 	-- 전부 잃으면 어린 유저가 이탈하므로 일부만 (기획서 "광맥 붕괴 이벤트")
 	TRAPPED_BAG_LOSS = 0.5,
 
-	-- 가방 칸 수. 꽉 차면 더 캐도 안 담긴다 → 허브에 팔러 올라오는 이유 (임시값)
-	BAG_CAPACITY = 20,
-	-- "가방 확장" 게임패스(BigBag)로 늘어나는 칸 (임시값)
-	BIG_BAG_EXTRA = 20,
+	-- 가방은 무게(kg) 하나로 잰다 (D-027). 광물 무게 = OreMined 의 weight (A, 평균 1kg 남짓)
+	-- 한도까지는 그대로, 넘으면 무거울수록 느려지고, 한도 × BAG_HARD_LIMIT 를 넘으면 더 안 담긴다 (임시값)
+	BAG_MAX_KG = 30,
+	-- "가방 확장" 게임패스(BigBag)로 늘어나는 무게 (임시값)
+	BIG_BAG_EXTRA_KG = 20,
+	BAG_HARD_LIMIT = 1.5,
+	-- 한도 × BAG_HARD_LIMIT 일 때 걸음 속도 배수. 완전히 멈추지는 않게 (임시값)
+	BAG_MIN_SPEED = 0.6,
 
 	-- 판매가 = 기본가(Mines 광물표 value) × 무게 × 압력 배수 (기획서 "무게와 압력 등급")
 	-- 키는 OreMined 계약의 pressure 값 (임시값)

@@ -1,14 +1,14 @@
 # B(경제) 인계 문서
 
 B 담당 기능이 지금 어디까지 됐고, 다른 담당이 무엇을 붙이면 되는지 적는다. 바뀔 때마다 이 문서를 고친다.
-규칙의 근거는 `decisions.md` D-014(데이터 저장), D-020(가방·판매소), D-021(곡괭이 제작·강화), D-022(인벤토리 창·코인 원본), D-023(광산 카나리아), D-024(리버스).
+규칙의 근거는 `decisions.md` D-014(데이터 저장), D-020(가방·판매소), D-021(곡괭이 제작·강화), D-022(인벤토리 창·코인 원본), D-023(광산 카나리아), D-024(리버스), D-027(가방 무게).
 
 ## 지금 되는 것
 
 | 기능 | 파일 | 상태 |
 |---|---|---|
 | 데이터 저장 | `src/server/Economy/PlayerData.luau` | 동작. ProfileStore, 세션 잠금 |
-| 가방 담기 | `src/server/Economy/Bag.luau` | 동작. A의 `OreMined`(#26)로 채굴과 연결됨 |
+| 가방 담기 | `src/server/Economy/Bag.luau` | 동작. A의 `OreMined`(#26)로 채굴과 연결됨. 무게(kg) 한도, 넘으면 느려짐 (D-027) |
 | 판매소 | `Bag.luau` (`Bag.sellAll`) | 동작. 허브 `Shop/Counter`에 "가방 전부 팔기" 프롬프트 |
 | 가방 HUD | `src/client/Economy/BagHud.client.luau` | 동작. 화면 아래 "가방 3/20 · 120 코인어치", 누르면 인벤토리 창 |
 | 인벤토리 창 | `src/client/Economy/InventoryPanel.client.luau` | 동작. 가방 버튼·B 키. 판매소 근처면 한 개씩/전부 팔기 (`Remotes.Bag`) |
@@ -25,6 +25,12 @@ B 담당 기능이 지금 어디까지 됐고, 다른 담당이 무엇을 붙이
 - 채굴 → 가방은 #26(D-025)으로 연결됐다. 광석이 깨지면 `OreMined`만 오고, 코인은 B가 판매 때 준다.
 - `leaderstats.Coins`는 화면 표시용 사본이다. 코인을 바꿀 일이 생기면 직접 고치지 말고 B에 말해 달라 (원본은 `data.coins`, `PlayerData.addCoins`).
 - 곡괭이: B가 제작·강화하면 `PickaxeUpgraded(player, tier, enhance)`가 오고, 플레이어 속성 `PickaxeTier`·`PickaxeEnhance`도 바뀐다. 리버스하면 `(player, 1, 0)`.
+- **걸음 속도 (D-027, A 할 일)**: B가 플레이어 속성 `BagSpeedMultiplier`(1 → 0.6)를 갱신한다. 가방이 30kg을 넘으면 1보다 작아진다. 캐릭터 걸음 속도에 곱해 달라. 예:
+  ```lua
+  local function apply() humanoid.WalkSpeed = BASE_WALK * (player:GetAttribute("BagSpeedMultiplier") or 1) end
+  player:GetAttributeChangedSignal("BagSpeedMultiplier"):Connect(apply)
+  ```
+  부스트 등 다른 속도 효과와 겹치면 A 쪽에서 한 곳에서 곱해 주면 된다.
 - `oreId`가 `Mines.luau` 광물표에 없는 이름이면 B가 경고만 찍고 담지 않는다.
 
 ## C 담당께
