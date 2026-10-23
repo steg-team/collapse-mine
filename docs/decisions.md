@@ -170,3 +170,4 @@ AI 에이전트는 구현 전에 이 문서와 `game-design.md`를 읽고, 둘�
 - 결정: 기본 허브(`Workspace.CollapseMine`)를 통째로 복사해서 스테이지마다 허브를 하나씩 둔다. 철광 갱도 `CollapseMine_iron`(x -900), 지하수 동굴 `CollapseMine_groundwater`(x +900). 텔레포트는 스테이지 허브로 보내고, 허브 입구 포탈을 지나야 그 스테이지 광산에 들어가며, 광산 출구는 그 스테이지 허브로 나온다. Mines 설정의 `hub` 칸이 허브 폴더 이름. 새로 들어온 사람은 기본 허브에만 생긴다(복사본 SpawnLocation 끔).
 - 이유: 스테이지마다 판매·제작·랭킹을 그 자리에서 할 수 있어야 광산을 오가는 흐름이 끊기지 않는다.
 - 영향: `MineTravel`(출구 → 스테이지 허브), `Config/Mines.luau`(`hub`), `tools/copy_stage_hub.luau`. **B**: 판매소·제작소 `Counter`가 허브마다 있음 (`workspace.CollapseMine...` 고정 경로 대신 모든 허브를 찾아야 함). **C**: 랭킹판이 허브마다 있음, 붕괴 갇힘 때 옮기는 허브 스폰(`Collapse.luau`의 `hubSpawn`)은 그 광산의 `hub`로. 스테이지 사이 텔레포트 UI는 다음 작업.
+- 보강 (2026-10-23): 스테이지 허브는 복사한 뒤 테마를 입힌다 (`tools/theme_stage_hub.luau`). 지하수 동굴 허브: 산을 젖은 짙은 판석 + 석회암 줄무늬 + 푸른 빙하 꼭대기로, 입구 양옆에 폭포 두 줄기와 물웅덩이, 입구 불빛을 푸른색으로. 입구 산 오른쪽 어깨 앞면의 구멍(기본 허브에서 복사된 바위 처마)도 메움. 예전 지형은 `ServerStorage.MineBackups`.
