@@ -88,11 +88,30 @@ function PlayerData.addCoins(player: Player, amount: number)
 	end
 end
 
--- 가방에서 TRAPPED_BAG_LOSS 비율만큼 무작위로 뺀다 (내림이라 1개뿐이면 안 잃음)
+-- 가방 무게의 TRAPPED_BAG_LOSS 비율만큼 무작위 광물을 뺀다 (D-029).
+-- 무작위 순서로 보면서 그 비율을 넘지 않는 것만 빼서, 절대 비율보다 많이 잃지 않는다 (1개뿐이면 안 잃음)
 function PlayerData.loseBag(data: Data)
-	for _ = 1, math.floor(#data.bag * Economy.TRAPPED_BAG_LOSS) do
-		table.remove(data.bag, rng:NextInteger(1, #data.bag))
+	local total = 0
+	for _, item in data.bag do
+		total += item.weight
 	end
+	local budget = total * Economy.TRAPPED_BAG_LOSS
+	local order = table.clone(data.bag)
+	rng:Shuffle(order)
+	local lose: { [BagItem]: boolean } = {}
+	for _, item in order do
+		if item.weight <= budget then
+			budget -= item.weight
+			lose[item] = true
+		end
+	end
+	local kept = {}
+	for _, item in data.bag do
+		if not lose[item] then
+			table.insert(kept, item)
+		end
+	end
+	data.bag = kept
 end
 
 local function load(player: Player)
