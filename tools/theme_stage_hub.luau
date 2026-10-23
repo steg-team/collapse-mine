@@ -4,8 +4,8 @@
 
 	water (지하수 동굴):
 	  - 산·절벽 재질: 바위 → 젖은 짙은 판석, 판석 → 석회암 줄무늬, 눈 → 빙하(푸른빛)
-	  - 입구 양옆 산 앞면에 폭포 두 줄기(반투명 유리 판을 앞면 따라 붙임 + 물방울·물보라 입자) + 아래 물웅덩이(지형 물)
-	    지형 물로 폭포를 만들면 칸(4스터드) 때문에 네모난 물덩어리가 돼서 파트로 만든다
+	  - 입구 양옆(화로 바깥 x ±44) 산 앞면에 지형 물 폭포 두 줄기 + 물방울·물보라 입자 + 아래 물웅덩이
+	    (파트 물판으로도 해 봤는데 조각조각 끊겨 보여서 지형 물로 함. 화로(±32)를 덮지 않게 바깥으로)
 	  - 입구 화로·횃불 불빛을 푸른색으로
 	공통:
 	  - 입구 산 오른쪽 어깨 앞면에 구멍(아래가 빈 바위 처마)처럼 보이는 곳을 바위로 메움 (SHOULDER_FILL)
@@ -81,23 +81,16 @@ if TH.waterfalls then
 		a.Parent = folder
 		return a
 	end
-	for _, sx in { -34, 34 } do
-		-- 높이마다 앞면을 찾아 물판을 붙임 (앞면이 비스듬해서 높이마다 z가 다름)
+	for _, sx in { -44, 44 } do
+		-- 높이마다 앞면을 찾아 물 칸을 붙여 쌓음 (앞면이 비스듬해서 높이마다 z가 다름)
 		local lowest = nil
-		for y = 6, 78, 3 do
+		for y = 4, 76, 4 do
 			local hit = workspace:Raycast(MOUTH + Vector3.new(sx, y, 80), Vector3.new(0, 0, -120), rp)
 			if hit then
+				T:FillBlock(CFrame.new(hit.Position.X, y, hit.Position.Z + 1.5), Vector3.new(6, 4.2, 3), Enum.Material.Water)
 				local n = Vector3.new(hit.Normal.X, 0, hit.Normal.Z)
 				n = if n.Magnitude > 0.1 then n.Unit else Vector3.zAxis
-				local pos = hit.Position + n * 0.5
-				local p = Instance.new("Part")
-				p.Name = "Water"
-				p.Size = Vector3.new(7, 3.6, 0.4)
-				p.CFrame = CFrame.lookAt(pos, pos + n)
-				p.Anchored, p.CanCollide, p.CanQuery, p.CastShadow = true, false, false, false
-				p.Material, p.Color, p.Transparency = Enum.Material.Glass, Color3.fromRGB(140, 205, 240), 0.35
-				p.Parent = folder
-				if not lowest or y < lowest.y then lowest = { y = y, pos = pos, n = n } end
+				if not lowest or y < lowest.y then lowest = { y = y, pos = hit.Position + n * 3, n = n } end
 			end
 		end
 		if lowest then
@@ -123,9 +116,9 @@ if TH.waterfalls then
 		-- 물웅덩이 (지형 물): 폭포 아래 앞쪽
 		local floor = workspace:Raycast(MOUTH + Vector3.new(sx, 20, 14), Vector3.new(0, -40, 0), rp)
 		if floor then
-			local c = Vector3.new(MOUTH.X + sx, floor.Position.Y, MOUTH.Z + 14)
-			T:FillBlock(CFrame.new(c + Vector3.new(0, -1.5, 0)), Vector3.new(14, 4, 10), Enum.Material.Air)
-			T:FillBlock(CFrame.new(c + Vector3.new(0, -2, 0)), Vector3.new(14, 3, 10), Enum.Material.Water)
+			local c = Vector3.new(MOUTH.X + sx, floor.Position.Y, MOUTH.Z + 12)
+			T:FillBlock(CFrame.new(c + Vector3.new(0, -1.5, 0)), Vector3.new(12, 4, 10), Enum.Material.Air)
+			T:FillBlock(CFrame.new(c + Vector3.new(0, -2, 0)), Vector3.new(12, 3, 10), Enum.Material.Water)
 		end
 		task.wait()
 	end
