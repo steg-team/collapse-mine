@@ -33,6 +33,18 @@ local Economy = {
 	}),
 	-- 단계마다 강화 상한. 다음 단계를 만들면 강화는 0부터 (임시값)
 	ENHANCE_MAX = 5,
+
+	-- 광산 카나리아 (D-023). 레벨 = data.canary (0부터). range = 희귀 이상 광물을 알아채는 거리(스터드)
+	-- 다음 레벨은 제작소에서 코인 + 희귀 등급 광물로 키운다 (기획서 "희귀: 카나리아 성장"). 숫자는 모두 임시값
+	CANARY = table.freeze({
+		[0] = { range = 20 },
+		{ range = 30, coins = 200, rare = 2 },
+		{ range = 45, coins = 1000, rare = 4 },
+		{ range = 60, coins = 5000, rare = 6 },
+	}),
+	-- 카나리아가 반응하는 등급 / 키울 때 받는 등급
+	CANARY_DETECT_GRADES = table.freeze({ ["희귀"] = true, ["에픽"] = true, ["전설"] = true, ["신화"] = true, ["???"] = true }),
+	CANARY_FEED_GRADE = "희귀",
 }
 
 return table.freeze(Economy)
