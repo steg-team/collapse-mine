@@ -7,3 +7,5 @@ local Social = script.Parent
 require(Social:WaitForChild("Payments"))
 -- 붕괴는 require 되는 순간부터 광산별 타이머가 돈다
 require(Social:WaitForChild("Collapse"))
+-- 출석 보상 (Remotes.DailyLogin 응답 연결)
+require(Social:WaitForChild("DailyLogin"))
