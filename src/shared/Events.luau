@@ -22,6 +22,7 @@ local Events = {
 
 	-- A → B, C : 광물 획득 (B는 가방에 넣고 가격 계산, C는 퀘스트 진행)
 	-- (player, oreId: string, weight: number, pressure: "Low" | "High" | "Extreme")
+	-- oreId = Mines.luau 광물표의 name, weight = 무게 배수(1 = 보통, 광물표의 출현 가중치 weight와 다름). D-020
 	OreMined = "OreMined",
 
 	-- A → C : 전설 이상 광물 발견 (C가 서버 전체 공지)
