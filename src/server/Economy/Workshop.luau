@@ -183,7 +183,7 @@ function Workshop.start()
 		local _, msg = Workshop.feedCanary(player)
 		Bag.notify(player, msg)
 	end, Enum.KeyCode.G)
-	Bag.counterPrompt("Workshop", "RebirthPrompt", "리버스 (3초 누르기)", function(player)
+	Bag.counterPrompt("Workshop", "RebirthPrompt", "리버스 (초기화)", function(player)
 		local _, msg = Workshop.rebirth(player)
 		Bag.notify(player, msg)
 	end, Enum.KeyCode.R, 3) -- 되돌릴 수 없으니 길게 눌러야 한다

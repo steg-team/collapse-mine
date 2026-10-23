@@ -176,6 +176,8 @@ function Bag.isNear(player: Player, building: string): boolean
 	return false
 end
 
+local PROMPT_GAP = 78 -- 기본 프롬프트 높이(72px) + 여백
+
 -- Counter에 프롬프트를 붙인다. 클라이언트는 name으로 찾아 문구를 바꾼다
 function Bag.counterPrompt(building: string, name: string, actionText: string, onTriggered: (Player) -> (), key: Enum.KeyCode?, hold: number?)
 	for _, counter in counters(building) do
@@ -188,6 +190,16 @@ function Bag.counterPrompt(building: string, name: string, actionText: string, o
 			prompt.RequiresLineOfSight = false
 			prompt.KeyboardKeyCode = key or Enum.KeyCode.E -- 한 Counter에 프롬프트가 둘이면 키를 다르게
 			prompt.Parent = counter
+			-- 같은 Counter의 프롬프트는 같은 자리에 그려져 글자가 겹친다. 위아래로 쌓고 가운데를 Counter에 맞춘다
+			local stack = {}
+			for _, c in counter:GetChildren() do
+				if c:IsA("ProximityPrompt") then
+					table.insert(stack, c)
+				end
+			end
+			for i, p in stack do
+				p.UIOffset = Vector2.new(0, (i - 1 - (#stack - 1) / 2) * PROMPT_GAP)
+			end
 			prompt.Triggered:Connect(function(player: Player)
 				if Bag.isNear(player, building) then
 					onTriggered(player)
