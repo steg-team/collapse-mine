@@ -91,9 +91,15 @@ local function onOreMined(player: Player, oreId: string, weight: number, pressur
 	EventBus.Fire(Events.OreBagged, player, oreId, value)
 end
 
--- 가방에서 이미 빼낸 광물들을 판다. 판매가 = 담을 때 확정한 값 × 판매가 배수 (C)
+-- 리버스로 영구히 오른 판매가 배수
+function Bag.rebirthMult(data: PlayerData.Data): number
+	return 1 + data.rebirths * Economy.REBIRTH.sellBonus
+end
+
+-- 가방에서 이미 빼낸 광물들을 판다. 판매가 = 담을 때 확정한 값 × 판매가 배수
 local function sell(player: Player, data: PlayerData.Data, items: { PlayerData.BagItem }): number
-	local mult = Payments.GetMultiplier(player, Social.MultiplierKind.SellPrice)
+	-- 패스·부스트(C) × 리버스 보너스(B)
+	local mult = Payments.GetMultiplier(player, Social.MultiplierKind.SellPrice) * Bag.rebirthMult(data)
 	local perOre: { [string]: { count: number, total: number } } = {}
 	for _, item in items do
 		local s = perOre[item.ore] or { count = 0, total = 0 }
@@ -171,13 +177,13 @@ function Bag.isNear(player: Player, building: string): boolean
 end
 
 -- Counter에 프롬프트를 붙인다. 클라이언트는 name으로 찾아 문구를 바꾼다
-function Bag.counterPrompt(building: string, name: string, actionText: string, onTriggered: (Player) -> (), key: Enum.KeyCode?)
+function Bag.counterPrompt(building: string, name: string, actionText: string, onTriggered: (Player) -> (), key: Enum.KeyCode?, hold: number?)
 	for _, counter in counters(building) do
 		if not counter:FindFirstChild(name) then
 			local prompt = Instance.new("ProximityPrompt")
 			prompt.Name = name
 			prompt.ActionText = actionText
-			prompt.HoldDuration = 0.3
+			prompt.HoldDuration = hold or 0.3
 			prompt.MaxActivationDistance = 10
 			prompt.RequiresLineOfSight = false
 			prompt.KeyboardKeyCode = key or Enum.KeyCode.E -- 한 Counter에 프롬프트가 둘이면 키를 다르게

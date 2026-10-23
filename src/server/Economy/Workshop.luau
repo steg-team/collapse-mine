@@ -1,7 +1,7 @@
 --!strict
 --[[
-	제작소: 곡괭이 제작(다음 단계)·강화 (B 담당, D-021), 카나리아 키우기 (D-023)
-	허브 Workshop/Counter 프롬프트 세 개 ("CraftPrompt" E, "EnhancePrompt" F, "CanaryPrompt" G).
+	제작소: 곡괭이 제작(다음 단계)·강화 (B 담당, D-021), 카나리아 키우기 (D-023), 리버스 (D-024)
+	허브 Workshop/Counter 프롬프트 네 개 ("CraftPrompt" E, "EnhancePrompt" F, "CanaryPrompt" G, "RebirthPrompt" R 3초).
 	비용은 Config/Economy.luau PICKAXES·CANARY. 곡괭이 성능(파워·속도·강화 효과)은 A가 PickaxeUpgraded·속성을 받아 정한다.
 ]]
 
@@ -144,6 +144,32 @@ function Workshop.feedCanary(player: Player): (boolean, string)
 	return true, `카나리아가 자랐어요 (탐지 {spec.range}m)`
 end
 
+-- 리버스: 코인·곡괭이·가방을 처음으로 되돌리고 판매가 보너스를 영구히 얻는다.
+-- 카나리아·도감·기록·C의 social 칸은 그대로 둔다 (쌓은 수집과 랭킹은 잃지 않게)
+function Workshop.rebirth(player: Player): (boolean, string)
+	local data = PlayerData.get(player)
+	if not data then
+		return false, "데이터를 불러오는 중이에요"
+	end
+	local R = Economy.REBIRTH
+	if data.pickaxe.tier < R.needTier then
+		return false, `{Economy.PICKAXES[R.needTier].name}가 있어야 리버스할 수 있어요`
+	end
+	local need = R.coins * (data.rebirths + 1)
+	if data.coins < need then
+		return false, `코인이 {need - data.coins} 부족해요`
+	end
+	data.rebirths += 1
+	data.bag = {}
+	PlayerData.addCoins(player, -data.coins)
+	data.pickaxe.tier = 1
+	data.pickaxe.enhance = 0
+	player:SetAttribute("Rebirths", data.rebirths)
+	Bag.sync(player)
+	upgraded(player, data)
+	return true, `리버스 {data.rebirths}회! 판매가가 영구히 ×{Bag.rebirthMult(data)}`
+end
+
 function Workshop.start()
 	Bag.counterPrompt("Workshop", "CraftPrompt", "다음 곡괭이 만들기", function(player)
 		local _, msg = Workshop.craft(player)
@@ -157,6 +183,10 @@ function Workshop.start()
 		local _, msg = Workshop.feedCanary(player)
 		Bag.notify(player, msg)
 	end, Enum.KeyCode.G)
+	Bag.counterPrompt("Workshop", "RebirthPrompt", "리버스 (3초 누르기)", function(player)
+		local _, msg = Workshop.rebirth(player)
+		Bag.notify(player, msg)
+	end, Enum.KeyCode.R, 3) -- 되돌릴 수 없으니 길게 눌러야 한다
 end
 
 return Workshop

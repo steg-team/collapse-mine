@@ -220,3 +220,14 @@ AI 에이전트는 구현 전에 이 문서와 `game-design.md`를 읽고, 둘�
   - 새 모델(어깨 위 새)과 울음소리는 아직 없다 (화면 표시만).
 - 이유: 기획서 "광산 카나리아: 펫 새가 희귀 광물 근처에서 울고, 등급을 올리면 탐지 범위가 넓어짐, 붕괴가 가까워지면 불안해하며 경보 역할", 광물 등급표 "희귀: 판매, 카나리아 성장".
 - 영향: `src/client/Economy/CanaryHud.client.luau`, `Workshop.luau`(`feedCanary`), `WorkshopPrompt`(비용 표시), `Config/Economy.luau` `CANARY`. 붕괴 상태는 C의 `ReplicatedStorage.CollapseState`를 읽는다.
+
+## D-024 리버스
+
+- 2026-10-23 / 채택 / B 담당
+- 결정:
+  - 제작소 "리버스"(R, **3초 길게 누르기**)로 한다. 조건: 금 곡괭이(4단계) + 코인 50000 × (지금까지 리버스 횟수 + 1).
+  - 리버스하면 코인·곡괭이(나무, 강화 0)·가방이 처음으로 돌아가고, 판매가가 영구히 1 + 0.25 × 리버스 횟수 배가 된다 (C의 판매가 배수와 곱함). 숫자는 모두 임시값.
+  - 카나리아·도감·기록(`stats`)·C의 `social` 칸은 그대로 둔다. 쌓은 수집과 랭킹은 잃지 않는다.
+  - 곡괭이가 바뀌므로 `PickaxeUpgraded(player, 1, 0)`를 쏜다. 플레이어 속성 `Rebirths`로 횟수를 알린다.
+- 이유: 기획서 "리버스: 초기화 + 영구 배수"(4단계 확장). 판매가에 붙이면 B 안에서 끝나고, 다시 올라가는 길(곡괭이·광산)이 그대로 성장 동기가 된다. 되돌릴 수 없어서 길게 눌러야 하게 했다.
+- 영향: `Workshop.luau`(`rebirth`), `Bag.luau`(`rebirthMult`), `WorkshopPrompt`(조건 표시), `Config/Economy.luau` `REBIRTH`.
