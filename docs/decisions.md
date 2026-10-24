@@ -325,3 +325,10 @@ AI 에이전트는 구현 전에 이 문서와 `game-design.md`를 읽고, 둘�
   - 저장은 C 칸 `data.social.quests = { day, list = { { id, progress, claimed } } }`.
 - 이유: 기획서 3단계 "출석·일일 퀘스트". 고압·탈출 퀘스트로 "붕괴 직전까지 버티기"를 하루 한 번은 해 보게 만든다.
 - 영향: `src/server/Social/DailyQuest.luau`, `src/client/Social/DailyQuestPanel.client.luau`, `Config/Social.luau` DailyQuest, `Remotes.DailyQuest`(없으면 서버가 만듦).
+
+## D-033 친구 초대
+
+- 2026-10-25 / 채택 / C 담당
+- 결정: 화면 왼쪽 버튼 줄(📅·🚀·📜) 아래 👥 버튼으로 로블록스 기본 친구 초대 창을 연다. 초대 문구는 `Config/Social.luau` FriendInvite. **초대 자체에는 보상을 주지 않는다.**
+- 이유: 기획서 C 담당 "친구 초대". 로블록스는 초대를 보내는 것에 보상을 주는 걸 금지한다 (스팸 유도). 친구와 같이 플레이할 때 주는 보상은 괜찮아서, 필요하면 나중에 따로 붙인다.
+- 영향: `src/client/Social/FriendInvite.client.luau`, `Config/Social.luau` FriendInvite. 서버 코드 없음.
