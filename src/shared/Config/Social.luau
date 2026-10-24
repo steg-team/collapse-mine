@@ -194,24 +194,30 @@ local Leaderboard = table.freeze({
 -- 처음 온 플레이어에게 한 바퀴를 안내한다: 포탈 → 캐기 → 팔기 → 붕괴 팁.
 -- 단계는 게임 이벤트가 오면 자동으로 넘어간다 (done = 그 이벤트 이름). manual 단계는 "알겠어요" 버튼으로 끝.
 -- target = 화살표를 띄울 곳 (클라이언트가 찾음): "portal" 기본 광산 포탈, "sell" 광산 안이면 출구·허브면 판매소
+-- hint / mobileHint = 조작 방법 (작은 글씨). 키보드가 없는 기기(폰·태블릿)는 mobileHint 를 보여준다
 
-export type TutorialStep = { text: string, done: string?, manual: boolean?, target: string? }
+export type TutorialStep = { text: string, hint: string?, mobileHint: string?, done: string?, manual: boolean?, target: string? }
 
 local Tutorial = table.freeze({
 	steps = table.freeze({
-		{ text = "포탈로 들어가서 광산에 가 보세요", done = "StageEntered", target = "portal" },
-		{ text = "광석을 클릭해서 캐 보세요. 캔 광물은 가방에 담겨요", done = "OreMined" },
-		{ text = "출구로 나가서 허브 판매소에서 가방을 팔아 보세요", done = "OreSold", target = "sell" },
+		{ text = "포탈로 들어가서 광산에 가 보세요", done = "StageEntered", target = "portal",
+			hint = "화살표가 가리키는 포탈을 밟으면 이동해요" },
+		{ text = "광석을 캐 보세요. 캔 광물은 가방에 담겨요", done = "OreMined",
+			hint = "숫자 1 키로 곡괭이를 들고, 광석을 클릭하세요", mobileHint = "아래 곡괭이 칸을 눌러 들고, 광석을 터치하세요" },
+		{ text = "출구로 나가서 허브 판매소에서 가방을 팔아 보세요", done = "OreSold", target = "sell",
+			hint = "판매소 앞에서 E 키를 꾹 누르세요", mobileHint = "판매소 앞에 뜨는 버튼을 꾹 누르세요" },
 		{ text = "⚠️ 붕괴 경보가 울리면 시간 안에 출구로 탈출하세요! 갇히면 가방 무게의 절반을 잃어요. 대신 늦게 나올수록 보너스가 커요", manual = true },
 	} :: { TutorialStep }),
 	-- 이미 판매로 돈을 번 적이 있는 플레이어는 튜토리얼 없이 시작 (튜토리얼이 생기기 전부터 하던 사람)
 	skipIfEarned = true,
 
 	-- UI
-	topMargin = 104,          -- 화면 위에서 띄우는 거리(px). 공지 배너·붕괴 카운트다운 아래
-	width = 460,
-	textSize = 18,
-	padding = 14,
+	-- 위치: 화면 오른쪽 가운데 (가운데 위쪽은 채굴 시야를 가려서). 오른쪽 위 카나리아(세로 28%)와 안 겹치게 가운데
+	anchor = Vector2.new(1, 0.5),
+	position = UDim2.new(1, -12, 0.5, 0),
+	width = 300,
+	textSize = 16,
+	padding = 12,
 	cornerRadius = 12,
 	panelColor = Color3.fromRGB(30, 26, 22),
 	accentColor = Color3.fromRGB(255, 200, 60),  -- 단계 번호·화살표·테두리

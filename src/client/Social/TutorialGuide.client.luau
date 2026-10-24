@@ -7,6 +7,7 @@
 local Players = game:GetService("Players")
 local RS = game:GetService("ReplicatedStorage")
 local CS = game:GetService("CollectionService")
+local UserInputService = game:GetService("UserInputService")
 
 local Shared = RS:WaitForChild("Shared")
 local Social = require(Shared:WaitForChild("Config"):WaitForChild("Social"))
@@ -26,8 +27,8 @@ gui.Enabled = false
 gui.Parent = player:WaitForChild("PlayerGui")
 
 local panel = Instance.new("Frame")
-panel.AnchorPoint = Vector2.new(0.5, 0)
-panel.Position = UDim2.new(0.5, 0, 0, CONFIG.topMargin)
+panel.AnchorPoint = CONFIG.anchor
+panel.Position = CONFIG.position
 panel.Size = UDim2.fromOffset(CONFIG.width, 0)
 panel.AutomaticSize = Enum.AutomaticSize.Y
 panel.BackgroundColor3 = CONFIG.panelColor
@@ -43,7 +44,8 @@ local layout = Instance.new("UIListLayout"); layout.Padding = UDim.new(0, 8); la
 -- 폰처럼 좁은 화면에서는 판을 줄인다
 local scale = Instance.new("UIScale"); scale.Parent = panel
 local function fitToScreen()
-	scale.Scale = math.min(1, (workspace.CurrentCamera.ViewportSize.X - 24) / CONFIG.width)
+	-- 오른쪽에 붙어 있으므로 화면 폭의 절반 정도까지만 차지하게
+	scale.Scale = math.min(1, (workspace.CurrentCamera.ViewportSize.X * 0.5) / CONFIG.width)
 end
 fitToScreen()
 workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(fitToScreen)
@@ -64,9 +66,16 @@ local function label(order: number, size: number, color: Color3): TextLabel
 end
 local header = label(1, CONFIG.textSize - 4, CONFIG.accentColor)
 local body = label(2, CONFIG.textSize, Color3.new(1, 1, 1))
+local hint = label(3, CONFIG.textSize - 3, Color3.fromRGB(190, 190, 190)) -- 조작 방법 (작은 회색 글씨)
+hint.Font = Enum.Font.Gotham
+
+-- 키보드 없이 터치만 되는 기기(폰·태블릿)인지. 조작 안내 문구를 고르는 데 씀
+local function isTouchOnly(): boolean
+	return UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+end
 
 local buttons = Instance.new("Frame")
-buttons.LayoutOrder = 3
+buttons.LayoutOrder = 4
 buttons.BackgroundTransparency = 1
 buttons.Size = UDim2.new(1, 0, 0, 34)
 buttons.Parent = panel
@@ -75,7 +84,7 @@ local function button(text: string, x: number, anchorX: number, color: Color3): 
 	local b = Instance.new("TextButton")
 	b.AnchorPoint = Vector2.new(anchorX, 0)
 	b.Position = UDim2.fromScale(x, 0)
-	b.Size = UDim2.fromOffset(120, 34)
+	b.Size = UDim2.fromOffset(110, 32)
 	b.BackgroundColor3 = color
 	b.Font = Enum.Font.GothamBold
 	b.TextSize = CONFIG.textSize - 2
@@ -97,14 +106,18 @@ highlight.FillTransparency = 1
 highlight.OutlineColor = CONFIG.accentColor
 highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop -- 벽 너머에서도 보이게
 highlight.Enabled = false
-highlight.Parent = gui -- Adornee 로 대상 지정
+-- Highlight 는 3D 세계(workspace) 안에 있어야 그려진다. ScreenGui 안에 두면 안 보임.
+-- 카메라 밑에 두면 이 플레이어 화면에만 있는 로컬 물체가 된다
+highlight.Parent = workspace.CurrentCamera
 
 local marker = Instance.new("BillboardGui")
 marker.Size = UDim2.fromOffset(60, 60)
 marker.AlwaysOnTop = true
 marker.StudsOffset = Vector3.new(0, CONFIG.markerHeight, 0)
 marker.Enabled = false
-marker.Parent = gui
+-- BillboardGui 는 ScreenGui 안이 아니라 PlayerGui 바로 아래에 둬야 Adornee 위에 그려진다
+marker.ResetOnSpawn = false
+marker.Parent = player:WaitForChild("PlayerGui")
 local arrow = Instance.new("TextLabel")
 arrow.Size = UDim2.fromScale(1, 1)
 arrow.BackgroundTransparency = 1
@@ -184,6 +197,9 @@ remote.OnClientEvent:Connect(function(step: any, total: any)
 	end
 	header.Text = `튜토리얼 {step}/{total}`
 	body.Text = s.text
+	local hintText = if isTouchOnly() and s.mobileHint then s.mobileHint else s.hint
+	hint.Text = if hintText then `💡 {hintText}` else ""
+	hint.Visible = hintText ~= nil
 	okButton.Visible = s.manual == true
 	gui.Enabled = true
 	updateTarget()
