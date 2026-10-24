@@ -12,6 +12,8 @@
 	  6. 출석 보상           DailyLogin
 	  7. 서버 부스트         ServerBoost
 	  8. 리더보드            Leaderboard
+	  9. 튜토리얼            Tutorial
+	 10. 일일 퀘스트         DailyQuest
 
 	쓰는 법
 	  local Social = require(ReplicatedStorage.Shared.Config.Social)
@@ -189,6 +191,79 @@ local Leaderboard = table.freeze({
 	valueWidth = 0.32,       -- 오른쪽 점수 칸 폭 (줄 폭의 비율). 이름이 길면 이 앞에서 … 로 잘림
 })
 
+-- ───────── 9. 튜토리얼 (D-031) ─────────
+-- 처음 온 플레이어에게 한 바퀴를 안내한다: 포탈 → 캐기 → 팔기 → 붕괴 팁.
+-- 단계는 게임 이벤트가 오면 자동으로 넘어간다 (done = 그 이벤트 이름). manual 단계는 "알겠어요" 버튼으로 끝.
+-- target = 화살표를 띄울 곳 (클라이언트가 찾음): "portal" 기본 광산 포탈, "sell" 광산 안이면 출구·허브면 판매소
+-- hint / mobileHint = 조작 방법 (작은 글씨). 키보드가 없는 기기(폰·태블릿)는 mobileHint 를 보여준다
+
+export type TutorialStep = { text: string, hint: string?, mobileHint: string?, done: string?, manual: boolean?, target: string? }
+
+local Tutorial = table.freeze({
+	steps = table.freeze({
+		{ text = "포탈로 들어가서 광산에 가 보세요", done = "StageEntered", target = "portal",
+			hint = "화살표가 가리키는 포탈을 밟으면 이동해요" },
+		{ text = "광석을 캐 보세요. 캔 광물은 가방에 담겨요", done = "OreMined",
+			hint = "숫자 1 키로 곡괭이를 들고, 광석을 클릭하세요", mobileHint = "아래 곡괭이 칸을 눌러 들고, 광석을 터치하세요" },
+		{ text = "출구로 나가서 허브 판매소에서 가방을 팔아 보세요", done = "OreSold", target = "sell",
+			hint = "판매소 앞에서 E 키를 꾹 누르세요", mobileHint = "판매소 앞에 뜨는 버튼을 꾹 누르세요" },
+		{ text = "⚠️ 붕괴 경보가 울리면 시간 안에 출구로 탈출하세요! 갇히면 가방 무게의 절반을 잃어요. 대신 늦게 나올수록 보너스가 커요", manual = true },
+	} :: { TutorialStep }),
+	-- 이미 판매로 돈을 번 적이 있는 플레이어는 튜토리얼 없이 시작 (튜토리얼이 생기기 전부터 하던 사람)
+	skipIfEarned = true,
+
+	-- UI
+	-- 위치: 화면 오른쪽 가운데 (가운데 위쪽은 채굴 시야를 가려서). 오른쪽 위 카나리아(세로 28%)와 안 겹치게 가운데
+	anchor = Vector2.new(1, 0.5),
+	position = UDim2.new(1, -12, 0.5, 0),
+	width = 300,
+	textSize = 16,
+	padding = 12,
+	cornerRadius = 12,
+	panelColor = Color3.fromRGB(30, 26, 22),
+	accentColor = Color3.fromRGB(255, 200, 60),  -- 단계 번호·화살표·테두리
+	markerHeight = 6,         -- 목표 위에 띄우는 화살표 높이(스터드)
+	displayOrder = 45,
+})
+
+-- ───────── 10. 일일 퀘스트 (D-032) ─────────
+-- 하루에 아래 목록(pool)에서 count 개를 랜덤으로 뽑는다 (플레이어·날마다 다름). 다 채우면 퀘스트 창에서 "받기".
+-- 하루가 바뀌는 시각은 출석과 같다 (DailyLogin.dayOffsetHours). 코인 지급은 B가 QuestCompleted 를 받아서 한다.
+--
+-- event : 진행이 오르는 게임 이벤트
+--   OreMined     광물 하나 캘 때마다 +1 (grades 가 있으면 그 등급만, pressures 가 있으면 그 압력만)
+--   OreSold      판매액만큼 + (코인)
+--   PlayerEscaped 붕괴에서 탈출할 때마다 +1
+--   StageEntered 광산에 들어갈 때마다 +1
+-- text 의 {n} 은 target 숫자로 바뀐다. 숫자·보상 전부 임시값
+
+export type QuestDef = {
+	id: string, text: string, event: string, target: number, reward: number,
+	grades: { string }?, pressures: { string }?,
+}
+
+local DailyQuest = table.freeze({
+	count = 3,
+	pool = table.freeze({
+		{ id = "MineOres", text = "광물 {n}개 캐기", event = "OreMined", target = 15, reward = 30 },
+		{ id = "MineRare", text = "희귀 이상 광물 {n}개 캐기", event = "OreMined", target = 1, reward = 60,
+			grades = { "희귀", "에픽", "전설", "신화" } },
+		{ id = "HighPressure", text = "고압 이상 광물 {n}개 캐기", event = "OreMined", target = 3, reward = 50,
+			pressures = { "High", "Extreme" } },
+		{ id = "EarnCoins", text = "판매로 {n}코인 벌기", event = "OreSold", target = 100, reward = 40 },
+		{ id = "Escape", text = "붕괴에서 {n}번 탈출하기", event = "PlayerEscaped", target = 1, reward = 80 },
+		{ id = "EnterMines", text = "광산에 {n}번 들어가기", event = "StageEntered", target = 3, reward = 20 },
+	} :: { QuestDef }),
+
+	-- UI (왼쪽 버튼 모양은 출석 버튼과 같게)
+	buttonOffset = 136,      -- 화면 세로 가운데에서 아래로 (📅 0, 🚀 68 다음)
+	rowHeight = 64,
+	width = 420,
+	refreshInterval = 2,     -- 창이 열려 있는 동안 진행도 다시 읽는 간격(초)
+	barColor = Color3.fromRGB(255, 200, 60),
+	doneColor = Color3.fromRGB(70, 140, 80),
+})
+
 return table.freeze({
 	AnnounceKind = AnnounceKind,
 	MultiplierKind = MultiplierKind,
@@ -201,4 +276,6 @@ return table.freeze({
 	DailyLogin = DailyLogin,
 	ServerBoost = ServerBoost,
 	Leaderboard = Leaderboard,
+	Tutorial = Tutorial,
+	DailyQuest = DailyQuest,
 })

@@ -20,6 +20,8 @@ remotes.Name = "Remotes"; remotes.Parent = RS
 local LIST = {
 	Announce = "RemoteEvent",
 	DailyLogin = "RemoteFunction",
+	Tutorial = "RemoteEvent", -- 서버 ↔ 클라이언트. 튜토리얼 단계 (src/server/Social/Tutorial.luau)
+	DailyQuest = "RemoteFunction", -- 클라 → 서버. 일일 퀘스트 조회·받기 (src/server/Social/DailyQuest.luau)
 }
 
 for name, className in LIST do
