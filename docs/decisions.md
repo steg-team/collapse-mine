@@ -289,3 +289,15 @@ AI 에이전트는 구현 전에 이 문서와 `game-design.md`를 읽고, 둘�
 - 결정: 갇힘(또는 경보 중 광산 안 퇴장) 차감을 "광물 개수의 절반"에서 **"가방 무게의 절반"**으로 바꾼다. 무작위 순서로 광물을 보며 절반을 넘지 않는 것만 뺀다. 그래서 잃는 무게는 절반을 넘지 않고(광물이 몇 개뿐이면 덜 잃음), 1개뿐이면 잃지 않는다. 비율은 `TRAPPED_BAG_LOSS` 0.5 그대로 (임시값).
 - 이유: D-027로 가방이 무게가 됐으니 손해도 같은 단위로 보여야 HUD 게이지와 맞는다. 개수로 빼면 가벼운 것만 빠져 무게가 거의 안 줄 수도 있다.
 - 영향: `PlayerData.loseBag`, `Config/Economy.luau` 주석. D-014의 차감 규칙을 대체.
+
+## D-030 리더보드 집계
+
+- 2026-10-24 / 채택 / C 담당
+- 결정:
+  - 허브마다 있는 랭킹판 3개(D-009)를 **모든 서버 통합 순위**로 채운다 (`OrderedDataStore`). 상위 5명, 1분마다 갱신.
+  - 점수 원본은 B (D-020): **최고 광물** = `data.stats.bestOre`(판매 배수 전 한 덩이 값), **누적 수입** = `data.stats.totalEarned`(판매액). `OreBagged`·`OreSold`가 올 때 다시 읽는다.
+  - **최고 탈출 수확은 이번 주 것만** (D-009 원안). `HaulSecured`를 받아 C 칸 `data.social.weeklyHaul = { week, best }`에 이번 주 최고를 적는다. 주는 **한국 월요일 0시**에 바뀌고, 주마다 DataStore 이름(`LB_BestHaul_v1_W<주 번호>`)이 달라서 저절로 0부터 시작한다.
+  - 점수는 바뀔 때 기억해 뒀다가 1분마다 한꺼번에 올린다 (DataStore 쓰기 제한). 서버가 닫힐 때도 올린다.
+  - DataStore를 못 쓰면(Studio 기본) 지금 서버 사람들끼리 순위를 보여준다.
+- 이유: 랭킹을 "많이 캔 사람"이 아니라 "더 캘까, 탈출할까"를 잘한 사람 기준으로 (D-009). 주간 초기화로 신규 유저도 1등을 노릴 수 있다.
+- 영향: `src/server/Social/Leaderboard.luau`, `Config/Social.luau` Leaderboard. 판 모양(`Hub/Leaderboard/Board_*` → SurfaceGui `Rows/Row1~5`)은 `tools/build_hub_buildings.luau` 그대로.

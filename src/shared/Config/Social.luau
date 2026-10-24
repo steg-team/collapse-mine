@@ -11,6 +11,7 @@
 	  5. 붕괴 카운트다운 HUD  CollapseHud
 	  6. 출석 보상           DailyLogin
 	  7. 서버 부스트         ServerBoost
+	  8. 리더보드            Leaderboard
 
 	쓰는 법
 	  local Social = require(ReplicatedStorage.Shared.Config.Social)
@@ -58,7 +59,7 @@ export type Pass = {
 
 local Passes: { [PassName]: Pass } = table.freeze({
 	FastMining = { id = 0, displayName = "채굴 속도 2배", price = 150, multiplier = { MineSpeed = 2 } },
-	BigBag = { id = 0, displayName = "가방 확장", price = 50 },   -- 25~50 로벅스 첫 결제 상품 (기획서 원칙). 몇 칸 늘릴지는 B
+	BigBag = { id = 0, displayName = "가방 확장 (+20kg)", price = 50 }, -- 25~50 로벅스 첫 결제 상품 (기획서 원칙). 늘어나는 무게는 B (D-027, 판매소 가방 늘리기와 따로 더해짐)
 	AutoMine = { id = 0, displayName = "자동 채굴", price = 400 },
 })
 
@@ -173,6 +174,21 @@ local ServerBoost = table.freeze({
 	timerColor = Color3.fromRGB(120, 200, 255),
 })
 
+-- ───────── 8. 리더보드 (D-030) ─────────
+-- 허브마다 있는 랭킹판 3개 (Hub/Leaderboard 의 Board_BestHaul · Board_BestOre · Board_TotalEarned)
+-- 모든 서버 통합 순위 (OrderedDataStore). 저장이 안 되는 환경(Studio 기본)에서는 지금 서버 사람들끼리 순위.
+
+local Leaderboard = table.freeze({
+	rows = 5,                -- 랭킹판 줄 수 (판에 Row1~Row5 가 있음)
+	refreshInterval = 60,    -- 순위를 다시 읽어 판에 그리는 간격(초). DataStore 읽기 제한 때문에 너무 짧게 하지 않는다
+	flushInterval = 60,      -- 바뀐 점수를 DataStore 에 올리는 간격(초)
+	weekOffsetHours = 9,     -- 주간 순위가 바뀌는 시각: 월요일 0시 + 이 시간대 (9 = 한국 월요일 0시)
+	storeVersion = 1,        -- 순위를 통째로 새로 시작하고 싶으면 올린다 (DataStore 이름이 바뀜)
+	emptyText = "—",
+	rowTextSize = 30,        -- 판 한 줄 글씨 크기(px). 판은 40px/스터드, 한 줄 높이 약 54px
+	valueWidth = 0.32,       -- 오른쪽 점수 칸 폭 (줄 폭의 비율). 이름이 길면 이 앞에서 … 로 잘림
+})
+
 return table.freeze({
 	AnnounceKind = AnnounceKind,
 	MultiplierKind = MultiplierKind,
@@ -184,4 +200,5 @@ return table.freeze({
 	CollapseHud = CollapseHud,
 	DailyLogin = DailyLogin,
 	ServerBoost = ServerBoost,
+	Leaderboard = Leaderboard,
 })
