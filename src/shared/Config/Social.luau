@@ -13,6 +13,7 @@
 	  7. 서버 부스트         ServerBoost
 	  8. 리더보드            Leaderboard
 	  9. 튜토리얼            Tutorial
+	 10. 일일 퀘스트         DailyQuest
 
 	쓰는 법
 	  local Social = require(ReplicatedStorage.Shared.Config.Social)
@@ -225,6 +226,44 @@ local Tutorial = table.freeze({
 	displayOrder = 45,
 })
 
+-- ───────── 10. 일일 퀘스트 (D-032) ─────────
+-- 하루에 아래 목록(pool)에서 count 개를 랜덤으로 뽑는다 (플레이어·날마다 다름). 다 채우면 퀘스트 창에서 "받기".
+-- 하루가 바뀌는 시각은 출석과 같다 (DailyLogin.dayOffsetHours). 코인 지급은 B가 QuestCompleted 를 받아서 한다.
+--
+-- event : 진행이 오르는 게임 이벤트
+--   OreMined     광물 하나 캘 때마다 +1 (grades 가 있으면 그 등급만, pressures 가 있으면 그 압력만)
+--   OreSold      판매액만큼 + (코인)
+--   PlayerEscaped 붕괴에서 탈출할 때마다 +1
+--   StageEntered 광산에 들어갈 때마다 +1
+-- text 의 {n} 은 target 숫자로 바뀐다. 숫자·보상 전부 임시값
+
+export type QuestDef = {
+	id: string, text: string, event: string, target: number, reward: number,
+	grades: { string }?, pressures: { string }?,
+}
+
+local DailyQuest = table.freeze({
+	count = 3,
+	pool = table.freeze({
+		{ id = "MineOres", text = "광물 {n}개 캐기", event = "OreMined", target = 15, reward = 30 },
+		{ id = "MineRare", text = "희귀 이상 광물 {n}개 캐기", event = "OreMined", target = 1, reward = 60,
+			grades = { "희귀", "에픽", "전설", "신화" } },
+		{ id = "HighPressure", text = "고압 이상 광물 {n}개 캐기", event = "OreMined", target = 3, reward = 50,
+			pressures = { "High", "Extreme" } },
+		{ id = "EarnCoins", text = "판매로 {n}코인 벌기", event = "OreSold", target = 100, reward = 40 },
+		{ id = "Escape", text = "붕괴에서 {n}번 탈출하기", event = "PlayerEscaped", target = 1, reward = 80 },
+		{ id = "EnterMines", text = "광산에 {n}번 들어가기", event = "StageEntered", target = 3, reward = 20 },
+	} :: { QuestDef }),
+
+	-- UI (왼쪽 버튼 모양은 출석 버튼과 같게)
+	buttonOffset = 136,      -- 화면 세로 가운데에서 아래로 (📅 0, 🚀 68 다음)
+	rowHeight = 64,
+	width = 420,
+	refreshInterval = 2,     -- 창이 열려 있는 동안 진행도 다시 읽는 간격(초)
+	barColor = Color3.fromRGB(255, 200, 60),
+	doneColor = Color3.fromRGB(70, 140, 80),
+})
+
 return table.freeze({
 	AnnounceKind = AnnounceKind,
 	MultiplierKind = MultiplierKind,
@@ -238,4 +277,5 @@ return table.freeze({
 	ServerBoost = ServerBoost,
 	Leaderboard = Leaderboard,
 	Tutorial = Tutorial,
+	DailyQuest = DailyQuest,
 })

@@ -313,3 +313,15 @@ AI 에이전트는 구현 전에 이 문서와 `game-design.md`를 읽고, 둘�
   - 튜토리얼 중에는 출석판을 자동으로 열지 않는다 (📅 버튼의 빨간 점만). 튜토리얼이 끝나는 순간 받을 보상이 있으면 그때 연다. 플레이어 속성 `TutorialActive`.
 - 이유: 기획서 1단계 첫 출시 범위. 캐기 → 팔기 → 탈출이 이 게임의 한 바퀴라 이 순서만 알면 혼자 할 수 있다.
 - 영향: `src/server/Social/Tutorial.luau`, `src/client/Social/TutorialGuide.client.luau`, `Config/Social.luau` Tutorial(문구·단계는 여기서 고침), `Remotes.Tutorial`(없으면 서버가 만듦).
+
+## D-032 일일 퀘스트
+
+- 2026-10-25 / 채택 / C 담당
+- 결정:
+  - 하루에 **3개를 랜덤으로** 준다. 후보: 광물 캐기 · 희귀 이상 캐기 · 고압 이상 캐기 · 판매로 코인 벌기 · 붕괴에서 탈출 · 광산 들어가기 (`Config/Social.luau` DailyQuest.pool, 숫자·보상 임시값).
+  - 같은 사람·같은 날이면 서버를 옮겨도 같은 3개 (UserId와 날 번호로 뽑음). 하루는 출석과 같은 시각에 바뀐다.
+  - 진행은 게임 이벤트로 오른다: `OreMined`(등급·압력 조건은 광물표·이벤트 인자로 판정), `OreSold`(판매액), `PlayerEscaped`, `StageEntered`.
+  - 다 채우면 화면 왼쪽 📜 버튼(빨간 점) → 퀘스트 창에서 **"받기"**. 코인은 **B가 `QuestCompleted(player, questId, { coins })`를 받아** 준다.
+  - 저장은 C 칸 `data.social.quests = { day, list = { { id, progress, claimed } } }`.
+- 이유: 기획서 3단계 "출석·일일 퀘스트". 고압·탈출 퀘스트로 "붕괴 직전까지 버티기"를 하루 한 번은 해 보게 만든다.
+- 영향: `src/server/Social/DailyQuest.luau`, `src/client/Social/DailyQuestPanel.client.luau`, `Config/Social.luau` DailyQuest, `Remotes.DailyQuest`(없으면 서버가 만듦).
