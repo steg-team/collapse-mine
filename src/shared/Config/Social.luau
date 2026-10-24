@@ -14,6 +14,7 @@
 	  8. 리더보드            Leaderboard
 	  9. 튜토리얼            Tutorial
 	 10. 일일 퀘스트         DailyQuest
+	 11. 친구 초대           FriendInvite
 
 	쓰는 법
 	  local Social = require(ReplicatedStorage.Shared.Config.Social)
@@ -264,6 +265,14 @@ local DailyQuest = table.freeze({
 	doneColor = Color3.fromRGB(70, 140, 80),
 })
 
+-- ───────── 11. 친구 초대 (D-033) ─────────
+-- 왼쪽 👥 버튼 → 로블록스 기본 친구 초대 창. 초대 자체에는 보상을 주지 않는다 (로블록스 규정상 초대 보상 금지)
+
+local FriendInvite = table.freeze({
+	buttonOffset = 204,      -- 화면 세로 가운데에서 아래로 (📅 0, 🚀 68, 📜 136 다음)
+	promptMessage = "붕괴 광산에서 같이 캐요! 무너지기 전에 누가 더 많이 들고 나오나 겨뤄 봐요",
+})
+
 return table.freeze({
 	AnnounceKind = AnnounceKind,
 	MultiplierKind = MultiplierKind,
@@ -278,4 +287,5 @@ return table.freeze({
 	Leaderboard = Leaderboard,
 	Tutorial = Tutorial,
 	DailyQuest = DailyQuest,
+	FriendInvite = FriendInvite,
 })
