@@ -180,6 +180,22 @@ claimButton.Activated:Connect(function()
 	claiming = false
 end)
 
+-- 튜토리얼 중이면 출석판을 자동으로 열지 않는다 (안내판과 겹치고, 처음 온 사람에게 창이 두 개면 헷갈림)
+-- 서버 Tutorial.luau 가 플레이어 속성 TutorialActive 를 올린다. 튜토리얼이 끝나면 그때 연다
+local function tutorialActive(): boolean
+	return player:GetAttribute("TutorialActive") == true
+end
+
+local function autoOpen()
+	if CONFIG.openOnJoin and state and state.canClaim and not tutorialActive() then
+		panel.Visible = true
+	end
+end
+
+player:GetAttributeChangedSignal("TutorialActive"):Connect(function()
+	if not tutorialActive() then autoOpen() end
+end)
+
 -- 접속 직후: 저장 데이터가 로드될 때까지 몇 번 물어본다 (로드 전엔 서버가 nil)
 task.spawn(function()
 	for _ = 1, 20 do
@@ -187,7 +203,12 @@ task.spawn(function()
 		if s then
 			state = s
 			render()
-			if s.canClaim and CONFIG.openOnJoin then panel.Visible = true end
+			-- 튜토리얼 여부가 서버에서 넘어올 때까지 잠깐 기다린다 (데이터 로드와 거의 같이 옴)
+			for _ = 1, 30 do
+				if player:GetAttribute("TutorialActive") ~= nil then break end
+				task.wait(0.1)
+			end
+			autoOpen()
 			return
 		end
 		task.wait(1)
