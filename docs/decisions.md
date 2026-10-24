@@ -301,3 +301,15 @@ AI 에이전트는 구현 전에 이 문서와 `game-design.md`를 읽고, 둘�
   - DataStore를 못 쓰면(Studio 기본) 지금 서버 사람들끼리 순위를 보여준다.
 - 이유: 랭킹을 "많이 캔 사람"이 아니라 "더 캘까, 탈출할까"를 잘한 사람 기준으로 (D-009). 주간 초기화로 신규 유저도 1등을 노릴 수 있다.
 - 영향: `src/server/Social/Leaderboard.luau`, `Config/Social.luau` Leaderboard. 판 모양(`Hub/Leaderboard/Board_*` → SurfaceGui `Rows/Row1~5`)은 `tools/build_hub_buildings.luau` 그대로.
+
+## D-031 튜토리얼
+
+- 2026-10-25 / 채택 / C 담당
+- 결정:
+  - 처음 온 플레이어에게 4단계로 한 바퀴를 안내한다: ① 포탈로 광산 들어가기 ② 광석 캐기 ③ 출구로 나가 판매소에서 팔기 ④ 붕괴 팁(갇히면 가방 무게 절반, 늦게 나올수록 보너스) — "알겠어요"로 끝.
+  - ①~③은 실제로 하면 자동으로 넘어간다 (`StageEntered`·`OreMined`·`OreSold` 이벤트). 붕괴는 언제 올지 몰라 직접 겪게 하지 않고 팁으로만 알린다.
+  - 화면 위쪽(공지·카운트다운 아래)에 안내판, 목표 지점(포탈 / 광산 안이면 출구, 허브면 판매소)에 화살표와 테두리 강조. "건너뛰기"로 언제든 끝낼 수 있다.
+  - 진행은 C 칸 `data.social.tutorial`(지금 단계 번호)에 저장해서 중간에 나가도 이어서 한다. 이미 판매로 돈을 번 적이 있는 플레이어는 튜토리얼 없이 시작한다.
+  - 튜토리얼 중에는 출석판을 자동으로 열지 않는다 (📅 버튼의 빨간 점만). 튜토리얼이 끝나는 순간 받을 보상이 있으면 그때 연다. 플레이어 속성 `TutorialActive`.
+- 이유: 기획서 1단계 첫 출시 범위. 캐기 → 팔기 → 탈출이 이 게임의 한 바퀴라 이 순서만 알면 혼자 할 수 있다.
+- 영향: `src/server/Social/Tutorial.luau`, `src/client/Social/TutorialGuide.client.luau`, `Config/Social.luau` Tutorial(문구·단계는 여기서 고침), `Remotes.Tutorial`(없으면 서버가 만듦).
