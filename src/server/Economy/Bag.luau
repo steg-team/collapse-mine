@@ -29,6 +29,7 @@ local Mines = require(Shared:WaitForChild("Config"):WaitForChild("Mines"))
 local Economy = require(Shared.Config:WaitForChild("Economy"))
 local Social = require(Shared.Config:WaitForChild("Social"))
 local PlayerData = require(script.Parent.PlayerData)
+local Counter = require(script.Parent.Counter)
 -- C의 조회 함수 (패스 보유, 판매가 배수)
 local Payments = require(script.Parent.Parent:WaitForChild("Social"):WaitForChild("Payments"))
 
@@ -143,7 +144,7 @@ local function onOreMined(player: Player, oreId: string, weight: number, pressur
 	end
 	if bagKg(data) + weight > Bag.capacity(player) * Economy.BAG_HARD_LIMIT then
 		-- 너무 무거움: 안 담긴다. 조용히 사라지면 답답하니 알려 준다
-		Bag.notify(player, "가방이 너무 무거워요! 팔거나 버리세요")
+		Counter.notify(player, "가방이 너무 무거워요! 팔거나 버리세요")
 		return
 	end
 	local value = Bag.priceOf(oreId, weight, pressure)
@@ -157,7 +158,7 @@ local function onOreMined(player: Player, oreId: string, weight: number, pressur
 	if not data.codex[key] then
 		data.codex[oreId] = true
 		data.codex[key] = true
-		Bag.notify(player, `📖 도감 새 기록: {displayName[oreId] or oreId} ({Economy.PRESSURE_NAME[pressure] or pressure})`)
+		Counter.notify(player, `📖 도감 새 기록: {displayName[oreId] or oreId} ({Economy.PRESSURE_NAME[pressure] or pressure})`)
 	end
 	data.stats.bestOre = math.max(data.stats.bestOre, value)
 	Bag.sync(player)
@@ -299,81 +300,13 @@ function Bag.dropOne(player: Player, oreId: string, pressure: string): boolean
 	return true
 end
 
--- 화면 아래 HUD에 한 줄 알림 (판매 결과, 제작 실패 이유 등). 같은 문구가 연달아 와도 다시 뜨게 시각도 같이 올린다
-function Bag.notify(player: Player, text: string)
-	player:SetAttribute("EconomyNotice", text)
-	player:SetAttribute("EconomyNoticeAt", os.clock())
-end
-
--- 허브마다 있는 건물(Shop, Workshop)의 Counter (스테이지별 허브, #17). 이름이 CollapseMine 으로 시작하는 폴더의 Hub/<building>/Counter
-local function counters(building: string): { BasePart }
-	local list = {}
-	for _, hub in workspace:GetChildren() do
-		local root = hub.Name:sub(1, 12) == "CollapseMine" and hub:FindFirstChild("Hub")
-		local house = root and root:FindFirstChild(building)
-		local counter = house and house:FindFirstChild("Counter")
-		if counter and counter:IsA("BasePart") then
-			table.insert(list, counter)
-		end
-	end
-	return list
-end
-
--- 플레이어가 그 건물 Counter 근처인지. 프롬프트·창 버튼은 클라이언트가 띄우므로 서버에서 한 번 더 잰다
-function Bag.isNear(player: Player, building: string): boolean
-	local char = player.Character
-	local hrp = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
-	if not hrp then
-		return false
-	end
-	for _, counter in counters(building) do
-		if (hrp.Position - counter.Position).Magnitude <= Economy.SELL_REACH then
-			return true
-		end
-	end
-	return false
-end
-
-local PROMPT_GAP = 78 -- 기본 프롬프트 높이(72px) + 여백
-
--- Counter에 프롬프트를 붙인다. 클라이언트는 name으로 찾아 문구를 바꾼다
-function Bag.counterPrompt(building: string, name: string, actionText: string, onTriggered: (Player) -> (), key: Enum.KeyCode?, hold: number?)
-	for _, counter in counters(building) do
-		if not counter:FindFirstChild(name) then
-			local prompt = Instance.new("ProximityPrompt")
-			prompt.Name = name
-			prompt.ActionText = actionText
-			prompt.HoldDuration = hold or 0.3
-			prompt.MaxActivationDistance = 10
-			prompt.RequiresLineOfSight = false
-			prompt.KeyboardKeyCode = key or Enum.KeyCode.E -- 한 Counter에 프롬프트가 둘이면 키를 다르게
-			prompt.Parent = counter
-			-- 같은 Counter의 프롬프트는 같은 자리에 그려져 글자가 겹친다. 위아래로 쌓고 가운데를 Counter에 맞춘다
-			local stack = {}
-			for _, c in counter:GetChildren() do
-				if c:IsA("ProximityPrompt") then
-					table.insert(stack, c)
-				end
-			end
-			for i, p in stack do
-				p.UIOffset = Vector2.new(0, (i - 1 - (#stack - 1) / 2) * PROMPT_GAP)
-			end
-			prompt.Triggered:Connect(function(player: Player)
-				if Bag.isNear(player, building) then
-					onTriggered(player)
-				end
-			end)
-		end
-	end
-end
-
 -- 인벤토리 창 (클라이언트 → 서버). Remotes.Bag (RemoteFunction)
 --   "get"                     → 가방 목록 { {ore, weight, pressure, value} }
 --   "codex"                   → 도감 { ["Coal"] = true, ["Coal|High"] = true, ... }
 --   "sell", oreId, pressure   → 그 묶음 판매 (판매소 근처만), 판 금액
 --   "sellAll"                 → 재료(다음 곡괭이·카나리아 먹이)를 남기고 전부 판매 (판매소 근처만), 판 금액
 --   "drop", oreId, pressure   → 그 묶음에서 한 개 버리기 (어디서나)
--- 결과 문구는 Bag.notify 로 HUD 알림 줄에 띄운다
+-- 결과 문구는 Counter.notify 로 HUD 알림 줄에 띄운다
 -- Remote가 없으면 서버가 만든다 (Studio 수작업 없이 Rojo만으로 동작하게)
 local REMOTE_COOLDOWN = 0.15
 local lastCall: { [Player]: number } = {}
@@ -401,12 +334,12 @@ local function onBagRemote(player: Player, action: any, oreId: any, pressure: an
 	local group = typeof(oreId) == "string" and typeof(pressure) == "string"
 	if action == "drop" then
 		if group and Bag.dropOne(player, oreId, pressure) then
-			Bag.notify(player, "한 개 버렸어요")
+			Counter.notify(player, "한 개 버렸어요")
 		end
 		return nil
 	end
-	if not Bag.isNear(player, "Shop") then
-		Bag.notify(player, "판매소에서만 팔 수 있어요")
+	if not Counter.isNear(player, "Shop") then
+		Counter.notify(player, "판매소에서만 팔 수 있어요")
 		return nil
 	end
 	local earned = 0
@@ -418,10 +351,10 @@ local function onBagRemote(player: Player, action: any, oreId: any, pressure: an
 	elseif action == "sellAll" then
 		local kept
 		earned, kept = Bag.sellAll(player)
-		Bag.notify(player, sellAllNotice(player, earned, kept))
+		Counter.notify(player, sellAllNotice(player, earned, kept))
 		return earned
 	end
-	Bag.notify(player, if earned > 0 then `{earned} 코인에 팔았어요{multText(player)}` else "팔 광물이 없어요")
+	Counter.notify(player, if earned > 0 then `{earned} 코인에 팔았어요{multText(player)}` else "팔 광물이 없어요")
 	return earned
 end
 
@@ -491,12 +424,12 @@ function Bag.start()
 		end
 	end)
 
-	Bag.counterPrompt("Shop", "SellPrompt", "재료 빼고 전부 팔기", function(player)
-		Bag.notify(player, sellAllNotice(player, Bag.sellAll(player)))
+	Counter.prompt("Shop", "SellPrompt", "재료 빼고 전부 팔기", function(player)
+		Counter.notify(player, sellAllNotice(player, Bag.sellAll(player)))
 	end)
-	Bag.counterPrompt("Shop", "BagUpgradePrompt", "가방 늘리기", function(player)
+	Counter.prompt("Shop", "BagUpgradePrompt", "가방 늘리기", function(player)
 		local _, msg = Bag.upgrade(player)
-		Bag.notify(player, msg)
+		Counter.notify(player, msg)
 	end, Enum.KeyCode.F)
 
 end
