@@ -57,7 +57,7 @@ local TEMPLATE: Data = {
 	rebirths = 0,
 	bagLevel = 0, -- 판매소 가방 늘리기 단계 (D-028)
 	bag = {},
-	codex = {},
+	codex = {}, -- 도감 (D-035): 캔 적 있는 광물 "Coal", 압력별 "Coal|High"
 	stats = { totalEarned = 0, bestOre = 0, bestHaul = 0 },
 	social = {},
 }

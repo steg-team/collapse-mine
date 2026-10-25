@@ -9,6 +9,7 @@ local UIS = game:GetService("UserInputService")
 
 local Config = RS:WaitForChild("Shared"):WaitForChild("Config")
 local Mines = require(Config:WaitForChild("Mines"))
+local Economy = require(Config:WaitForChild("Economy"))
 
 local player = Players.LocalPlayer
 local remote = RS:WaitForChild("Remotes"):WaitForChild("Bag") :: RemoteFunction
@@ -16,15 +17,7 @@ local remote = RS:WaitForChild("Remotes"):WaitForChild("Bag") :: RemoteFunction
 -- 판매소 Counter에서 이 거리 안이면 판매 버튼을 켠다 (서버는 Economy.SELL_REACH로 다시 잰다)
 local NEAR_SHOP = 12
 local PRESSURE_TEXT = { Low = "상압", High = "고압", Extreme = "초고압" }
--- 기획서 "광물 등급" 색
-local GRADE_COLOR = {
-	["일반"] = Color3.fromRGB(170, 170, 170),
-	["고급"] = Color3.fromRGB(90, 200, 90),
-	["희귀"] = Color3.fromRGB(80, 150, 255),
-	["에픽"] = Color3.fromRGB(180, 100, 255),
-	["전설"] = Color3.fromRGB(255, 160, 40),
-	["신화"] = Color3.fromRGB(255, 70, 70),
-}
+local GRADE_COLOR = Economy.GRADE_COLOR
 
 local oreInfo: { [string]: { displayName: string, grade: string } } = {}
 for _, m in Mines.list do
@@ -83,8 +76,10 @@ local function button(parent: Instance, label: string, props: { [string]: any })
 	return b
 end
 
-local title = text(frame, { Position = UDim2.new(0, 16, 0, 10), Size = UDim2.new(1, -70, 0, 30), TextSize = 20, TextXAlignment = Enum.TextXAlignment.Left })
+local title = text(frame, { Position = UDim2.new(0, 16, 0, 10), Size = UDim2.new(1, -150, 0, 30), TextSize = 20, TextXAlignment = Enum.TextXAlignment.Left })
 local close = button(frame, "X", { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -10, 0, 10), Size = UDim2.fromOffset(30, 30), BackgroundColor3 = Color3.fromRGB(70, 66, 60), TextColor3 = Color3.new(1, 1, 1) })
+-- 도감 창 열기 (CodexPanel.client.luau 가 이 버튼 "Codex"를 찾아 연결)
+button(frame, "📖 도감", { Name = "Codex", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -48, 0, 10), Size = UDim2.fromOffset(80, 30), BackgroundColor3 = Color3.fromRGB(70, 66, 60), TextColor3 = Color3.new(1, 1, 1) })
 
 local list = Instance.new("ScrollingFrame")
 list.Name = "List"

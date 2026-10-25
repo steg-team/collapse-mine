@@ -31,13 +31,16 @@ local PlayerData = require(script.Parent.PlayerData)
 -- C의 조회 함수 (패스 보유, 판매가 배수)
 local Payments = require(script.Parent.Parent:WaitForChild("Social"):WaitForChild("Payments"))
 
--- 광물 이름 → 기본가. 광물표 원본은 Mines.luau (A)
+-- 광물 이름 → 기본가·화면 이름. 광물표 원본은 Mines.luau (A)
 local baseValue: { [string]: number } = {}
+local displayName: { [string]: string } = {}
 for _, m in Mines.list do
 	for _, o in m.ores do
 		baseValue[o.name] = o.value
+		displayName[o.name] = o.displayName
 	end
 end
+local PRESSURE_TEXT = { Low = "상압", High = "고압", Extreme = "초고압" }
 
 local Bag = {}
 
@@ -136,7 +139,13 @@ local function onOreMined(player: Player, oreId: string, weight: number, pressur
 		return
 	end
 	table.insert(data.bag, { ore = oreId, weight = weight, pressure = pressure, value = value })
-	data.codex[oreId] = true
+	-- 도감 (D-035): 광물 키 "Coal"과 압력별 키 "Coal|High"를 같이 적는다. 처음 보는 조합이면 알린다
+	local key = `{oreId}|{pressure}`
+	if not data.codex[key] then
+		data.codex[oreId] = true
+		data.codex[key] = true
+		Bag.notify(player, `📖 도감 새 기록: {displayName[oreId] or oreId} ({PRESSURE_TEXT[pressure] or pressure})`)
+	end
 	data.stats.bestOre = math.max(data.stats.bestOre, value)
 	Bag.sync(player)
 	EventBus.Fire(Events.OreBagged, player, oreId, value)
@@ -288,6 +297,7 @@ end
 
 -- 인벤토리 창 (클라이언트 → 서버). Remotes.Bag (RemoteFunction)
 --   "get"                     → 가방 목록 { {ore, weight, pressure, value} }
+--   "codex"                   → 도감 { ["Coal"] = true, ["Coal|High"] = true, ... }
 --   "sell", oreId, pressure   → 그 묶음 판매 (판매소 근처만), 판 금액
 --   "sellAll"                 → 전부 판매 (판매소 근처만), 판 금액
 --   "drop", oreId, pressure   → 그 묶음에서 한 개 버리기 (어디서나)
@@ -306,6 +316,8 @@ local function onBagRemote(player: Player, action: any, oreId: any, pressure: an
 	end
 	if action == "get" then
 		return data.bag
+	elseif action == "codex" then
+		return data.codex
 	end
 
 	-- 판매·버리기만 연타 제한 (목록 조회는 판매 직후 바로 다시 부르므로 막지 않는다)
