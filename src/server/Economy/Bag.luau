@@ -34,10 +34,12 @@ local Payments = require(script.Parent.Parent:WaitForChild("Social"):WaitForChil
 -- 광물 이름 → 기본가·화면 이름. 광물표 원본은 Mines.luau (A)
 local baseValue: { [string]: number } = {}
 local displayName: { [string]: string } = {}
+local gradeOf: { [string]: string } = {}
 for _, m in Mines.list do
 	for _, o in m.ores do
 		baseValue[o.name] = o.value
 		displayName[o.name] = o.displayName
+		gradeOf[o.name] = o.grade
 	end
 end
 local PRESSURE_TEXT = { Low = "상압", High = "고압", Extreme = "초고압" }
@@ -111,6 +113,14 @@ function Bag.sync(player: Player)
 	player:SetAttribute("BagCapacity", cap)
 	player:SetAttribute("BagValue", bagValue(data))
 	player:SetAttribute("BagSpeedMultiplier", Bag.speedMultiplier(kg, cap))
+	-- 도감 칸 수 (압력별 키 "Coal|High"만 센다). 늘면 클라이언트가 도감 버튼에 새 기록 점을 띄운다
+	local codexCount = 0
+	for key in data.codex do
+		if string.find(key, "|", 1, true) then
+			codexCount += 1
+		end
+	end
+	player:SetAttribute("CodexCount", codexCount)
 end
 
 -- 판매가 = 기본가 × 무게 × 압력 배수. 서버에서만 계산 (보안 규칙)
@@ -180,14 +190,65 @@ local function sell(player: Player, data: PlayerData.Data, items: { PlayerData.B
 end
 
 -- 가방 전부 판매. 판 금액을 돌려준다
-function Bag.sellAll(player: Player): number
+-- 전부 팔기에서 남길 광물: 다음 곡괭이 재료와 카나리아 먹이를 필요한 개수만큼 (D-037).
+-- 제작소(Workshop.pick)처럼 값이 싼 것부터 남긴다. 비싸게 캔 건 팔리고, 제작소는 남긴 걸 그대로 쓴다
+local function reserved(data: PlayerData.Data): { [PlayerData.BagItem]: boolean }
+	local keep: { [PlayerData.BagItem]: boolean } = {}
+	local function hold(match: (PlayerData.BagItem) -> boolean, need: number)
+		local found = {}
+		for _, item in data.bag do
+			if match(item) and not keep[item] then
+				table.insert(found, item)
+			end
+		end
+		table.sort(found, function(a, b)
+			return a.value < b.value
+		end)
+		for i = 1, math.min(need, #found) do
+			keep[found[i]] = true
+		end
+	end
+	local nextPickaxe = Economy.PICKAXES[data.pickaxe.tier + 1]
+	if nextPickaxe then
+		for oreId, need in nextPickaxe.ores do
+			hold(function(item)
+				return item.ore == oreId
+			end, need)
+		end
+	end
+	local nextCanary = Economy.CANARY[data.canary + 1]
+	if nextCanary then
+		hold(function(item)
+			return gradeOf[item.ore] == Economy.CANARY_FEED_GRADE
+		end, nextCanary.rare)
+	end
+	return keep
+end
+
+-- 재료를 남기고 전부 판다. 판 금액, 남긴 개수
+function Bag.sellAll(player: Player): (number, number)
 	local data = PlayerData.get(player)
 	if not data or #data.bag == 0 then
-		return 0
+		return 0, 0
 	end
-	local items = data.bag
-	data.bag = {}
-	return sell(player, data, items)
+	local keep = reserved(data)
+	local sold, kept = {}, {}
+	for _, item in data.bag do
+		table.insert(if keep[item] then kept else sold, item)
+	end
+	if #sold == 0 then
+		return 0, #kept
+	end
+	data.bag = kept
+	return sell(player, data, sold), #kept
+end
+
+-- 전부 팔기 결과 문구 (판매소 프롬프트·인벤토리 창 공통)
+local function sellAllNotice(earned: number, kept: number): string
+	if earned > 0 then
+		return if kept > 0 then `{earned} 코인에 팔았어요 · 재료 {kept}개는 남겼어요` else `{earned} 코인에 팔았어요`
+	end
+	return if kept > 0 then "재료만 남았어요. 인벤토리에서 따로 팔 수 있어요" else "가방이 비어 있어요"
 end
 
 -- 인벤토리 창은 같은 광물·같은 압력끼리 한 줄로 묶어 보여 준다. 그 묶음을 판다
@@ -299,7 +360,7 @@ end
 --   "get"                     → 가방 목록 { {ore, weight, pressure, value} }
 --   "codex"                   → 도감 { ["Coal"] = true, ["Coal|High"] = true, ... }
 --   "sell", oreId, pressure   → 그 묶음 판매 (판매소 근처만), 판 금액
---   "sellAll"                 → 전부 판매 (판매소 근처만), 판 금액
+--   "sellAll"                 → 재료(다음 곡괭이·카나리아 먹이)를 남기고 전부 판매 (판매소 근처만), 판 금액
 --   "drop", oreId, pressure   → 그 묶음에서 한 개 버리기 (어디서나)
 -- 결과 문구는 Bag.notify 로 HUD 알림 줄에 띄운다
 -- Remote가 없으면 서버가 만든다 (Studio 수작업 없이 Rojo만으로 동작하게)
@@ -344,7 +405,10 @@ local function onBagRemote(player: Player, action: any, oreId: any, pressure: an
 		end
 		earned = Bag.sellGroup(player, oreId, pressure)
 	elseif action == "sellAll" then
-		earned = Bag.sellAll(player)
+		local kept
+		earned, kept = Bag.sellAll(player)
+		Bag.notify(player, sellAllNotice(earned, kept))
+		return earned
 	end
 	Bag.notify(player, if earned > 0 then `{earned} 코인에 팔았어요` else "팔 광물이 없어요")
 	return earned
@@ -396,9 +460,8 @@ function Bag.start()
 		lastCall[player] = nil
 	end)
 
-	Bag.counterPrompt("Shop", "SellPrompt", "가방 전부 팔기", function(player)
-		local earned = Bag.sellAll(player)
-		Bag.notify(player, if earned > 0 then `{earned} 코인에 팔았어요` else "가방이 비어 있어요")
+	Bag.counterPrompt("Shop", "SellPrompt", "재료 빼고 전부 팔기", function(player)
+		Bag.notify(player, sellAllNotice(Bag.sellAll(player)))
 	end)
 	Bag.counterPrompt("Shop", "BagUpgradePrompt", "가방 늘리기", function(player)
 		local _, msg = Bag.upgrade(player)
