@@ -109,7 +109,8 @@ local function setup(m: Mines.Mine)
 		if not inst:IsA("BasePart") then continue end
 		local p = inst :: BasePart
 		local floor = p.Position - Vector3.new(0, p.Size.Y / 2, 0) -- 방 표시 파트 바닥 = 방 바닥 (generate_mine)
-		if p:GetAttribute("RoomType") ~= "Entrance" and m.top - floor.Y >= minDig then
+		-- 광맥은 방 바닥보다 2~6 위에 생기니 그만큼 더 깊은 방만
+		if p:GetAttribute("RoomType") ~= "Entrance" and m.top - floor.Y >= minDig + 6 then
 			local info: RoomInfo = {
 				floor = floor,
 				radius = p.Size.X / 2,
