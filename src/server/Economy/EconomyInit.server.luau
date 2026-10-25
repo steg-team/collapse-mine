@@ -2,3 +2,4 @@
 require(script.Parent.PlayerData).start()
 require(script.Parent.Bag).start()
 require(script.Parent.Workshop).start()
+require(script.Parent.Canary).start()
