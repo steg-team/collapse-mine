@@ -57,6 +57,17 @@ local Economy = {
 	CANARY_DETECT_GRADES = table.freeze({ ["희귀"] = true, ["에픽"] = true, ["전설"] = true, ["신화"] = true, ["???"] = true }),
 	CANARY_FEED_GRADE = "희귀",
 
+	-- 기획서 "광물 등급" 테두리 색 (인벤토리·도감 창)
+	GRADE_COLOR = table.freeze({
+		["일반"] = Color3.fromRGB(170, 170, 170),
+		["고급"] = Color3.fromRGB(90, 200, 90),
+		["희귀"] = Color3.fromRGB(80, 150, 255),
+		["에픽"] = Color3.fromRGB(180, 100, 255),
+		["전설"] = Color3.fromRGB(255, 160, 40),
+		["신화"] = Color3.fromRGB(255, 70, 70),
+		["???"] = Color3.fromRGB(235, 235, 235),
+	}),
+
 	-- 리버스 (D-024): 가장 좋은 곡괭이 + 코인을 내고 코인·곡괭이·가방을 처음으로. 대신 판매가가 영구로 오른다.
 	-- 필요 코인 = coins × (지금까지 리버스 횟수 + 1). 판매가 배수 = 1 + sellBonus × 리버스 횟수. 숫자는 모두 임시값
 	REBIRTH = table.freeze({
