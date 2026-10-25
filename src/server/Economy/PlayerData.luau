@@ -65,6 +65,9 @@ local TEMPLATE: Data = {
 local store = ProfileStore.New("PlayerData", TEMPLATE)
 local profiles: { [Player]: any } = {}
 local lastMineId: { [Player]: string? } = {}
+-- 이번 경보에서 이미 갇힘 차감을 한 광산 (D-039). 한 번의 붕괴에 차감은 한 번만:
+-- 경보 중 광산 안에서 죽음(리셋) → 바로 차감, 그 뒤 붕괴 때 오는 PlayerTrapped·퇴장은 건너뛴다. 다음 경보가 시작되면 지운다
+local trapSettled: { [Player]: string? } = {}
 local rng = Random.new()
 
 local PlayerData = {}
@@ -114,6 +117,18 @@ function PlayerData.loseBag(data: Data)
 	data.bag = kept
 end
 
+-- 갇힘 차감 (붕괴 때 갇힘 · 경보 중 광산 안에서 죽음 · 경보 중 광산 안에서 퇴장). 같은 경보에 두 번 하지 않는다.
+-- 차감했으면 true. 가방 HUD 갱신은 부른 쪽(Bag)이 한다
+function PlayerData.trapLoss(player: Player, mineId: string): boolean
+	local data = PlayerData.get(player)
+	if not data or trapSettled[player] == mineId then
+		return false
+	end
+	trapSettled[player] = mineId
+	PlayerData.loseBag(data)
+	return true
+end
+
 local function load(player: Player)
 	local profile = store:StartSessionAsync(`Player_{player.UserId}`, {
 		Cancel = function()
@@ -156,11 +171,22 @@ local function load(player: Player)
 		lastMineId[player] = (mine and mine.id) or Collapse.DiedInsideMine(player)
 	end)
 
-	local ls = player:WaitForChild("leaderstats", 10)
-	local coins = ls and ls:FindFirstChild("Coins") :: IntValue?
-	if coins then
-		coins.Value = data.coins -- 화면 표시용 사본. 코인은 PlayerData.addCoins로만 바꾼다
+	-- 플레이어 목록의 코인 칸 (화면 표시용 사본). 코인 주인이 B라서 B가 만든다. 코인은 PlayerData.addCoins로만 바꾼다
+	-- (예전엔 A의 MiningServer가 만들어서 B가 기다렸다. 둘 다 "없으면 만든다"라 누가 먼저여도 하나만 생긴다, #50)
+	local ls = player:FindFirstChild("leaderstats")
+	if not ls then
+		ls = Instance.new("Folder")
+		ls.Name = "leaderstats"
+		ls.Parent = player
 	end
+	local coins = ls:FindFirstChild("Coins") :: IntValue?
+	if not coins then
+		local c = Instance.new("IntValue")
+		c.Name = "Coins"
+		c.Parent = ls
+		coins = c
+	end
+	(coins :: IntValue).Value = data.coins
 
 	EventBus.Fire(Events.PlayerDataLoaded, player)
 end
@@ -174,15 +200,24 @@ local function release(player: Player)
 	local mineId = lastMineId[player]
 	lastMineId[player] = nil
 
-	-- 경보 중에 광산 안에서 나가면 갇힘과 같은 차감 (나갔다 들어와 차감을 피하는 것 방지)
-	if mineId and Collapse.GetRemainingTime(mineId) ~= nil then
+	-- 경보 중에 광산 안에서 나가면 갇힘과 같은 차감 (나갔다 들어와 차감을 피하는 것 방지). 이미 차감했으면 건너뜀
+	if mineId and Collapse.GetRemainingTime(mineId) ~= nil and trapSettled[player] ~= mineId then
 		PlayerData.loseBag(profile.Data)
 	end
+	trapSettled[player] = nil
 	profile:EndSession()
 end
 
 -- 갇힘·탈출 같은 게임 이벤트 처리는 Bag.luau. 여기는 불러오기·저장만.
 function PlayerData.start()
+	-- 새 경보 = 새 붕괴. 그 광산의 "이미 차감함" 표시를 지운다 (지난 붕괴의 PlayerTrapped 는 이미 다 왔다)
+	EventBus.On(Events.CollapseWarning, function(mineId: string)
+		for player, settled in trapSettled do
+			if settled == mineId then
+				trapSettled[player] = nil
+			end
+		end
+	end)
 	Players.PlayerAdded:Connect(load)
 	Players.PlayerRemoving:Connect(release)
 	-- 스크립트보다 먼저 들어온 플레이어 (Studio 테스트에서 흔함)

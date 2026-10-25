@@ -100,7 +100,7 @@ for _, name in { "BagKg", "BagCapacity", "BagValue", "SellMultiplier" } do
 end
 refresh()
 
--- 한 줄 알림 (판매 결과, 제작 실패 이유). 서버 Bag.notify 가 EconomyNotice / EconomyNoticeAt 속성을 올린다
+-- 한 줄 알림 (판매 결과, 제작 실패 이유). 서버 Counter.notify 가 EconomyNotice / EconomyNoticeAt 속성을 올린다
 local NOTICE_SECONDS = 3
 
 local notice = label:Clone()

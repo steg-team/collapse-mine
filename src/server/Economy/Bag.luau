@@ -5,17 +5,20 @@
 
 	흐름
 		OreMined (A) ──▶ 값 확정 · 가방에 담기 ──▶ OreBagged (C 랭킹)
-		판매소 Counter 프롬프트·인벤토리 창 ──▶ 전부 또는 종류별 판매 · 코인 ──▶ OreSold (C 랭킹·퀘스트)
+		판매소 Counter 프롬프트·인벤토리 창 ──▶ 재료 남기고 전부 / 종류별 판매 · 코인 ──▶ OreSold (C 랭킹·퀘스트) (D-037)
 		판매소 Counter "가방 늘리기" ──▶ 코인으로 무게 한도 +kg (D-028)
 		인벤토리 창 ──▶ 한 개 버리기 (광산 안에서 가볍게 탈출)
-		PlayerEscaped (C) ──▶ 가방 가치 = 탈출 수확 ──▶ HaulSecured (C 랭킹) + 탈출 보너스
-		PlayerTrapped (C) ──▶ 가방 일부 차감
+		PlayerEscaped (C) ──▶ 광산을 나올 때 들고 있던 가치 = 탈출 수확 ──▶ HaulSecured (C 랭킹) + 탈출 보너스 (D-039)
+		PlayerTrapped (C) · 경보 중 광산 안에서 죽음 ──▶ 가방 일부 차감, 한 경보에 한 번 (PlayerData.trapLoss, D-039)
 		DailyLoginClaimed / QuestCompleted (C) ──▶ 보상 코인
 
 	플레이어 속성 (서버가 갱신, Remote 없이 복제됨)
-		BagCount, BagKg, BagCapacity(kg), BagValue, EconomyNotice(한 줄 알림)  — B의 HUD용
+		BagCount, BagKg, BagCapacity(kg), BagValue(배수 곱하기 전)  — 가방 HUD·인벤토리
+		SellMultiplier(패스·부스트 × 리버스), HasBigBag  — 배수 표시·가방 가득 안내 (D-038)
+		CodexCount  — 도감 새 기록 점 (D-035)
 		BagSpeedMultiplier (1 → BAG_MIN_SPEED)  — A가 걸음 속도에 곱한다
-	가방 목록·판매·버리기는 Remotes.Bag (아래 onBagRemote).
+		EconomyNotice / EconomyNoticeAt  — 한 줄 알림 (Counter.notify)
+	가방 목록·도감·판매·버리기는 Remotes.Bag (아래 onBagRemote).
 ]]
 
 local Players = game:GetService("Players")
@@ -29,8 +32,11 @@ local Mines = require(Shared:WaitForChild("Config"):WaitForChild("Mines"))
 local Economy = require(Shared.Config:WaitForChild("Economy"))
 local Social = require(Shared.Config:WaitForChild("Social"))
 local PlayerData = require(script.Parent.PlayerData)
+local Counter = require(script.Parent.Counter)
 -- C의 조회 함수 (패스 보유, 판매가 배수)
 local Payments = require(script.Parent.Parent:WaitForChild("Social"):WaitForChild("Payments"))
+-- C의 조회 함수 (경보 중인지: 탈출 수확·경보 중 죽음 차감, D-039)
+local Collapse = require(script.Parent.Parent:WaitForChild("Social"):WaitForChild("Collapse"))
 
 -- 광물 이름 → 기본가·화면 이름. 광물표 원본은 Mines.luau (A)
 local baseValue: { [string]: number } = {}
@@ -43,7 +49,6 @@ for _, m in Mines.list do
 		gradeOf[o.name] = o.grade
 	end
 end
-local PRESSURE_TEXT = { Low = "상압", High = "고압", Extreme = "초고압" }
 
 local Bag = {}
 
@@ -139,12 +144,13 @@ end
 
 local function onOreMined(player: Player, oreId: string, weight: number, pressure: string)
 	local data = PlayerData.get(player)
-	if not data or typeof(weight) ~= "number" or weight <= 0 then
+	-- 무게가 NaN·무한대면 값과 코인이 NaN이 되어 저장 데이터가 영구히 깨진다. 다른 모듈에서 온 값도 확인한다
+	if not data or typeof(weight) ~= "number" or not (weight > 0 and weight < math.huge) then
 		return
 	end
 	if bagKg(data) + weight > Bag.capacity(player) * Economy.BAG_HARD_LIMIT then
 		-- 너무 무거움: 안 담긴다. 조용히 사라지면 답답하니 알려 준다
-		Bag.notify(player, "가방이 너무 무거워요! 팔거나 버리세요")
+		Counter.notify(player, "가방이 너무 무거워요! 팔거나 버리세요")
 		return
 	end
 	local value = Bag.priceOf(oreId, weight, pressure)
@@ -158,7 +164,7 @@ local function onOreMined(player: Player, oreId: string, weight: number, pressur
 	if not data.codex[key] then
 		data.codex[oreId] = true
 		data.codex[key] = true
-		Bag.notify(player, `📖 도감 새 기록: {displayName[oreId] or oreId} ({PRESSURE_TEXT[pressure] or pressure})`)
+		Counter.notify(player, `📖 도감 새 기록: {displayName[oreId] or oreId} ({Economy.PRESSURE_NAME[pressure] or pressure})`)
 	end
 	data.stats.bestOre = math.max(data.stats.bestOre, value)
 	Bag.sync(player)
@@ -204,7 +210,6 @@ local function sell(player: Player, data: PlayerData.Data, items: { PlayerData.B
 	return earned
 end
 
--- 가방 전부 판매. 판 금액을 돌려준다
 -- 전부 팔기에서 남길 광물: 다음 곡괭이 재료와 카나리아 먹이를 필요한 개수만큼 (D-037).
 -- 제작소(Workshop.pick)처럼 값이 싼 것부터 남긴다. 비싸게 캔 건 팔리고, 제작소는 남긴 걸 그대로 쓴다
 local function reserved(data: PlayerData.Data): { [PlayerData.BagItem]: boolean }
@@ -223,20 +228,15 @@ local function reserved(data: PlayerData.Data): { [PlayerData.BagItem]: boolean 
 			keep[found[i]] = true
 		end
 	end
-	local nextPickaxe = Economy.PICKAXES[data.pickaxe.tier + 1]
-	if nextPickaxe then
-		for oreId, need in nextPickaxe.ores do
-			hold(function(item)
-				return item.ore == oreId
-			end, need)
-		end
-	end
-	local nextCanary = Economy.CANARY[data.canary + 1]
-	if nextCanary then
+	local ores, rare = Economy.materialNeeds(data.pickaxe.tier, data.canary)
+	for oreId, need in ores do
 		hold(function(item)
-			return gradeOf[item.ore] == Economy.CANARY_FEED_GRADE
-		end, nextCanary.rare)
+			return item.ore == oreId
+		end, need)
 	end
+	hold(function(item)
+		return gradeOf[item.ore] == Economy.CANARY_FEED_GRADE
+	end, rare)
 	return keep
 end
 
@@ -306,83 +306,18 @@ function Bag.dropOne(player: Player, oreId: string, pressure: string): boolean
 	return true
 end
 
--- 화면 아래 HUD에 한 줄 알림 (판매 결과, 제작 실패 이유 등). 같은 문구가 연달아 와도 다시 뜨게 시각도 같이 올린다
-function Bag.notify(player: Player, text: string)
-	player:SetAttribute("EconomyNotice", text)
-	player:SetAttribute("EconomyNoticeAt", os.clock())
-end
-
--- 허브마다 있는 건물(Shop, Workshop)의 Counter (스테이지별 허브, #17). 이름이 CollapseMine 으로 시작하는 폴더의 Hub/<building>/Counter
-local function counters(building: string): { BasePart }
-	local list = {}
-	for _, hub in workspace:GetChildren() do
-		local root = hub.Name:sub(1, 12) == "CollapseMine" and hub:FindFirstChild("Hub")
-		local house = root and root:FindFirstChild(building)
-		local counter = house and house:FindFirstChild("Counter")
-		if counter and counter:IsA("BasePart") then
-			table.insert(list, counter)
-		end
-	end
-	return list
-end
-
--- 플레이어가 그 건물 Counter 근처인지. 프롬프트·창 버튼은 클라이언트가 띄우므로 서버에서 한 번 더 잰다
-function Bag.isNear(player: Player, building: string): boolean
-	local char = player.Character
-	local hrp = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
-	if not hrp then
-		return false
-	end
-	for _, counter in counters(building) do
-		if (hrp.Position - counter.Position).Magnitude <= Economy.SELL_REACH then
-			return true
-		end
-	end
-	return false
-end
-
-local PROMPT_GAP = 78 -- 기본 프롬프트 높이(72px) + 여백
-
--- Counter에 프롬프트를 붙인다. 클라이언트는 name으로 찾아 문구를 바꾼다
-function Bag.counterPrompt(building: string, name: string, actionText: string, onTriggered: (Player) -> (), key: Enum.KeyCode?, hold: number?)
-	for _, counter in counters(building) do
-		if not counter:FindFirstChild(name) then
-			local prompt = Instance.new("ProximityPrompt")
-			prompt.Name = name
-			prompt.ActionText = actionText
-			prompt.HoldDuration = hold or 0.3
-			prompt.MaxActivationDistance = 10
-			prompt.RequiresLineOfSight = false
-			prompt.KeyboardKeyCode = key or Enum.KeyCode.E -- 한 Counter에 프롬프트가 둘이면 키를 다르게
-			prompt.Parent = counter
-			-- 같은 Counter의 프롬프트는 같은 자리에 그려져 글자가 겹친다. 위아래로 쌓고 가운데를 Counter에 맞춘다
-			local stack = {}
-			for _, c in counter:GetChildren() do
-				if c:IsA("ProximityPrompt") then
-					table.insert(stack, c)
-				end
-			end
-			for i, p in stack do
-				p.UIOffset = Vector2.new(0, (i - 1 - (#stack - 1) / 2) * PROMPT_GAP)
-			end
-			prompt.Triggered:Connect(function(player: Player)
-				if Bag.isNear(player, building) then
-					onTriggered(player)
-				end
-			end)
-		end
-	end
-end
-
 -- 인벤토리 창 (클라이언트 → 서버). Remotes.Bag (RemoteFunction)
 --   "get"                     → 가방 목록 { {ore, weight, pressure, value} }
 --   "codex"                   → 도감 { ["Coal"] = true, ["Coal|High"] = true, ... }
 --   "sell", oreId, pressure   → 그 묶음 판매 (판매소 근처만), 판 금액
 --   "sellAll"                 → 재료(다음 곡괭이·카나리아 먹이)를 남기고 전부 판매 (판매소 근처만), 판 금액
 --   "drop", oreId, pressure   → 그 묶음에서 한 개 버리기 (어디서나)
--- 결과 문구는 Bag.notify 로 HUD 알림 줄에 띄운다
+-- 결과 문구는 Counter.notify 로 HUD 알림 줄에 띄운다
 -- Remote가 없으면 서버가 만든다 (Studio 수작업 없이 Rojo만으로 동작하게)
 local REMOTE_COOLDOWN = 0.15
+-- 탈출 수확용: 경보 중 광산 안에서 마지막으로 들고 있던 가치 (D-039)
+local CARRY_POLL = 0.5
+local carried: { [Player]: { mineId: string, value: number } } = {}
 local lastCall: { [Player]: number } = {}
 
 local function onBagRemote(player: Player, action: any, oreId: any, pressure: any): any
@@ -408,12 +343,12 @@ local function onBagRemote(player: Player, action: any, oreId: any, pressure: an
 	local group = typeof(oreId) == "string" and typeof(pressure) == "string"
 	if action == "drop" then
 		if group and Bag.dropOne(player, oreId, pressure) then
-			Bag.notify(player, "한 개 버렸어요")
+			Counter.notify(player, "한 개 버렸어요")
 		end
 		return nil
 	end
-	if not Bag.isNear(player, "Shop") then
-		Bag.notify(player, "판매소에서만 팔 수 있어요")
+	if not Counter.isNear(player, "Shop") then
+		Counter.notify(player, "판매소에서만 팔 수 있어요")
 		return nil
 	end
 	local earned = 0
@@ -425,10 +360,10 @@ local function onBagRemote(player: Player, action: any, oreId: any, pressure: an
 	elseif action == "sellAll" then
 		local kept
 		earned, kept = Bag.sellAll(player)
-		Bag.notify(player, sellAllNotice(player, earned, kept))
+		Counter.notify(player, sellAllNotice(player, earned, kept))
 		return earned
 	end
-	Bag.notify(player, if earned > 0 then `{earned} 코인에 팔았어요{multText(player)}` else "팔 광물이 없어요")
+	Counter.notify(player, if earned > 0 then `{earned} 코인에 팔았어요{multText(player)}` else "팔 광물이 없어요")
 	return earned
 end
 
@@ -442,25 +377,67 @@ function Bag.start()
 	EventBus.On(Events.PlayerDataLoaded, Bag.sync)
 	EventBus.On(Events.OreMined, onOreMined)
 
-	EventBus.On(Events.PlayerTrapped, function(player: Player)
-		local data = PlayerData.get(player)
-		if data then
-			PlayerData.loseBag(data)
+	-- 갇힘: 경보 중 광산 안에서 죽었으면 이미 차감했으니 건너뛴다 (PlayerData.trapLoss가 한 번만)
+	EventBus.On(Events.PlayerTrapped, function(player: Player, mineId: string)
+		if PlayerData.trapLoss(player, mineId) then
 			Bag.sync(player)
 		end
+		carried[player] = nil
 	end)
 
+	-- 탈출 수확 = 광산을 나올 때 들고 있던 가치 (D-039). 붕괴 순간의 가방으로 재면, 먼저 나와서 판 사람은 0이 된다
 	EventBus.On(Events.PlayerEscaped, function(player: Player, mineId: string, bonus: number)
 		local data = PlayerData.get(player)
+		local c = carried[player]
+		carried[player] = nil
 		if not data then
 			return
 		end
-		local haul = bagValue(data)
+		local haul = if c and c.mineId == mineId then c.value else bagValue(data)
 		if haul > 0 then
 			data.stats.bestHaul = math.max(data.stats.bestHaul, haul)
 			EventBus.Fire(Events.HaulSecured, player, mineId, haul)
 		end
-		PlayerData.addCoins(player, bonus)
+		if typeof(bonus) == "number" and bonus > 0 and bonus < math.huge then
+			PlayerData.addCoins(player, bonus)
+		end
+	end)
+
+	-- 경보 중 광산 안에 있는 동안 들고 있는 가치를 적어 둔다 (탈출 수확용).
+	-- 경보 중 광산 안에서 죽으면(리셋 포함) 그 자리에서 갇힘 차감: 허브에서 부활해 붕괴 전에 팔아 버리면 차감을 피할 수 있었다.
+	-- 캐릭터가 지워질 때(부활 직전) 판정한다. 죽은 몸은 광산 안에 남아 있다
+	task.spawn(function()
+		while true do
+			task.wait(CARRY_POLL)
+			for _, player in Players:GetPlayers() do
+				local data = PlayerData.get(player)
+				local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
+				local mine = root and Mines.findAreaAt(root.Position)
+				if data and mine and Collapse.GetRemainingTime(mine.id) ~= nil then
+					carried[player] = { mineId = mine.id, value = bagValue(data) }
+				end
+			end
+		end
+	end)
+	local function watchDeath(player: Player)
+		player.CharacterRemoving:Connect(function(char)
+			local humanoid = char:FindFirstChildOfClass("Humanoid")
+			local root = char:FindFirstChild("HumanoidRootPart") :: BasePart?
+			local mine = root and Mines.findAreaAt(root.Position)
+			if humanoid and humanoid.Health <= 0 and mine and Collapse.GetRemainingTime(mine.id) ~= nil then
+				if PlayerData.trapLoss(player, mine.id) then
+					Bag.sync(player)
+					Counter.notify(player, "붕괴 경보 중 광산에서 쓰러져서 가방 일부를 잃었어요")
+				end
+			end
+		end)
+	end
+	Players.PlayerAdded:Connect(watchDeath)
+	for _, player in Players:GetPlayers() do
+		watchDeath(player)
+	end
+	Players.PlayerRemoving:Connect(function(player)
+		carried[player] = nil
 	end)
 
 	-- 아이템 보상은 아이템 기능이 생기면 받는다 (지금은 코인만)
@@ -498,12 +475,12 @@ function Bag.start()
 		end
 	end)
 
-	Bag.counterPrompt("Shop", "SellPrompt", "재료 빼고 전부 팔기", function(player)
-		Bag.notify(player, sellAllNotice(player, Bag.sellAll(player)))
+	Counter.prompt("Shop", "SellPrompt", "재료 빼고 전부 팔기", function(player)
+		Counter.notify(player, sellAllNotice(player, Bag.sellAll(player)))
 	end)
-	Bag.counterPrompt("Shop", "BagUpgradePrompt", "가방 늘리기", function(player)
+	Counter.prompt("Shop", "BagUpgradePrompt", "가방 늘리기", function(player)
 		local _, msg = Bag.upgrade(player)
-		Bag.notify(player, msg)
+		Counter.notify(player, msg)
 	end, Enum.KeyCode.F)
 
 end

@@ -15,7 +15,7 @@ B 담당 기능이 지금 어디까지 됐고, 다른 담당이 무엇을 붙이
 | 가방 늘리기 | `Bag.upgrade` | 동작. 판매소 "가방 늘리기"(F), 30kg → 최대 80kg. 리버스하면 처음으로 |
 | 인벤토리 창 | `src/client/Economy/InventoryPanel.client.luau` | 동작. 가방 버튼·B 키. 판매소 근처면 한 개씩/전부 팔기 (`Remotes.Bag`). 다음 곡괭이 재료·카나리아 먹이는 줄 아래 "⚒ 돌 곡괭이 재료 2/3" 표시 |
 | 탈출 수확·보너스 | `Bag.luau` | `PlayerEscaped` → `HaulSecured` + 보너스 코인 |
-| 갇힘 차감 | `Bag.luau`, `PlayerData.luau` | 갇힘·경보 중 광산 안 퇴장 → 가방 무게의 절반까지 (D-029) |
+| 갇힘 차감 | `Bag.luau`, `PlayerData.luau` | 갇힘·경보 중 광산 안 죽음·퇴장 → 가방 무게의 절반까지, 한 경보에 한 번 (D-029, D-039) |
 | 출석·퀘스트 코인 | `Bag.luau` | `DailyLoginClaimed`·`QuestCompleted`의 `reward.coins` 지급 |
 | 곡괭이 제작·강화 | `src/server/Economy/Workshop.luau` | 동작. 제작소 Counter "다음 곡괭이 만들기"(E)·"곡괭이 강화"(F) |
 | 광산 카나리아 | `src/client/Economy/CanaryHud.client.luau`, `Workshop.feedCanary` | 동작. 광산 안 오른쪽 상태 줄, 제작소 "카나리아 키우기"(G). 숨은 광맥 감지(`Canary.luau`, D-036)는 A의 `RareVeins`(#43)가 생기면 켜짐. 새 모델·소리는 아직 |
@@ -53,6 +53,8 @@ B 담당 기능이 지금 어디까지 됐고, 다른 담당이 무엇을 붙이
 2. 곡괭이 5단계·용암 광산: 광산 설정이 생기면 `PICKAXES`에 한 줄.
 
 ## 로컬 테스트 방법
+
+- 경제 회귀 테스트: Play 중 서버 명령창에 `tools/test_economy.luau`를 붙여 넣고 실행 → 출력 창 "[EconomyTest] 끝: 통과 n / 실패 0".
 
 1. 로컬 복사본 플레이스를 열고 `tools/create_social_remotes.luau`를 한 번 실행한다. `Remotes`가 없으면 C의 Collapse·Payments가 멈추고, 그걸 쓰는 B도 같이 멈춘다.
 2. `rojo serve` → Rojo 플러그인 Connect → Play.

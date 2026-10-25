@@ -1,7 +1,7 @@
 --!strict
 --[[
 	제작소: 곡괭이 제작(다음 단계)·강화 (B 담당, D-021), 카나리아 키우기 (D-023), 리버스 (D-024)
-	허브 Workshop/Counter 프롬프트 네 개 ("CraftPrompt" E, "EnhancePrompt" F, "CanaryPrompt" G, "RebirthPrompt" R 3초).
+	허브 Workshop/Counter 프롬프트 네 개 (Counter.prompt) ("CraftPrompt" E, "EnhancePrompt" F, "CanaryPrompt" G, "RebirthPrompt" R 3초).
 	비용은 Config/Economy.luau PICKAXES·CANARY. 곡괭이 성능(파워·속도·강화 효과)은 A가 PickaxeUpgraded·속성을 받아 정한다.
 ]]
 
@@ -14,6 +14,7 @@ local Economy = require(Shared:WaitForChild("Config"):WaitForChild("Economy"))
 local Mines = require(Shared.Config:WaitForChild("Mines"))
 local PlayerData = require(script.Parent.PlayerData)
 local Bag = require(script.Parent.Bag)
+local Counter = require(script.Parent.Counter)
 
 -- 광물 이름 → 화면에 보일 이름 (실패 안내용), 등급 (카나리아 먹이)
 local displayName: { [string]: string } = {}
@@ -173,21 +174,21 @@ function Workshop.rebirth(player: Player): (boolean, string)
 end
 
 function Workshop.start()
-	Bag.counterPrompt("Workshop", "CraftPrompt", "다음 곡괭이 만들기", function(player)
+	Counter.prompt("Workshop", "CraftPrompt", "다음 곡괭이 만들기", function(player)
 		local _, msg = Workshop.craft(player)
-		Bag.notify(player, msg)
+		Counter.notify(player, msg)
 	end)
-	Bag.counterPrompt("Workshop", "EnhancePrompt", "곡괭이 강화", function(player)
+	Counter.prompt("Workshop", "EnhancePrompt", "곡괭이 강화", function(player)
 		local _, msg = Workshop.enhance(player)
-		Bag.notify(player, msg)
+		Counter.notify(player, msg)
 	end, Enum.KeyCode.F)
-	Bag.counterPrompt("Workshop", "CanaryPrompt", "카나리아 키우기", function(player)
+	Counter.prompt("Workshop", "CanaryPrompt", "카나리아 키우기", function(player)
 		local _, msg = Workshop.feedCanary(player)
-		Bag.notify(player, msg)
+		Counter.notify(player, msg)
 	end, Enum.KeyCode.G)
-	Bag.counterPrompt("Workshop", "RebirthPrompt", "리버스 (초기화)", function(player)
+	Counter.prompt("Workshop", "RebirthPrompt", "리버스 (초기화)", function(player)
 		local _, msg = Workshop.rebirth(player)
-		Bag.notify(player, msg)
+		Counter.notify(player, msg)
 	end, Enum.KeyCode.R, 3) -- 되돌릴 수 없으니 길게 눌러야 한다
 end
 
