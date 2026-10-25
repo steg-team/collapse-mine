@@ -19,7 +19,6 @@ local remote = RS:WaitForChild("Remotes"):WaitForChild("Bag") :: RemoteFunction
 
 -- 판매소 Counter에서 이 거리 안이면 판매 버튼을 켠다 (서버는 Economy.SELL_REACH로 다시 잰다)
 local NEAR_SHOP = 12
-local PRESSURE_TEXT = { Low = "상압", High = "고압", Extreme = "초고압" }
 local GRADE_COLOR = Economy.GRADE_COLOR
 
 local oreInfo: { [string]: { displayName: string, grade: string } } = {}
@@ -188,16 +187,17 @@ local function render()
 			rareCount += 1
 		end
 	end
-	local nextPickaxe = Economy.PICKAXES[(player:GetAttribute("PickaxeTier") or 1) + 1]
-	local nextCanary = Economy.CANARY[(player:GetAttribute("CanaryLevel") or 0) + 1]
+	-- 서버 전부 팔기가 남기는 것과 같은 규칙 (Economy.materialNeeds)
+	local tier = player:GetAttribute("PickaxeTier") or 1
+	local needOres, needRare = Economy.materialNeeds(tier, player:GetAttribute("CanaryLevel") or 0)
 	local function useTag(oreId: string): string?
-		local need = nextPickaxe and nextPickaxe.ores[oreId]
+		local need = needOres[oreId]
 		if need then
-			return `⚒ {nextPickaxe.name} 재료 {countOf[oreId]}/{need}`
+			return `⚒ {Economy.PICKAXES[tier + 1].name} 재료 {countOf[oreId]}/{need}`
 		end
 		local info = oreInfo[oreId]
-		if nextCanary and info and info.grade == Economy.CANARY_FEED_GRADE then
-			return `🐤 카나리아 먹이 ({Economy.CANARY_FEED_GRADE} 광물 {rareCount}/{nextCanary.rare})`
+		if needRare > 0 and info and info.grade == Economy.CANARY_FEED_GRADE then
+			return `🐤 카나리아 먹이 ({Economy.CANARY_FEED_GRADE} 광물 {rareCount}/{needRare})`
 		end
 		return nil
 	end
@@ -258,7 +258,7 @@ local function render()
 				'<font color="#%s">%s</font> %s ×%d · %.1fkg · %d 코인 <font color="#aaaaaa">(%.1f/kg)</font>',
 				(info and GRADE_COLOR[info.grade] or Color3.new(1, 1, 1)):ToHex(),
 				info and info.displayName or g.ore,
-				PRESSURE_TEXT[g.pressure] or g.pressure,
+				Economy.PRESSURE_NAME[g.pressure] or g.pressure,
 				g.count,
 				g.kg,
 				math.floor(g.value * mult + 0.5),

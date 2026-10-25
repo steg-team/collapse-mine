@@ -22,6 +22,9 @@ local Economy = {
 	-- 한도 × BAG_HARD_LIMIT 일 때 걸음 속도 배수. 완전히 멈추지는 않게 (임시값)
 	BAG_MIN_SPEED = 0.6,
 
+	-- 압력 등급 이름 (OreMined 계약의 pressure 값 → 화면 문구). 알림·인벤토리 공용
+	PRESSURE_NAME = table.freeze({ Low = "상압", High = "고압", Extreme = "초고압" }),
+
 	-- 판매가 = 기본가(Mines 광물표 value) × 무게 × 압력 배수 (기획서 "무게와 압력 등급")
 	-- 키는 OreMined 계약의 pressure 값 (임시값)
 	PRESSURE_MULT = table.freeze({
@@ -76,5 +79,13 @@ local Economy = {
 		sellBonus = 0.25,
 	}),
 }
+
+-- 다음 단계에 쓸 재료 (D-037): 다음 곡괭이 재료 { 광물 = 개수 }, 카나리아 먹이(CANARY_FEED_GRADE 등급) 개수.
+-- 서버 "재료 빼고 전부 팔기"(Bag)와 인벤토리 "⚒ 재료" 표시가 같이 쓴다. 규칙을 바꿀 땐 여기만 고친다
+function Economy.materialNeeds(pickaxeTier: number, canaryLevel: number): ({ [string]: number }, number)
+	local nextPickaxe = Economy.PICKAXES[pickaxeTier + 1]
+	local nextCanary = Economy.CANARY[canaryLevel + 1]
+	return if nextPickaxe then nextPickaxe.ores else {}, if nextCanary then nextCanary.rare else 0
+end
 
 return table.freeze(Economy)

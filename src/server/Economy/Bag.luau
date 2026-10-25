@@ -43,7 +43,6 @@ for _, m in Mines.list do
 		gradeOf[o.name] = o.grade
 	end
 end
-local PRESSURE_TEXT = { Low = "상압", High = "고압", Extreme = "초고압" }
 
 local Bag = {}
 
@@ -158,7 +157,7 @@ local function onOreMined(player: Player, oreId: string, weight: number, pressur
 	if not data.codex[key] then
 		data.codex[oreId] = true
 		data.codex[key] = true
-		Bag.notify(player, `📖 도감 새 기록: {displayName[oreId] or oreId} ({PRESSURE_TEXT[pressure] or pressure})`)
+		Bag.notify(player, `📖 도감 새 기록: {displayName[oreId] or oreId} ({Economy.PRESSURE_NAME[pressure] or pressure})`)
 	end
 	data.stats.bestOre = math.max(data.stats.bestOre, value)
 	Bag.sync(player)
@@ -204,7 +203,6 @@ local function sell(player: Player, data: PlayerData.Data, items: { PlayerData.B
 	return earned
 end
 
--- 가방 전부 판매. 판 금액을 돌려준다
 -- 전부 팔기에서 남길 광물: 다음 곡괭이 재료와 카나리아 먹이를 필요한 개수만큼 (D-037).
 -- 제작소(Workshop.pick)처럼 값이 싼 것부터 남긴다. 비싸게 캔 건 팔리고, 제작소는 남긴 걸 그대로 쓴다
 local function reserved(data: PlayerData.Data): { [PlayerData.BagItem]: boolean }
@@ -223,20 +221,15 @@ local function reserved(data: PlayerData.Data): { [PlayerData.BagItem]: boolean 
 			keep[found[i]] = true
 		end
 	end
-	local nextPickaxe = Economy.PICKAXES[data.pickaxe.tier + 1]
-	if nextPickaxe then
-		for oreId, need in nextPickaxe.ores do
-			hold(function(item)
-				return item.ore == oreId
-			end, need)
-		end
-	end
-	local nextCanary = Economy.CANARY[data.canary + 1]
-	if nextCanary then
+	local ores, rare = Economy.materialNeeds(data.pickaxe.tier, data.canary)
+	for oreId, need in ores do
 		hold(function(item)
-			return gradeOf[item.ore] == Economy.CANARY_FEED_GRADE
-		end, nextCanary.rare)
+			return item.ore == oreId
+		end, need)
 	end
+	hold(function(item)
+		return gradeOf[item.ore] == Economy.CANARY_FEED_GRADE
+	end, rare)
 	return keep
 end
 
