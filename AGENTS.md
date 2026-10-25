@@ -88,6 +88,7 @@ docs/        기획서, 결정 기록 (동기화 안 됨)
 |---|---|---|
 | `PickaxeTier`, `PickaxeEnhance` | B → A | 곡괭이 단계·강화 (곡괭이 성능, 광산 입장) |
 | `BagSpeedMultiplier` | B → A | 가방 무게로 줄어드는 걸음 속도 배수 1 → 0.6 (D-027). 캐릭터 걸음 속도에 곱한다 |
+| `TutorialActive` | C → B | 튜토리얼 진행 중이면 true (D-031). 그동안 B의 전부 팔기는 재료를 남기지 않는다 (D-037) |
 
 ### 담당 간 요청 (GitHub 이슈)
 

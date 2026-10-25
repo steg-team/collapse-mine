@@ -231,7 +231,9 @@ function Bag.sellAll(player: Player): (number, number)
 	if not data or #data.bag == 0 then
 		return 0, 0
 	end
-	local keep = reserved(data)
+	-- 튜토리얼 중(C의 TutorialActive)에는 남기지 않는다. 처음 캔 게 석영뿐이면 아무것도 안 팔려서
+	-- "판매소에서 팔아 보세요"(OreSold) 단계가 끝나지 않는다
+	local keep = if player:GetAttribute("TutorialActive") == true then {} else reserved(data)
 	local sold, kept = {}, {}
 	for _, item in data.bag do
 		table.insert(if keep[item] then kept else sold, item)
