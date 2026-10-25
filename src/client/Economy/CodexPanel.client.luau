@@ -1,7 +1,8 @@
 --!strict
 -- 광물 도감 창 (B 담당, D-035)
 -- 인벤토리 창의 "📖 도감" 버튼이나 N 키로 연다. 광산마다 광물 카드를 늘어놓고,
--- 캔 적 있는 광물은 이름을, 아직이면 "???"를 보여 준다. 카드 아래 상·고·초 칸은 그 압력으로 캔 적이 있으면 켜진다.
+-- 캔 적 있는 광물은 이름과 상·고·초 칸(그 압력으로 캔 적이 있으면 켜짐)을, 아직이면 "???"와 나오는 깊이를 보여 준다.
+-- 아직 못 들어가는 광산은 필요한 곡괭이를 적어서 다음 목표가 보이게 한다.
 -- 기록은 서버가 가방에 담을 때 적는다 (Bag.luau, Remotes.Bag "codex").
 
 local Players = game:GetService("Players")
@@ -15,7 +16,12 @@ local Economy = require(Config:WaitForChild("Economy"))
 local player = Players.LocalPlayer
 local remote = RS:WaitForChild("Remotes"):WaitForChild("Bag") :: RemoteFunction
 
-local PRESSURES = { { key = "Low", text = "상" }, { key = "High", text = "고" }, { key = "Extreme", text = "초" } }
+-- 칸 색은 등급 색과 따로 둔다 (일반 등급 회색이면 켜진 칸과 꺼진 칸이 구분이 안 됨). 초고압이 가장 눈에 띄게
+local PRESSURES = {
+	{ key = "Low", text = "상", color = Color3.fromRGB(120, 200, 255) },
+	{ key = "High", text = "고", color = Color3.fromRGB(255, 165, 60) },
+	{ key = "Extreme", text = "초", color = Color3.fromRGB(255, 70, 70) },
+}
 local DARK = Color3.fromRGB(60, 56, 52)
 
 -- UI (코드로 만들어서 Studio 수작업 없이 Rojo 만으로 동작하게)
@@ -67,7 +73,7 @@ local list = make("ScrollingFrame", frame, {
 })
 make("UIListLayout", list, { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder })
 
--- 카드 하나: 등급 색 테두리, 이름(또는 ???), 등급, 압력 세 칸
+-- 카드 하나: 등급 색 테두리, 이름·등급·압력 세 칸. 못 캔 광물은 ???·등급·나오는 깊이
 local function card(parent: Instance, ore: Mines.Ore, codex: { [string]: boolean }, order: number)
 	local found = codex[ore.name] == true
 	local color = Economy.GRADE_COLOR[ore.grade] or Color3.new(1, 1, 1)
@@ -83,13 +89,25 @@ local function card(parent: Instance, ore: Mines.Ore, codex: { [string]: boolean
 		TextScaled = true,
 	})
 	make("TextLabel", c, { Position = UDim2.new(0, 6, 0, 22), Size = UDim2.new(1, -12, 0, 14), BackgroundTransparency = 1, Text = ore.grade, TextSize = 12, TextColor3 = Color3.fromRGB(170, 170, 170) })
+	if not found then
+		make("TextLabel", c, {
+			AnchorPoint = Vector2.new(0, 1),
+			Position = UDim2.new(0, 6, 1, -5),
+			Size = UDim2.new(1, -12, 0, 18),
+			BackgroundTransparency = 1,
+			Text = if ore.minDepth > 0 then `깊이 {ore.minDepth}m부터` else "어디서나",
+			TextSize = 12,
+			TextColor3 = Color3.fromRGB(150, 140, 120),
+		})
+		return
+	end
 	for i, p in PRESSURES do
 		local on = codex[`{ore.name}|{p.key}`] == true
 		local chip = make("TextLabel", c, {
 			AnchorPoint = Vector2.new(0.5, 1),
 			Position = UDim2.new((i - 0.5) / 3, 0, 1, -5),
 			Size = UDim2.new(1 / 3, -6, 0, 18),
-			BackgroundColor3 = if on then color else DARK,
+			BackgroundColor3 = if on then p.color else DARK,
 			Text = p.text,
 			TextSize = 12,
 			TextColor3 = if on then Color3.fromRGB(25, 25, 25) else Color3.fromRGB(120, 120, 120),
@@ -126,7 +144,11 @@ local function render(codex: { [string]: boolean })
 			end
 		end
 		local mineTotal = #m.ores * #PRESSURES
-		header.Text = `⛏ {m.name}  {mineHave}/{mineTotal}` .. (if mineHave == mineTotal then "  ✨ 완성!" else "")
+		local tier = player:GetAttribute("PickaxeTier") or 1
+		local need = Economy.PICKAXES[m.requiredPickaxe]
+		header.Text = `⛏ {m.name}  {mineHave}/{mineTotal}`
+			.. (if mineHave == mineTotal then "  ✨ 완성!" else "")
+			.. (if tier < m.requiredPickaxe and need then `  🔒 {need.name} 필요` else "")
 		total += mineTotal
 		have += mineHave
 	end
