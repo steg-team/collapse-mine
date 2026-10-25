@@ -13,6 +13,7 @@ local Events = require(Shared:WaitForChild("Events"))
 local EventBus = require(Shared:WaitForChild("EventBus"))
 local FloorGuard = require(script.Parent:WaitForChild("FloorGuard"))
 local OreFactory = require(script.Parent:WaitForChild("OreFactory"))
+local RareVeins = require(script.Parent:WaitForChild("RareVeins"))
 local ev = RS:WaitForChild("Remotes"):WaitForChild("MineHit")
 local Terrain = workspace.Terrain
 
@@ -66,22 +67,13 @@ local function weightOf(mine: Mines.Mine?, ore: Instance): number
 	return math.floor(w * 100 + 0.5) / 100
 end
 
-local function setupPlayer(plr: Player)
-	if plr:FindFirstChild("leaderstats") then return end
-	local ls = Instance.new("Folder"); ls.Name = "leaderstats"; ls.Parent = plr
-	local coins = Instance.new("IntValue"); coins.Name = "Coins"; coins.Parent = ls
-	-- 곡괭이 등급 (임시: 업그레이드·저장은 경제 담당이 붙일 예정, PickaxeUpgraded 이벤트)
-	if plr:GetAttribute("PickaxeTier") == nil then plr:SetAttribute("PickaxeTier", 1) end
-end
+-- 코인 칸(leaderstats)과 곡괭이 단계 속성은 B(PlayerData)가 만든다 (#50). 불러오기 전엔 속성이 nil이라 Pickaxe.stats가 1로 읽는다
 
 -- 서버가 켜질 때(지형이 원래 모양일 때) 광산마다 길바닥을 훑어 둔다
 for _, m in Mines.list do
 	task.spawn(FloorGuard.build, m)
 end
 
-Players.PlayerAdded:Connect(setupPlayer)
--- 스크립트보다 먼저 들어온 플레이어 (Studio 테스트에서 흔함)
-for _, plr in Players:GetPlayers() do setupPlayer(plr) end
 Players.PlayerRemoving:Connect(function(plr) lastHit[plr] = nil end)
 
 -- 지층이 깊을수록 단단해서 한 번에 파이는 양이 줄어듦
@@ -102,7 +94,10 @@ local function rollDigFind(mine: Mines.Mine, center: Vector3, r: number, digDir:
 	local f = mine.digFinds
 	if not f then return end
 	local t = math.clamp((mine.top - center.Y) / (mine.top - mine.bottom), 0, 1)
-	if rng:NextNumber() >= f.chance.Min + (f.chance.Max - f.chance.Min) * t then return end
+	-- 숨은 희귀 광맥 근처면 광맥 확률 (D-036), 밖이면 깊이에 따른 기본 확률
+	local veinChance, vein = RareVeins.chanceAt(mine.id, center)
+	local chance = veinChance or (f.chance.Min + (f.chance.Max - f.chance.Min) * t)
+	if rng:NextNumber() >= chance then return end
 	local o = OreFactory.pick(mine, center.Y, true, rng)
 	if not o then return end -- 얕아서 나올 수 있는 광물이 없음
 	local folder = workspace:FindFirstChild("Mines") and workspace.Mines:FindFirstChild(mine.id)
@@ -116,6 +111,7 @@ local function rollDigFind(mine: Mines.Mine, center: Vector3, r: number, digDir:
 			or workspace:Raycast(center, Vector3.new(0, -(r + 4), 0), terrainOnly)
 		if hit then
 			OreFactory.spawn(mine, ores, o, OreFactory.surfaceCFrame(hit), 1, rng, "DigFind")
+			if vein then RareVeins.consume(mine.id, vein) end -- 광맥에서 나온 것만 광맥을 깎는다
 		end
 	end)
 end

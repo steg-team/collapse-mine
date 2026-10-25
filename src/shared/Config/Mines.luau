@@ -206,6 +206,18 @@ Mines.PRESSURE = table.freeze({
 	extremeSeconds = 10,
 })
 
+-- 숨은 희귀 광맥 (D-036, A의 RareVeins): 벽 속 보이지 않는 자리. 근처를 파면 "파다가 발견" 확률이 오르고,
+-- 카나리아(B)가 가장 가까운 광맥까지 거리로 운다. 숫자는 모두 임시값
+Mines.RARE_VEINS = table.freeze({
+	count = 6, -- 광산마다 동시에 살아 있는 광맥 수
+	deepCount = 4, -- 그중 맨 아래 지층에 두는 수 (깊을수록 많이)
+	wallDepth = NumberRange.new(4, 10), -- 굴·방 벽 표면에서 벽 속으로 들어간 거리
+	radius = 12, -- 판 공 중심이 광맥 중심에서 이 안이면 광맥 확률
+	chance = 0.25, -- 광맥 안에서 한 번 팔 때 희귀 이상이 나올 확률 (밖은 digFinds.chance)
+	yield = 3, -- 광맥 하나에서 이만큼 나오면 사라지고 다른 자리에 새로 생김
+	riskWeight = 4, -- 방 고르는 가중치 = 1 + CollapseRisk × 이 값 (위험한 방 근처에 더 자주, D-002)
+})
+
 local byId: { [string]: Mine } = {}
 for _, m in Mines.list do
 	byId[m.id] = m
