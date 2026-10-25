@@ -3,7 +3,9 @@
 -- 화면 아래 가운데에 "가방 12.4/30kg · 120 코인어치"와 무게 게이지를 띄운다.
 -- 한도를 넘으면 노랑 "무거워서 느려요", 더 안 담기는 무게면 빨강.
 -- 그 위에 판매·제작 결과 한 줄 알림을 잠깐 띄운다.
--- 데이터: 서버 Bag.luau 가 플레이어 속성 BagKg, BagCapacity(kg), BagValue 를 갱신한다.
+-- 데이터: 서버 Bag.luau 가 플레이어 속성 BagKg, BagCapacity(kg), BagValue, SellMultiplier 를 갱신한다.
+-- 코인어치는 지금 팔면 받을 값(판매가 배수를 곱한 값)으로 보여 주고, 배수가 1보다 크면 "💰×2"를 붙인다.
+-- 부스트·패스를 산 효과가 늘 보이는 자리에 있어야 산 보람이 있다 (시뮬레이터 장르 흔한 방식: 재화 옆 배수 배지)
 
 local Players = game:GetService("Players")
 local RS = game:GetService("ReplicatedStorage")
@@ -74,6 +76,8 @@ local function refresh()
 	local kg = player:GetAttribute("BagKg")
 	local cap = player:GetAttribute("BagCapacity")
 	local value = player:GetAttribute("BagValue")
+	local mult = player:GetAttribute("SellMultiplier")
+	mult = if typeof(mult) == "number" and mult > 0 then mult else 1
 	if typeof(kg) ~= "number" or typeof(cap) ~= "number" or typeof(value) ~= "number" then
 		return -- 데이터 로드 전
 	end
@@ -81,16 +85,17 @@ local function refresh()
 	local ratio = kg / cap
 	local color = if ratio >= Economy.BAG_HARD_LIMIT - 0.05 then RED elseif ratio > 1 then YELLOW else GREEN
 	local kgText = string.format("%.1f/%dkg", kg, cap)
+	local worth = `{math.floor(value * mult + 0.5)} 코인어치` .. (if mult > 1 then ` 💰×{string.format("%g", mult)}` else "")
 	label.Text = if ratio >= Economy.BAG_HARD_LIMIT - 0.05
 		then `🎒 {kgText} · 너무 무거워요! 팔거나 버리세요`
-		elseif ratio > 1 then `🎒 {kgText} · 무거워서 느려요 · {value} 코인어치`
-		else `🎒 가방 {kgText} · {value} 코인어치`
+		elseif ratio > 1 then `🎒 {kgText} · 무거워서 느려요 · {worth}`
+		else `🎒 가방 {kgText} · {worth}`
 	label.TextColor3 = if ratio > 1 then color else Color3.new(1, 1, 1)
 	fill.BackgroundColor3 = color
 	fill.Size = UDim2.fromScale(math.clamp(ratio / Economy.BAG_HARD_LIMIT, 0, 1), 1)
 end
 
-for _, name in { "BagKg", "BagCapacity", "BagValue" } do
+for _, name in { "BagKg", "BagCapacity", "BagValue", "SellMultiplier" } do
 	player:GetAttributeChangedSignal(name):Connect(refresh)
 end
 refresh()
