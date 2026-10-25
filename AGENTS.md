@@ -89,6 +89,12 @@ docs/        기획서, 결정 기록 (동기화 안 됨)
 | `PickaxeTier`, `PickaxeEnhance` | B → A | 곡괭이 단계·강화 (곡괭이 성능, 광산 입장) |
 | `BagSpeedMultiplier` | B → A | 가방 무게로 줄어드는 걸음 속도 배수 1 → 0.6 (D-027). 캐릭터 걸음 속도에 곱한다 |
 | `TutorialActive` | C → B | 튜토리얼 진행 중이면 true (D-031). 그동안 B의 전부 팔기는 재료를 남기지 않는다 (D-037) |
+| `MineSpeedMultiplier` | C → A | 패스·부스트 채굴 속도 배수 (`Payments.GetMultiplier`와 같은 값, 클라이언트용) |
+| `SellPriceMultiplier` | C → B | 패스·부스트 판매가 배수. 바뀌면 B가 가방 한도·배수 표시를 다시 계산 (D-038) |
+
+그 밖의 공유 상태
+- `ReplicatedStorage.CollapseState` (C → A, B): 광산 id 속성 = 붕괴 시각(경보 중일 때만). B의 카나리아 HUD가 읽는다.
+- `leaderstats.Coins` (B): 화면 표시용 사본. 코인 원본은 `data.coins`, 바꾸는 건 `PlayerData.addCoins`뿐 (D-022).
 
 ### 담당 간 요청 (GitHub 이슈)
 
