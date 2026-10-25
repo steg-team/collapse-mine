@@ -156,11 +156,22 @@ local function load(player: Player)
 		lastMineId[player] = (mine and mine.id) or Collapse.DiedInsideMine(player)
 	end)
 
-	local ls = player:WaitForChild("leaderstats", 10)
-	local coins = ls and ls:FindFirstChild("Coins") :: IntValue?
-	if coins then
-		coins.Value = data.coins -- 화면 표시용 사본. 코인은 PlayerData.addCoins로만 바꾼다
+	-- 플레이어 목록의 코인 칸 (화면 표시용 사본). 코인 주인이 B라서 B가 만든다. 코인은 PlayerData.addCoins로만 바꾼다
+	-- (예전엔 A의 MiningServer가 만들어서 B가 기다렸다. 둘 다 "없으면 만든다"라 누가 먼저여도 하나만 생긴다, #50)
+	local ls = player:FindFirstChild("leaderstats")
+	if not ls then
+		ls = Instance.new("Folder")
+		ls.Name = "leaderstats"
+		ls.Parent = player
 	end
+	local coins = ls:FindFirstChild("Coins") :: IntValue?
+	if not coins then
+		local c = Instance.new("IntValue")
+		c.Name = "Coins"
+		c.Parent = ls
+		coins = c
+	end
+	(coins :: IntValue).Value = data.coins
 
 	EventBus.Fire(Events.PlayerDataLoaded, player)
 end
