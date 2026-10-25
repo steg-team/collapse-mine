@@ -20,6 +20,7 @@
 
 local Players = game:GetService("Players")
 local RS = game:GetService("ReplicatedStorage")
+local MarketplaceService = game:GetService("MarketplaceService")
 
 local Shared = RS:WaitForChild("Shared")
 local Events = require(Shared:WaitForChild("Events"))
@@ -113,6 +114,9 @@ function Bag.sync(player: Player)
 	player:SetAttribute("BagCapacity", cap)
 	player:SetAttribute("BagValue", bagValue(data))
 	player:SetAttribute("BagSpeedMultiplier", Bag.speedMultiplier(kg, cap))
+	-- 화면 표시용: 지금 판매가 배수(패스·부스트 × 리버스)와 가방 확장 패스 보유 (가방 가득 안내에서 패스 버튼을 숨김)
+	player:SetAttribute("SellMultiplier", math.floor(Bag.sellMult(player, data) * 100 + 0.5) / 100)
+	player:SetAttribute("HasBigBag", Payments.HasPass(player, Social.PassName.BigBag))
 	-- 도감 칸 수 (압력별 키 "Coal|High"만 센다). 늘면 클라이언트가 도감 버튼에 새 기록 점을 띄운다
 	local codexCount = 0
 	for key in data.codex do
@@ -166,10 +170,21 @@ function Bag.rebirthMult(data: PlayerData.Data): number
 	return 1 + data.rebirths * Economy.REBIRTH.sellBonus
 end
 
+-- 최종 판매가 배수 = 패스·부스트(C) × 리버스 보너스(B)
+function Bag.sellMult(player: Player, data: PlayerData.Data): number
+	return Payments.GetMultiplier(player, Social.MultiplierKind.SellPrice) * Bag.rebirthMult(data)
+end
+
+-- 판매 알림 뒤에 붙이는 배수 " (판매가 ×2)". 배수가 1이면 빈 문자열
+local function multText(player: Player): string
+	local data = PlayerData.get(player)
+	local m = data and Bag.sellMult(player, data) or 1
+	return if m > 1 then ` (판매가 ×{string.format("%g", math.floor(m * 100 + 0.5) / 100)})` else ""
+end
+
 -- 가방에서 이미 빼낸 광물들을 판다. 판매가 = 담을 때 확정한 값 × 판매가 배수
 local function sell(player: Player, data: PlayerData.Data, items: { PlayerData.BagItem }): number
-	-- 패스·부스트(C) × 리버스 보너스(B)
-	local mult = Payments.GetMultiplier(player, Social.MultiplierKind.SellPrice) * Bag.rebirthMult(data)
+	local mult = Bag.sellMult(player, data)
 	local perOre: { [string]: { count: number, total: number } } = {}
 	for _, item in items do
 		local s = perOre[item.ore] or { count = 0, total = 0 }
@@ -246,9 +261,10 @@ function Bag.sellAll(player: Player): (number, number)
 end
 
 -- 전부 팔기 결과 문구 (판매소 프롬프트·인벤토리 창 공통)
-local function sellAllNotice(earned: number, kept: number): string
+local function sellAllNotice(player: Player, earned: number, kept: number): string
 	if earned > 0 then
-		return if kept > 0 then `{earned} 코인에 팔았어요 · 재료 {kept}개는 남겼어요` else `{earned} 코인에 팔았어요`
+		local sold = `{earned} 코인에 팔았어요{multText(player)}`
+		return if kept > 0 then `{sold} · 재료 {kept}개는 남겼어요` else sold
 	end
 	return if kept > 0 then "재료만 남았어요. 인벤토리에서 따로 팔 수 있어요" else "가방이 비어 있어요"
 end
@@ -409,10 +425,10 @@ local function onBagRemote(player: Player, action: any, oreId: any, pressure: an
 	elseif action == "sellAll" then
 		local kept
 		earned, kept = Bag.sellAll(player)
-		Bag.notify(player, sellAllNotice(earned, kept))
+		Bag.notify(player, sellAllNotice(player, earned, kept))
 		return earned
 	end
-	Bag.notify(player, if earned > 0 then `{earned} 코인에 팔았어요` else "팔 광물이 없어요")
+	Bag.notify(player, if earned > 0 then `{earned} 코인에 팔았어요{multText(player)}` else "팔 광물이 없어요")
 	return earned
 end
 
@@ -462,8 +478,28 @@ function Bag.start()
 		lastCall[player] = nil
 	end)
 
+	-- 패스·부스트가 바뀌면 가방 한도·판매가 배수 표시를 다시 계산한다.
+	-- C의 Payments가 패스 조회를 마치거나 부스트가 켜지고 꺼질 때 SellPriceMultiplier 를 올린다 (접속 직후 가방 확장 반영도 이것으로).
+	-- 가방 확장 패스는 배수가 아니라서 속성이 안 바뀌므로 구매 완료를 따로 듣는다 (Payments 캐시가 갱신된 뒤에 읽게 defer)
+	local function watch(player: Player)
+		player.AttributeChanged:Connect(function(attr)
+			if attr == "SellPriceMultiplier" or attr == "TestPass_BigBag" then
+				Bag.sync(player)
+			end
+		end)
+	end
+	Players.PlayerAdded:Connect(watch)
+	for _, player in Players:GetPlayers() do
+		watch(player)
+	end
+	MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player, _passId, purchased)
+		if purchased then
+			task.defer(Bag.sync, player)
+		end
+	end)
+
 	Bag.counterPrompt("Shop", "SellPrompt", "재료 빼고 전부 팔기", function(player)
-		Bag.notify(player, sellAllNotice(Bag.sellAll(player)))
+		Bag.notify(player, sellAllNotice(player, Bag.sellAll(player)))
 	end)
 	Bag.counterPrompt("Shop", "BagUpgradePrompt", "가방 늘리기", function(player)
 		local _, msg = Bag.upgrade(player)

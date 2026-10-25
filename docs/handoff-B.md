@@ -39,6 +39,9 @@ B 담당 기능이 지금 어디까지 됐고, 다른 담당이 무엇을 붙이
 
 ## C 담당께
 
+- **가방 확장 패스 구매 입구 (D-038)**: 인벤토리의 가방 가득 카드에서 클라이언트가 `MarketplaceService:PromptGamePassPurchase`로 `Social.Passes.BigBag.id`를 띄운다. 패스 id가 0이면 버튼이 숨겨지니, 대시보드에서 패스를 만들고 id만 넣으면 보인다. 효과 확인은 C의 `Payments`(구매 완료 캐시)를 그대로 쓴다. 나중에 상점 UI를 만들면 이 버튼을 그쪽으로 옮겨도 된다.
+- **성장 공지 요청 (이슈 #48)**: `PickaxeUpgraded`를 받아 철 곡괭이 이상 제작·리버스를 서버 공지로.
+- 판매가 배수를 올리는 상품(패스·부스트의 `SellPrice`)이 생기면 B 화면(가방 HUD "💰×2", 판매 알림)에 자동으로 보인다.
 - 판매가 배수 `GetMultiplier(player, "SellPrice")`, 가방 확장 `HasPass(player, "BigBag")`를 B가 읽는다. 게임 중에 BigBag을 사면 다음 광물을 담을 때부터 칸이 늘어난다.
 - `OreBagged`의 값은 판매 배수를 곱하기 전, `OreSold`의 판매액은 곱한 뒤다.
 - 카나리아 HUD가 `ReplicatedStorage.CollapseState`의 광산 속성(붕괴 시각)을 읽는다. 이름이나 형식을 바꾸면 알려 달라.

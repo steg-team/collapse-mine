@@ -7,10 +7,12 @@
 local Players = game:GetService("Players")
 local RS = game:GetService("ReplicatedStorage")
 local UIS = game:GetService("UserInputService")
+local MarketplaceService = game:GetService("MarketplaceService")
 
 local Config = RS:WaitForChild("Shared"):WaitForChild("Config")
 local Mines = require(Config:WaitForChild("Mines"))
 local Economy = require(Config:WaitForChild("Economy"))
+local Social = require(Config:WaitForChild("Social"))
 
 local player = Players.LocalPlayer
 local remote = RS:WaitForChild("Remotes"):WaitForChild("Bag") :: RemoteFunction
@@ -165,9 +167,13 @@ local function render()
 	local cap = player:GetAttribute("BagCapacity") or 0
 	local kg = player:GetAttribute("BagKg") or 0
 	title.Text = string.format("가방 %.1f/%dkg", kg, cap)
+	-- 값은 지금 팔면 받을 값 (서버가 SellMultiplier = 패스·부스트 × 리버스를 알려 줌. 실제 금액은 서버가 다시 계산)
+	local mult = player:GetAttribute("SellMultiplier")
+	mult = if typeof(mult) == "number" and mult > 0 then mult else 1
 	footer.Text = if #items == 0
 		then "아직 캔 광물이 없어요"
-		elseif nearShop then "값은 판매가 배수를 곱하기 전이에요"
+		elseif mult > 1 then `💰 판매가 ×{string.format("%g", mult)} 적용된 값이에요`
+		elseif nearShop then "판매소에서 팔 수 있어요"
 		else "무거우면 느려져요. 싼 것부터 버려 보세요"
 	sellAll.Visible = nearShop and #items > 0
 
@@ -196,6 +202,40 @@ local function render()
 		return nil
 	end
 
+	-- 가방이 한도를 넘었을 때 맨 위 안내: 무료 방법(판매소 가방 늘리기)을 먼저, 패스는 그 옆에 조용히.
+	-- 시뮬레이터 장르는 "가방 가득" 순간에 확장 상품을 보여 주는 게 흔하지만, 로블록스 수익화 지침은
+	-- 어린 이용자에게 재촉하는 문구("지금 구매!")를 피하라고 해서 버튼은 "패스 보기"로 둔다.
+	-- 결제 창은 버튼을 눌렀을 때만 띄운다 (자동으로 띄우지 않음). 패스 효과는 서버(C의 Payments)가 확인한다
+	if kg > cap then
+		local card = Instance.new("Frame")
+		card.Name = "FullCard"
+		card.LayoutOrder = 0
+		card.Size = UDim2.new(1, -8, 0, 52)
+		card.BackgroundColor3 = Color3.fromRGB(70, 52, 30)
+		Instance.new("UICorner").Parent = card
+		card.Parent = list
+		local nextUp = Economy.BAG_UPGRADES[(player:GetAttribute("BagLevel") or 0) + 1]
+		local pass = Social.Passes.BigBag
+		local showPass = pass.id ~= 0 and player:GetAttribute("HasBigBag") ~= true
+		local textWidth = if showPass then -128 else -16
+		text(card, { Position = UDim2.new(0, 10, 0, 4), Size = UDim2.new(1, textWidth, 0, 22), TextXAlignment = Enum.TextXAlignment.Left, TextSize = 15, TextColor3 = Color3.fromRGB(255, 210, 120), Text = "🎒 가방이 무거워서 느려요" })
+		text(card, {
+			Position = UDim2.new(0, 10, 0, 26),
+			Size = UDim2.new(1, textWidth, 0, 20),
+			TextXAlignment = Enum.TextXAlignment.Left,
+			TextSize = 12,
+			TextTruncate = Enum.TextTruncate.AtEnd,
+			TextColor3 = Color3.fromRGB(220, 210, 190),
+			Text = if nextUp then `판매소 "가방 늘리기"로 +{nextUp.kg}kg ({nextUp.coins} 코인)` else "팔거나 싼 것부터 버려 보세요",
+		})
+		if showPass then
+			local b = button(card, `+{Economy.BIG_BAG_EXTRA_KG}kg 패스 보기`, { Name = "BigBagPass", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -8, 0.5, 0), Size = UDim2.fromOffset(112, 32), TextSize = 13 })
+			b.Activated:Connect(function()
+				MarketplaceService:PromptGamePassPurchase(player, pass.id)
+			end)
+		end
+	end
+
 	for i, g in groups() do
 		local info = oreInfo[g.ore]
 		local tag = useTag(g.ore)
@@ -221,8 +261,8 @@ local function render()
 				PRESSURE_TEXT[g.pressure] or g.pressure,
 				g.count,
 				g.kg,
-				g.value,
-				g.value / g.kg
+				math.floor(g.value * mult + 0.5),
+				g.value * mult / g.kg
 			),
 		})
 		if tag then
@@ -278,6 +318,14 @@ bagButton.Activated:Connect(toggle)
 -- 가방이 바뀌면(판매·채굴·갇힘) 다시 받아 온다. 서버 판매 결과 문구는 BagHud 알림 줄에 뜬다
 player:GetAttributeChangedSignal("BagKg"):Connect(reload)
 player:GetAttributeChangedSignal("BagValue"):Connect(reload)
+-- 부스트가 켜지고 꺼지거나 패스를 사면 값·안내만 다시 그린다
+for _, name in { "SellMultiplier", "HasBigBag", "BagCapacity" } do
+	player:GetAttributeChangedSignal(name):Connect(function()
+		if gui.Enabled then
+			render()
+		end
+	end)
+end
 
 -- 창을 연 채 판매소에 다가가거나 멀어지면 버튼을 켜고 끈다
 while true do
