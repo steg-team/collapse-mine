@@ -1,7 +1,8 @@
 --!strict
 -- 광산 카나리아 HUD (B 담당, D-023)
 -- 화면 오른쪽에 카나리아 상태 한 줄. 광산 안에서만 보인다.
---   - 희귀 이상 광물이 탐지 범위 안에 있으면 "짹짹!" + 거리 (가까울수록 빨리 깜빡임)
+--   - 숨은 희귀 광맥이 탐지 범위 안이면 "짹짹! 희귀 광맥이 n m 안에" (D-036, 서버가 거리만 CanaryVeinDistance 속성으로 보냄)
+--   - 이미 드러난 희귀 이상 광석이 범위 안이면 "짹짹!" + 거리. 둘 다 가까울수록 빨리 깜빡임
 --   - 내가 있는 광산이 붕괴 경보 중이면 불안해한다 (C의 ReplicatedStorage.CollapseState, CollapseHud와 같은 출처)
 -- 광석은 원래 클라이언트에도 보이는 파트라, 탐지를 클라이언트에서 해도 새로 드러나는 정보가 없다 (보상과 무관한 힌트).
 
@@ -85,11 +86,16 @@ while true do
 	local spec = Economy.CANARY[level] or Economy.CANARY[0]
 	local collapseAt = stateFolder:GetAttribute(mine.id)
 	local dist = nearestRare(root.Position, spec.range)
+	local vein = player:GetAttribute("CanaryVeinDistance")
 
 	if typeof(collapseAt) == "number" then
 		label.Text = "🐤 카나리아가 불안해해요! 어서 나가요"
 		label.TextColor3 = Color3.fromRGB(255, 110, 100)
 		blinkSpeed = 14
+	elseif typeof(vein) == "number" and (not dist or vein < dist) then
+		label.Text = `🐤 짹짹! 희귀 광맥이 {vein}m 안에 있어요. 그쪽을 파 보세요`
+		label.TextColor3 = Color3.fromRGB(255, 220, 90)
+		blinkSpeed = 4 + 12 * (1 - math.min(vein / spec.range, 1))
 	elseif dist then
 		label.Text = `🐤 짹짹! 희귀 광물이 {math.floor(dist)}m 안에 있어요`
 		label.TextColor3 = Color3.fromRGB(255, 220, 90)

@@ -18,7 +18,7 @@ B 담당 기능이 지금 어디까지 됐고, 다른 담당이 무엇을 붙이
 | 갇힘 차감 | `Bag.luau`, `PlayerData.luau` | 갇힘·경보 중 광산 안 퇴장 → 가방 무게의 절반까지 (D-029) |
 | 출석·퀘스트 코인 | `Bag.luau` | `DailyLoginClaimed`·`QuestCompleted`의 `reward.coins` 지급 |
 | 곡괭이 제작·강화 | `src/server/Economy/Workshop.luau` | 동작. 제작소 Counter "다음 곡괭이 만들기"(E)·"곡괭이 강화"(F) |
-| 광산 카나리아 | `src/client/Economy/CanaryHud.client.luau`, `Workshop.feedCanary` | 동작. 광산 안 오른쪽 상태 줄, 제작소 "카나리아 키우기"(G). 새 모델·소리는 아직 |
+| 광산 카나리아 | `src/client/Economy/CanaryHud.client.luau`, `Workshop.feedCanary` | 동작. 광산 안 오른쪽 상태 줄, 제작소 "카나리아 키우기"(G). 숨은 광맥 감지(`Canary.luau`, D-036)는 A의 `RareVeins`(#43)가 생기면 켜짐. 새 모델·소리는 아직 |
 | 리버스 | `Workshop.rebirth` | 동작. 제작소 "리버스"(R 3초). 코인·곡괭이·가방 초기화, 판매가 영구 배수 |
 | 광물 도감 | `src/client/Economy/CodexPanel.client.luau`, `Bag.luau` | 동작. 인벤토리 창 "📖 도감"·N 키. 광물 × 압력 칸, 새 칸이면 알림 (D-035). 완성 보상은 아직 |
 | 한 줄 알림 | `Bag.notify`, `BagHud` | 판매 결과·제작 실패 이유를 화면 아래에 3초 |
