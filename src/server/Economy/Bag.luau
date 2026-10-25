@@ -5,17 +5,20 @@
 
 	흐름
 		OreMined (A) ──▶ 값 확정 · 가방에 담기 ──▶ OreBagged (C 랭킹)
-		판매소 Counter 프롬프트·인벤토리 창 ──▶ 전부 또는 종류별 판매 · 코인 ──▶ OreSold (C 랭킹·퀘스트)
+		판매소 Counter 프롬프트·인벤토리 창 ──▶ 재료 남기고 전부 / 종류별 판매 · 코인 ──▶ OreSold (C 랭킹·퀘스트) (D-037)
 		판매소 Counter "가방 늘리기" ──▶ 코인으로 무게 한도 +kg (D-028)
 		인벤토리 창 ──▶ 한 개 버리기 (광산 안에서 가볍게 탈출)
-		PlayerEscaped (C) ──▶ 가방 가치 = 탈출 수확 ──▶ HaulSecured (C 랭킹) + 탈출 보너스
-		PlayerTrapped (C) ──▶ 가방 일부 차감
+		PlayerEscaped (C) ──▶ 광산을 나올 때 들고 있던 가치 = 탈출 수확 ──▶ HaulSecured (C 랭킹) + 탈출 보너스 (D-039)
+		PlayerTrapped (C) · 경보 중 광산 안에서 죽음 ──▶ 가방 일부 차감, 한 경보에 한 번 (PlayerData.trapLoss, D-039)
 		DailyLoginClaimed / QuestCompleted (C) ──▶ 보상 코인
 
 	플레이어 속성 (서버가 갱신, Remote 없이 복제됨)
-		BagCount, BagKg, BagCapacity(kg), BagValue, EconomyNotice(한 줄 알림)  — B의 HUD용
+		BagCount, BagKg, BagCapacity(kg), BagValue(배수 곱하기 전)  — 가방 HUD·인벤토리
+		SellMultiplier(패스·부스트 × 리버스), HasBigBag  — 배수 표시·가방 가득 안내 (D-038)
+		CodexCount  — 도감 새 기록 점 (D-035)
 		BagSpeedMultiplier (1 → BAG_MIN_SPEED)  — A가 걸음 속도에 곱한다
-	가방 목록·판매·버리기는 Remotes.Bag (아래 onBagRemote).
+		EconomyNotice / EconomyNoticeAt  — 한 줄 알림 (Counter.notify)
+	가방 목록·도감·판매·버리기는 Remotes.Bag (아래 onBagRemote).
 ]]
 
 local Players = game:GetService("Players")
@@ -32,6 +35,8 @@ local PlayerData = require(script.Parent.PlayerData)
 local Counter = require(script.Parent.Counter)
 -- C의 조회 함수 (패스 보유, 판매가 배수)
 local Payments = require(script.Parent.Parent:WaitForChild("Social"):WaitForChild("Payments"))
+-- C의 조회 함수 (경보 중인지: 탈출 수확·경보 중 죽음 차감, D-039)
+local Collapse = require(script.Parent.Parent:WaitForChild("Social"):WaitForChild("Collapse"))
 
 -- 광물 이름 → 기본가·화면 이름. 광물표 원본은 Mines.luau (A)
 local baseValue: { [string]: number } = {}
@@ -139,7 +144,8 @@ end
 
 local function onOreMined(player: Player, oreId: string, weight: number, pressure: string)
 	local data = PlayerData.get(player)
-	if not data or typeof(weight) ~= "number" or weight <= 0 then
+	-- 무게가 NaN·무한대면 값과 코인이 NaN이 되어 저장 데이터가 영구히 깨진다. 다른 모듈에서 온 값도 확인한다
+	if not data or typeof(weight) ~= "number" or not (weight > 0 and weight < math.huge) then
 		return
 	end
 	if bagKg(data) + weight > Bag.capacity(player) * Economy.BAG_HARD_LIMIT then
@@ -309,6 +315,9 @@ end
 -- 결과 문구는 Counter.notify 로 HUD 알림 줄에 띄운다
 -- Remote가 없으면 서버가 만든다 (Studio 수작업 없이 Rojo만으로 동작하게)
 local REMOTE_COOLDOWN = 0.15
+-- 탈출 수확용: 경보 중 광산 안에서 마지막으로 들고 있던 가치 (D-039)
+local CARRY_POLL = 0.5
+local carried: { [Player]: { mineId: string, value: number } } = {}
 local lastCall: { [Player]: number } = {}
 
 local function onBagRemote(player: Player, action: any, oreId: any, pressure: any): any
@@ -368,25 +377,67 @@ function Bag.start()
 	EventBus.On(Events.PlayerDataLoaded, Bag.sync)
 	EventBus.On(Events.OreMined, onOreMined)
 
-	EventBus.On(Events.PlayerTrapped, function(player: Player)
-		local data = PlayerData.get(player)
-		if data then
-			PlayerData.loseBag(data)
+	-- 갇힘: 경보 중 광산 안에서 죽었으면 이미 차감했으니 건너뛴다 (PlayerData.trapLoss가 한 번만)
+	EventBus.On(Events.PlayerTrapped, function(player: Player, mineId: string)
+		if PlayerData.trapLoss(player, mineId) then
 			Bag.sync(player)
 		end
+		carried[player] = nil
 	end)
 
+	-- 탈출 수확 = 광산을 나올 때 들고 있던 가치 (D-039). 붕괴 순간의 가방으로 재면, 먼저 나와서 판 사람은 0이 된다
 	EventBus.On(Events.PlayerEscaped, function(player: Player, mineId: string, bonus: number)
 		local data = PlayerData.get(player)
+		local c = carried[player]
+		carried[player] = nil
 		if not data then
 			return
 		end
-		local haul = bagValue(data)
+		local haul = if c and c.mineId == mineId then c.value else bagValue(data)
 		if haul > 0 then
 			data.stats.bestHaul = math.max(data.stats.bestHaul, haul)
 			EventBus.Fire(Events.HaulSecured, player, mineId, haul)
 		end
-		PlayerData.addCoins(player, bonus)
+		if typeof(bonus) == "number" and bonus > 0 and bonus < math.huge then
+			PlayerData.addCoins(player, bonus)
+		end
+	end)
+
+	-- 경보 중 광산 안에 있는 동안 들고 있는 가치를 적어 둔다 (탈출 수확용).
+	-- 경보 중 광산 안에서 죽으면(리셋 포함) 그 자리에서 갇힘 차감: 허브에서 부활해 붕괴 전에 팔아 버리면 차감을 피할 수 있었다.
+	-- 캐릭터가 지워질 때(부활 직전) 판정한다. 죽은 몸은 광산 안에 남아 있다
+	task.spawn(function()
+		while true do
+			task.wait(CARRY_POLL)
+			for _, player in Players:GetPlayers() do
+				local data = PlayerData.get(player)
+				local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
+				local mine = root and Mines.findAreaAt(root.Position)
+				if data and mine and Collapse.GetRemainingTime(mine.id) ~= nil then
+					carried[player] = { mineId = mine.id, value = bagValue(data) }
+				end
+			end
+		end
+	end)
+	local function watchDeath(player: Player)
+		player.CharacterRemoving:Connect(function(char)
+			local humanoid = char:FindFirstChildOfClass("Humanoid")
+			local root = char:FindFirstChild("HumanoidRootPart") :: BasePart?
+			local mine = root and Mines.findAreaAt(root.Position)
+			if humanoid and humanoid.Health <= 0 and mine and Collapse.GetRemainingTime(mine.id) ~= nil then
+				if PlayerData.trapLoss(player, mine.id) then
+					Bag.sync(player)
+					Counter.notify(player, "붕괴 경보 중 광산에서 쓰러져서 가방 일부를 잃었어요")
+				end
+			end
+		end)
+	end
+	Players.PlayerAdded:Connect(watchDeath)
+	for _, player in Players:GetPlayers() do
+		watchDeath(player)
+	end
+	Players.PlayerRemoving:Connect(function(player)
+		carried[player] = nil
 	end)
 
 	-- 아이템 보상은 아이템 기능이 생기면 받는다 (지금은 코인만)
