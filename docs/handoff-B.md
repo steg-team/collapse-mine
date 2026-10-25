@@ -1,6 +1,7 @@
 # B(경제) 인계 문서
 
 B 담당 기능이 지금 어디까지 됐고, 다른 담당이 무엇을 붙이면 되는지 적는다. 바뀔 때마다 이 문서를 고친다.
+다른 담당에게 할 일이 생기면 여기 적는 것과 별개로 GitHub 이슈(라벨 `담당-A`/`담당-C`)를 연다. B에게 요청할 일은 라벨 `담당-B` 이슈로 남겨 달라.
 규칙의 근거는 `decisions.md` D-014(데이터 저장), D-020(가방·판매소), D-021(곡괭이 제작·강화), D-022(인벤토리 창·코인 원본), D-023(광산 카나리아), D-024(리버스), D-027(가방 무게), D-028(가방 늘리기).
 
 ## 지금 되는 것
@@ -26,7 +27,7 @@ B 담당 기능이 지금 어디까지 됐고, 다른 담당이 무엇을 붙이
 - 채굴 → 가방은 #26(D-025)으로 연결됐다. 광석이 깨지면 `OreMined`만 오고, 코인은 B가 판매 때 준다.
 - `leaderstats.Coins`는 화면 표시용 사본이다. 코인을 바꿀 일이 생기면 직접 고치지 말고 B에 말해 달라 (원본은 `data.coins`, `PlayerData.addCoins`).
 - 곡괭이: B가 제작·강화하면 `PickaxeUpgraded(player, tier, enhance)`가 오고, 플레이어 속성 `PickaxeTier`·`PickaxeEnhance`도 바뀐다. 리버스하면 `(player, 1, 0)`.
-- **걸음 속도 (D-027, A 할 일)**: B가 플레이어 속성 `BagSpeedMultiplier`(1 → 0.6)를 갱신한다. 가방이 30kg을 넘으면 1보다 작아진다. 캐릭터 걸음 속도에 곱해 달라. 예:
+- **걸음 속도 (D-027, A 할 일, 이슈 #37)**: B가 플레이어 속성 `BagSpeedMultiplier`(1 → 0.6)를 갱신한다. 가방이 30kg을 넘으면 1보다 작아진다. 캐릭터 걸음 속도에 곱해 달라. 예:
   ```lua
   local function apply() humanoid.WalkSpeed = BASE_WALK * (player:GetAttribute("BagSpeedMultiplier") or 1) end
   player:GetAttributeChangedSignal("BagSpeedMultiplier"):Connect(apply)
