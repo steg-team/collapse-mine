@@ -81,6 +81,7 @@ docs/        기획서, 결정 기록 (동기화 안 됨)
 
 이벤트가 아닌 조회 함수 (C 제공): `Payments.HasPass`, `Payments.GetMultiplier`(패스+부스트 배수, A 채굴 속도·B 판매가), `Collapse.GetRemainingTime`(A 압력 등급). 인자 형식은 `Events.luau` 주석 참고.
 조회 함수 (B 제공): `PlayerData.get`(저장 데이터, `PlayerDataLoaded` 이후. C는 `social` 칸만 씀). D-014 참고.
+조회 함수 (A 제공, 서버 전용): `RareVeins.nearest(mineId, position) -> number?`(가장 가까운 숨은 희귀 광맥까지 거리, 없으면 nil. B의 카나리아가 씀, D-036). `src/server/Mining/RareVeins.luau`.
 
 플레이어 속성 계약 (서버가 `player:SetAttribute`로 쓰고 다른 담당이 읽음)
 
