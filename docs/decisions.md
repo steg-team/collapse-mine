@@ -417,3 +417,13 @@ AI 에이전트는 구현 전에 이 문서와 `game-design.md`를 읽고, 둘�
   - 붕괴 경보 중 서버가 꺼지면 퇴장 차감은 하지 않는다.
 - 확인: `tools/test_economy.luau`(Play 중 명령창에서 실행)에 판매가·담기 거절·전부 팔기·갇힘 손실·한 번만 차감·제작·리버스·코인 정수 검사를 모았다. 돈이 걸린 규칙을 고치면 돌린다.
 - 영향: `PlayerData.luau`(`trapLoss`), `Bag.luau`(경보 중 죽음·탈출 수확·입력 확인), `tools/test_economy.luau`.
+
+## D-040 붕괴 때 통로를 막지 않고 연출로 보여 준다
+
+- 2026-10-25 / 채택 / 이우진 (A)
+- 결정:
+  - 기획서 A 담당의 "붕괴 때 통로 막힘"을 **붕괴 연출**로 바꾼다. 지형(통로)은 건드리지 않는다.
+  - 붕괴 순간 광산 안에 있는 사람(= C가 갇힘으로 치는 사람, `Mines.findAreaAt`)에게만, C가 허브로 옮기기 전까지(`Social.Collapse.trappedTeleportDelay`, 지금 3초) 연출을 보여 준다: 화면 흔들림, 주변에 돌 떨어짐, 먼지, 무너지는 소리, 마지막에 화면이 어두워졌다가 허브에서 밝아짐.
+  - 서버(A)는 `CollapseOccurred`를 받아 그 사람들에게 `Remotes.CollapseFx`를 보내기만 하고, 돌·먼지는 클라이언트가 만든다 (서버 부담·네트워크 없음). 숫자·소리는 `Config/Mines.luau` `COLLAPSE_FX` (임시값).
+- 이유: 갇히면 C가 3초 뒤 허브로 옮기고 B가 가방 무게 절반을 깎아서(D-013, D-029), 통로를 실제로 막아도 결과가 같다. 막으면 붕괴 뒤 다음 사람이 길을 못 다니고 되살리는 처리가 따로 필요하다. 대신 갇힌 순간을 몸으로 느끼게 해야 "다음엔 일찍 나가야지"가 생긴다. 지금은 아무 느낌 없이 순간이동만 돼서 붕괴가 그냥 강제 귀환처럼 느껴졌다.
+- 영향: `src/server/Mining/CollapseFx.server.luau`, `src/client/Mining/CollapseFx.client.luau`, `Config/Mines.luau`. 기획서·AGENTS.md A 담당 줄. C의 `Collapse.luau` 주석 "A가 통로를 막아서"는 이제 맞지 않다 (동작은 그대로).
