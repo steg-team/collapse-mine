@@ -218,6 +218,18 @@ Mines.RARE_VEINS = table.freeze({
 	riskWeight = 4, -- 방 고르는 가중치 = 1 + CollapseRisk × 이 값 (위험한 방 근처에 더 자주, D-002)
 })
 
+-- 붕괴 연출 (D-040, A의 CollapseFx): 붕괴 순간 광산 안에 있던(갇힌) 사람 화면에만.
+-- 길이는 C가 허브로 옮기기까지의 시간(Social.Collapse.trappedTeleportDelay)을 따른다. 숫자는 모두 임시값
+Mines.COLLAPSE_FX = table.freeze({
+	soundId = "rbxassetid://9113215872", -- Avalanche Crashing 1 (ProSoundEffects, 무료)
+	soundVolume = 1.2,
+	shake = 1.2, -- 화면 흔들림 세기 (카메라 위치 흔들 폭, 스터드). 끝으로 갈수록 세짐
+	rockInterval = 0.06, -- 돌 하나 떨어뜨리는 간격(초)
+	rockRadius = 16, -- 플레이어 둘레 이 반경 안에 떨어짐
+	rockSize = NumberRange.new(0.8, 2.6),
+	fadeTime = 0.6, -- 마지막에 화면이 어두워지는 시간(초). 허브로 옮겨진 뒤 같은 시간에 밝아짐
+})
+
 local byId: { [string]: Mine } = {}
 for _, m in Mines.list do
 	byId[m.id] = m
