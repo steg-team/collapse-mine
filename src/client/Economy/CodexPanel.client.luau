@@ -172,3 +172,41 @@ UIS.InputBegan:Connect(function(input, processed)
 end)
 local codexButton = player.PlayerGui:WaitForChild("InventoryPanel"):WaitForChild("Window"):WaitForChild("Codex") :: TextButton
 codexButton.Activated:Connect(toggle)
+
+-- 새 기록 빨간 점: 도감 칸 수(서버 속성 CodexCount)가 마지막으로 도감을 연 뒤 늘었으면
+-- 가방 버튼과 인벤토리 창의 도감 버튼에 띄운다. 접속할 때 이미 있던 기록은 새 기록으로 치지 않는다
+local function dot(parent: Instance): Frame
+	local d = make("Frame", parent, { Name = "NewDot", AnchorPoint = Vector2.new(0.5, 0.5), Size = UDim2.fromOffset(12, 12), BackgroundColor3 = Color3.fromRGB(235, 60, 60), Visible = false, ZIndex = 5 })
+	make("UICorner", d, { CornerRadius = UDim.new(1, 0) })
+	return d
+end
+local buttonDot = dot(codexButton)
+buttonDot.Position = UDim2.new(1, -2, 0, 2)
+-- 가방 버튼은 글자에 맞춰 크기가 바뀌어서(AutomaticSize) 안에 넣으면 버튼이 커진다. 따로 띄우고 버튼 오른쪽 위에 맞춘다
+local bagButton = player.PlayerGui:WaitForChild("BagHud"):WaitForChild("Bag") :: TextButton
+local dotGui = make("ScreenGui", player.PlayerGui, { Name = "CodexDot", ResetOnSpawn = false, DisplayOrder = 1 })
+local bagDot = dot(dotGui)
+local function placeBagDot()
+	local p, sz = bagButton.AbsolutePosition, bagButton.AbsoluteSize
+	bagDot.Position = UDim2.fromOffset(p.X + sz.X - 4, p.Y + 4)
+end
+bagButton:GetPropertyChangedSignal("AbsolutePosition"):Connect(placeBagDot)
+bagButton:GetPropertyChangedSignal("AbsoluteSize"):Connect(placeBagDot)
+placeBagDot()
+
+local seen: number? = nil
+local function updateDot()
+	local count = player:GetAttribute("CodexCount")
+	if typeof(count) ~= "number" then
+		return
+	end
+	if seen == nil or gui.Enabled then
+		seen = count
+	end
+	local new = count > (seen :: number)
+	buttonDot.Visible = new
+	bagDot.Visible = new and (bagButton.Parent :: ScreenGui).Enabled
+end
+player:GetAttributeChangedSignal("CodexCount"):Connect(updateDot)
+gui:GetPropertyChangedSignal("Enabled"):Connect(updateDot)
+updateDot()

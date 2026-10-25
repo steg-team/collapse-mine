@@ -2,7 +2,7 @@
 
 B 담당 기능이 지금 어디까지 됐고, 다른 담당이 무엇을 붙이면 되는지 적는다. 바뀔 때마다 이 문서를 고친다.
 다른 담당에게 할 일이 생기면 여기 적는 것과 별개로 GitHub 이슈(라벨 `담당-A`/`담당-C`)를 연다. B에게 요청할 일은 라벨 `담당-B` 이슈로 남겨 달라.
-규칙의 근거는 `decisions.md` D-014(데이터 저장), D-020(가방·판매소), D-021(곡괭이 제작·강화), D-022(인벤토리 창·코인 원본), D-023(광산 카나리아), D-024(리버스), D-027(가방 무게), D-028(가방 늘리기), D-029(갇힘 차감), D-035(도감).
+규칙의 근거는 `decisions.md` D-014(데이터 저장), D-020(가방·판매소), D-021(곡괭이 제작·강화), D-022(인벤토리 창·코인 원본), D-023(광산 카나리아), D-024(리버스), D-027(가방 무게), D-028(가방 늘리기), D-029(갇힘 차감), D-035(도감), D-036(카나리아 광맥), D-037(재료 남기고 팔기).
 
 ## 지금 되는 것
 
@@ -10,7 +10,7 @@ B 담당 기능이 지금 어디까지 됐고, 다른 담당이 무엇을 붙이
 |---|---|---|
 | 데이터 저장 | `src/server/Economy/PlayerData.luau` | 동작. ProfileStore, 세션 잠금 |
 | 가방 담기 | `src/server/Economy/Bag.luau` | 동작. A의 `OreMined`(#26)로 채굴과 연결됨. 무게(kg) 한도, 넘으면 느려짐 (D-027) |
-| 판매소 | `Bag.luau` (`Bag.sellAll`) | 동작. 허브 `Shop/Counter`에 "가방 전부 팔기" 프롬프트 |
+| 판매소 | `Bag.luau` (`Bag.sellAll`) | 동작. 허브 `Shop/Counter`에 "재료 빼고 전부 팔기" 프롬프트. 다음 곡괭이 재료·카나리아 먹이는 남김 (D-037) |
 | 가방 HUD | `src/client/Economy/BagHud.client.luau` | 동작. 화면 아래 "가방 3/20 · 120 코인어치", 누르면 인벤토리 창 |
 | 가방 늘리기 | `Bag.upgrade` | 동작. 판매소 "가방 늘리기"(F), 30kg → 최대 80kg. 리버스하면 처음으로 |
 | 인벤토리 창 | `src/client/Economy/InventoryPanel.client.luau` | 동작. 가방 버튼·B 키. 판매소 근처면 한 개씩/전부 팔기 (`Remotes.Bag`). 다음 곡괭이 재료·카나리아 먹이는 줄 아래 "⚒ 돌 곡괭이 재료 2/3" 표시 |
@@ -20,7 +20,7 @@ B 담당 기능이 지금 어디까지 됐고, 다른 담당이 무엇을 붙이
 | 곡괭이 제작·강화 | `src/server/Economy/Workshop.luau` | 동작. 제작소 Counter "다음 곡괭이 만들기"(E)·"곡괭이 강화"(F) |
 | 광산 카나리아 | `src/client/Economy/CanaryHud.client.luau`, `Workshop.feedCanary` | 동작. 광산 안 오른쪽 상태 줄, 제작소 "카나리아 키우기"(G). 숨은 광맥 감지(`Canary.luau`, D-036)는 A의 `RareVeins`(#43)가 생기면 켜짐. 새 모델·소리는 아직 |
 | 리버스 | `Workshop.rebirth` | 동작. 제작소 "리버스"(R 3초). 코인·곡괭이·가방 초기화, 판매가 영구 배수 |
-| 광물 도감 | `src/client/Economy/CodexPanel.client.luau`, `Bag.luau` | 동작. 인벤토리 창 "📖 도감"·N 키. 광물 × 압력 칸, 새 칸이면 알림 (D-035). 완성 보상은 아직 |
+| 광물 도감 | `src/client/Economy/CodexPanel.client.luau`, `Bag.luau` | 동작. 인벤토리 창 "📖 도감"·N 키. 광물 × 압력 칸, 새 칸이면 알림, 가방 버튼에 빨간 점 (D-035). 완성 보상은 아직 |
 | 한 줄 알림 | `Bag.notify`, `BagHud` | 판매 결과·제작 실패 이유를 화면 아래에 3초 |
 
 ## A 담당께
