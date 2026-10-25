@@ -82,6 +82,19 @@ docs/        기획서, 결정 기록 (동기화 안 됨)
 이벤트가 아닌 조회 함수 (C 제공): `Payments.HasPass`, `Payments.GetMultiplier`(패스+부스트 배수, A 채굴 속도·B 판매가), `Collapse.GetRemainingTime`(A 압력 등급). 인자 형식은 `Events.luau` 주석 참고.
 조회 함수 (B 제공): `PlayerData.get`(저장 데이터, `PlayerDataLoaded` 이후. C는 `social` 칸만 씀). D-014 참고.
 
+플레이어 속성 계약 (서버가 `player:SetAttribute`로 쓰고 다른 담당이 읽음)
+
+| 속성 | 쓰는 쪽 → 읽는 쪽 | 뜻 |
+|---|---|---|
+| `PickaxeTier`, `PickaxeEnhance` | B → A | 곡괭이 단계·강화 (곡괭이 성능, 광산 입장) |
+| `BagSpeedMultiplier` | B → A | 가방 무게로 줄어드는 걸음 속도 배수 1 → 0.6 (D-027). 캐릭터 걸음 속도에 곱한다 |
+
+### 담당 간 요청 (GitHub 이슈)
+
+- 다른 담당이 해야 할 일은 GitHub 이슈로 남기고 라벨 `담당-A` / `담당-B` / `담당-C`를 붙입니다. PR 설명·커밋·주석에만 적으면 상대가 놓칩니다.
+- **작업을 시작할 때 자기 담당 라벨의 열린 이슈부터 확인합니다**: `gh issue list --label 담당-A` (A 기준). 처리한 PR 설명에 `Closes #번호`를 적어 닫습니다.
+- 담당별 현재 상태와 붙이는 방법은 `docs/handoff-<담당>.md`에 둡니다 (예: `docs/handoff-B.md`).
+
 ## 보안 규칙 (어기면 PR 반려)
 
 - 확률, 판매가, 보상, 결제 검증은 **서버에서만** 계산합니다. 클라이언트가 보낸 값(위치, 대상, 수량)은 모두 검증합니다: 타입, 거리, 쿨다운, 소유 여부.
