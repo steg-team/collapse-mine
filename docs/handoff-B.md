@@ -13,7 +13,7 @@ B 담당 기능이 지금 어디까지 됐고, 다른 담당이 무엇을 붙이
 | 판매소 | `Bag.luau` (`Bag.sellAll`) | 동작. 허브 `Shop/Counter`에 "가방 전부 팔기" 프롬프트 |
 | 가방 HUD | `src/client/Economy/BagHud.client.luau` | 동작. 화면 아래 "가방 3/20 · 120 코인어치", 누르면 인벤토리 창 |
 | 가방 늘리기 | `Bag.upgrade` | 동작. 판매소 "가방 늘리기"(F), 30kg → 최대 80kg. 리버스하면 처음으로 |
-| 인벤토리 창 | `src/client/Economy/InventoryPanel.client.luau` | 동작. 가방 버튼·B 키. 판매소 근처면 한 개씩/전부 팔기 (`Remotes.Bag`) |
+| 인벤토리 창 | `src/client/Economy/InventoryPanel.client.luau` | 동작. 가방 버튼·B 키. 판매소 근처면 한 개씩/전부 팔기 (`Remotes.Bag`). 다음 곡괭이 재료·카나리아 먹이는 줄 아래 "⚒ 돌 곡괭이 재료 2/3" 표시 |
 | 탈출 수확·보너스 | `Bag.luau` | `PlayerEscaped` → `HaulSecured` + 보너스 코인 |
 | 갇힘 차감 | `Bag.luau`, `PlayerData.luau` | 갇힘·경보 중 광산 안 퇴장 → 가방 무게의 절반까지 (D-029) |
 | 출석·퀘스트 코인 | `Bag.luau` | `DailyLoginClaimed`·`QuestCompleted`의 `reward.coins` 지급 |

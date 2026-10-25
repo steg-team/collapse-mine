@@ -2,6 +2,7 @@
 -- 인벤토리 창 (B 담당, D-022, 무게 D-027)
 -- 화면 아래 가방 버튼(BagHud)을 누르거나 B 키로 연다. 같은 광물·압력끼리 묶어 개수·무게·값·1kg당 값을 보여 주고,
 -- 어디서나 한 개씩 버릴 수 있고, 판매소 근처에서는 묶음별로 또는 전부 팔 수 있다 (판정·금액은 서버, Remotes.Bag).
+-- 다음 곡괭이 재료·카나리아 먹이로 쓰이는 광물은 줄 아래에 "⚒ 돌 곡괭이 재료 2/3"처럼 표시한다.
 
 local Players = game:GetService("Players")
 local RS = game:GetService("ReplicatedStorage")
@@ -169,19 +170,45 @@ local function render()
 		else "무거우면 느려져요. 싼 것부터 버려 보세요"
 	sellAll.Visible = nearShop and #items > 0
 
+	-- "팔까, 쓸까": 다음 곡괭이 재료와 카나리아 먹이에 쓰이는 광물은 줄 아래에 표시해서 모르고 팔지 않게 한다.
+	-- 개수는 압력과 상관없이 같은 광물 전부 (제작소가 압력을 가리지 않고 싼 것부터 씀)
+	local countOf: { [string]: number } = {}
+	local rareCount = 0
+	for _, item in items do
+		countOf[item.ore] = (countOf[item.ore] or 0) + 1
+		local info = oreInfo[item.ore]
+		if info and info.grade == Economy.CANARY_FEED_GRADE then
+			rareCount += 1
+		end
+	end
+	local nextPickaxe = Economy.PICKAXES[(player:GetAttribute("PickaxeTier") or 1) + 1]
+	local nextCanary = Economy.CANARY[(player:GetAttribute("CanaryLevel") or 0) + 1]
+	local function useTag(oreId: string): string?
+		local need = nextPickaxe and nextPickaxe.ores[oreId]
+		if need then
+			return `⚒ {nextPickaxe.name} 재료 {countOf[oreId]}/{need}`
+		end
+		local info = oreInfo[oreId]
+		if nextCanary and info and info.grade == Economy.CANARY_FEED_GRADE then
+			return `🐤 카나리아 먹이 ({Economy.CANARY_FEED_GRADE} 광물 {rareCount}/{nextCanary.rare})`
+		end
+		return nil
+	end
+
 	for i, g in groups() do
 		local info = oreInfo[g.ore]
+		local tag = useTag(g.ore)
 		local row = Instance.new("Frame")
 		row.Name = `Row{i}`
 		row.LayoutOrder = i
-		row.Size = UDim2.new(1, -8, 0, 36)
+		row.Size = UDim2.new(1, -8, 0, if tag then 48 else 36)
 		row.BackgroundColor3 = Color3.fromRGB(44, 41, 38)
 		Instance.new("UICorner").Parent = row
 		row.Parent = list
 
 		text(row, {
 			Position = UDim2.new(0, 10, 0, 0),
-			Size = UDim2.new(1, -160, 1, 0),
+			Size = UDim2.new(1, -160, 0, 36),
 			TextXAlignment = Enum.TextXAlignment.Left,
 			TextSize = 14,
 			TextTruncate = Enum.TextTruncate.AtEnd,
@@ -197,6 +224,9 @@ local function render()
 				g.value / g.kg
 			),
 		})
+		if tag then
+			text(row, { Name = "Use", Position = UDim2.new(0, 10, 0, 28), Size = UDim2.new(1, -160, 0, 16), TextXAlignment = Enum.TextXAlignment.Left, TextSize = 12, TextTruncate = Enum.TextTruncate.AtEnd, TextColor3 = Color3.fromRGB(255, 200, 90), Text = tag })
+		end
 		local drop = button(row, "버리기", { Name = "Drop", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -82, 0.5, 0), Size = UDim2.fromOffset(70, 28), BackgroundColor3 = Color3.fromRGB(90, 84, 76), TextColor3 = Color3.new(1, 1, 1) })
 		drop.Activated:Connect(function()
 			act("drop", g)
