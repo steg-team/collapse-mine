@@ -125,7 +125,7 @@ local PICKAXE_NAMES = { "나무 곡괭이", "돌 곡괭이", "철 곡괭이", "�
 	lastMapTravel[plr] = now
 	lastTravel[plr] = now -- 도착하자마자 포탈·출구 판정이 겹치지 않게
 	root.CFrame = cf
-	return { ok = true, message = `{mine.name}(으)로 왔어요` }
+	return { ok = true, message = `{mine.name}에 왔어요` }
 end
 
 for _, p in CS:GetTagged("MinePortal") do bindPortal(p) end
