@@ -14,6 +14,7 @@ local EventBus = require(Shared:WaitForChild("EventBus"))
 local FloorGuard = require(script.Parent:WaitForChild("FloorGuard"))
 local OreFactory = require(script.Parent:WaitForChild("OreFactory"))
 local RareVeins = require(script.Parent:WaitForChild("RareVeins"))
+local MineSounds = require(script.Parent:WaitForChild("MineSounds"))
 local ev = RS:WaitForChild("Remotes"):WaitForChild("MineHit")
 local Terrain = workspace.Terrain
 
@@ -111,6 +112,7 @@ local function rollDigFind(mine: Mines.Mine, center: Vector3, r: number, digDir:
 			or workspace:Raycast(center, Vector3.new(0, -(r + 4), 0), terrainOnly)
 		if hit then
 			OreFactory.spawn(mine, ores, o, OreFactory.surfaceCFrame(hit), 1, rng, "DigFind")
+			MineSounds.rareRevealed(hit.Position) -- 희귀 이상이 드러남 (D-041)
 			if vein then RareVeins.consume(mine.id, vein) end -- 광맥에서 나온 것만 광맥을 깎는다
 		end
 	end)
@@ -151,7 +153,11 @@ ev.OnServerEvent:Connect(function(plr, target, hitPos)
 			local mine = Mines.findAt(orePos) or Mines.get(ore:GetAttribute("MineId") or "")
 			-- (player, oreId, weight, pressure) — Events.luau 계약
 			EventBus.Fire(Events.OreMined, plr, ore:GetAttribute("Ore") or ore.Name, weightOf(mine, ore), pressureAt(mine, orePos.Y))
+			MineSounds.oreBreak(orePos)
 			if LEGENDARY_GRADES[ore:GetAttribute("Grade")] then
+				-- 발견 연출: 팡파르·빛기둥·화면 흔들림 (기획서 "발견 연출", D-041). 공지는 C
+				local first = if ore:IsA("Model") then ore:FindFirstChildWhichIsA("BasePart", true) else ore
+				MineSounds.legendary(plr, orePos, if first and first:IsA("BasePart") then first.Color else nil)
 				local mineId = mine and mine.id or (ore:GetAttribute("MineId") or "")
 				local depth = mine and math.max(0, math.floor(mine.top - orePos.Y)) or 0
 				-- (player, oreId, mineId: string, depth) — Events.luau 계약 (PR #6에서 stageId → mineId)
@@ -160,6 +166,7 @@ ev.OnServerEvent:Connect(function(plr, target, hitPos)
 			ore:Destroy()
 		else
 			ore:SetAttribute("HP", hp)
+			MineSounds.oreHit(orePos)
 			if ore:IsA("Model") then
 				-- 맞을수록 조금씩 작아져서 "깎이는" 느낌 (처음 크기의 최대 30%까지)
 				local base = ore:GetAttribute("BaseScale")
@@ -177,7 +184,7 @@ ev.OnServerEvent:Connect(function(plr, target, hitPos)
 	if target == Terrain then
 		local mine = Mines.findAt(hitPos)
 		if not mine or hitPos.Y > mine.top - 1 then return end
-		local _, li = Mines.layerAt(mine, hitPos.Y)
+		local layer, li = Mines.layerAt(mine, hitPos.Y)
 		local r = digRadius(li) + stats.digBonus
 		-- 파내는 공이 지표·바닥을 뚫지 않게 공 중심을 안쪽으로 당긴다.
 		-- 굴 천장이 지표에서 몇 스터드밖에 안 돼서, 위를 파면 공 윗부분이 잔디까지 뚫고 밖으로 탈출할 수 있었다.
@@ -193,6 +200,7 @@ ev.OnServerEvent:Connect(function(plr, target, hitPos)
 		center = FloorGuard.clampDig(mine.id, center, r)
 		if center.Y > mine.top - SURFACE_CRUST - r then return end -- 올리다 지표 보호선을 넘으면 포기
 		Terrain:FillBall(center, r, Enum.Material.Air)
+		MineSounds.terrainHit(hitPos, layer.material) -- 흙은 둔탁, 바위는 맑게 (D-041)
 		rollDigFind(mine, center, r, center - root.Position)
 	end
 end)

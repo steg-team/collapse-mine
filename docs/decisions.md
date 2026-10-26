@@ -427,3 +427,16 @@ AI 에이전트는 구현 전에 이 문서와 `game-design.md`를 읽고, 둘�
   - 서버(A)는 `CollapseOccurred`를 받아 그 사람들에게 `Remotes.CollapseFx`를 보내기만 하고, 돌·먼지는 클라이언트가 만든다 (서버 부담·네트워크 없음). 숫자·소리는 `Config/Mines.luau` `COLLAPSE_FX` (임시값).
 - 이유: 갇히면 C가 3초 뒤 허브로 옮기고 B가 가방 무게 절반을 깎아서(D-013, D-029), 통로를 실제로 막아도 결과가 같다. 막으면 붕괴 뒤 다음 사람이 길을 못 다니고 되살리는 처리가 따로 필요하다. 대신 갇힌 순간을 몸으로 느끼게 해야 "다음엔 일찍 나가야지"가 생긴다. 지금은 아무 느낌 없이 순간이동만 돼서 붕괴가 그냥 강제 귀환처럼 느껴졌다.
 - 영향: `src/server/Mining/CollapseFx.server.luau`, `src/client/Mining/CollapseFx.client.luau`, `Config/Mines.luau`. 기획서·AGENTS.md A 담당 줄. C의 `Collapse.luau` 주석 "A가 통로를 막아서"는 이제 맞지 않다 (동작은 그대로).
+
+## D-041 채굴 소리와 전설 발견 연출
+
+- 2026-10-26 / 채택 / 이우진 (A)
+- 결정: 채굴에 소리를 붙이고, 기획서 "발견 연출"(빛기둥·화면 흔들림·전용 사운드)을 만든다. 소리 id·크기·연출 숫자는 `Config/MiningSounds.luau` 한 곳 (모두 Creator Store 무료 공식 라이선스 ProSoundEffects·APM, 숫자는 임시값).
+  - 곡괭이로 칠 때: 흙 지층(Ground 등)은 둔탁한 흙 소리, 바위 지층은 돌 타격음, 광석은 같은 돌 타격음을 높게.
+  - 광석이 깨질 때: 돌 부서지는 소리 + 짧은 "띵".
+  - 희귀 이상이 벽에 드러날 때(파다가 발견): 반짝이는 차임.
+  - 전설 이상을 캤을 때: 팡파르(멀리까지 들림) + 그 자리에 빛기둥(4초, 광석 색) + 캔 사람 화면 흔들림. 서버 공지는 그대로 C (`LegendaryFound`).
+  - 붕괴 경보 중 그 광산 안에 있으면 낮은 진동음. 붕괴가 가까울수록 커진다 (C의 `CollapseState` 속성을 읽음).
+  - 광산 안 배경음: 기본 광산 동굴 물방울, 철광 갱도 바람, 지하수 동굴 물 흐르는 소리. 들어가면 서서히 켜지고 나오면 꺼진다.
+- 이유: 소리가 붕괴 연출 하나뿐이라 곡괭이질이 밋밋했다. 캘 때마다 손맛이 있어야 반복 채굴이 즐겁고, 경보 진동음이 커지면 "더 캘까, 나갈까"의 긴장이 소리로도 전해진다.
+- 영향: `src/server/Mining/MineSounds.luau`(위치 소리·빛기둥, `Remotes.MiningFx`), `MiningServer`, `src/client/Mining/MineAmbience.client.luau`, `MiningFx.client.luau`. 위치 소리는 서버가 그 자리에 내서 근처 사람 모두 듣는다. 배경음·경보음은 자기 화면에만.
