@@ -26,7 +26,7 @@ except ImportError:
 # 새 전용 색 (rbx_common PALETTE에 더해서 setup이 재질을 만든다)
 PALETTE.update({
     "Feather": (1.0, 0.82, 0.22), "FeatherDark": (0.95, 0.66, 0.12), "Belly": (1.0, 0.93, 0.62),
-    "Beak": (1.0, 0.52, 0.10), "Eye": (0.04, 0.04, 0.05), "EyeShine": (1.0, 1.0, 1.0), "Cheek": (1.0, 0.55, 0.50),
+    "Beak": (1.0, 0.52, 0.10),
     "Helmet": (0.80, 0.16, 0.12), "Lamp": (1.0, 0.95, 0.70), "Scarf": (0.20, 0.40, 0.85),
     "GoldFeather": (1.0, 0.58, 0.04),  # 몸통 노랑과 구분되게 진한 주황빛 금 (Roblox Metal)
 })
@@ -85,7 +85,6 @@ def build():
     blob([body, head, tuft])
     part(cyl, "Beak", 0.055, 0.13, (0, -0.42, 0.5), rot=(95, 0, 0), verts=16, r2=0.0)
     for sx in (-1, 1):
-        ball("Eye", 0.055, (sx * 0.11, -0.35, 0.6), scale=(1, 0.6, 1.15), seg=16)
         ball("FeatherDark", 0.17, (sx * 0.23, 0.08, 0.3), scale=(0.3, 1.25, 0.85), rot=(-15, sx * 8, 0))
         part(cyl, "Beak", 0.03, 0.08, (sx * 0.08, -0.02, 0.04), verts=10)
     ball("FeatherDark", 0.13, (0, 0.33, 0.3), scale=(0.9, 1.2, 0.3), rot=(30, 0, 0))
@@ -167,6 +166,15 @@ def shade(mat, P, N):
         for sx in (-1, 1):
             d = np.linalg.norm(P - np.array([sx * 0.165, -0.33, 0.5]), axis=1)
             c = _mix(c, _rgb(1.0, 0.56, 0.52), 0.75 * (1 - _smooth(0.02, 0.05, d)))
+        # 눈: 얼굴에 그린 납작한 세로 타원 + 큰 반짝임·작은 반짝임 (튀어나온 구슬 눈은 무섭게 보여서 그림으로)
+        front = _smooth(-0.22, -0.3, y)
+        for sx in (-1, 1):
+            ex, ez = x - sx * 0.1, z - 0.565
+            eye = (1 - _smooth(0.85, 1.0, (ex / 0.034) ** 2 + (ez / 0.046) ** 2)) * front
+            c = _mix(c, _rgb(0.16, 0.1, 0.08), eye)
+            hi = (1 - _smooth(0.6, 1.0, ((ex - sx * 0.008) / 0.013) ** 2 + ((ez - 0.014) / 0.013) ** 2)) * front
+            lo = (1 - _smooth(0.6, 1.0, ((ex + sx * 0.01) / 0.006) ** 2 + ((ez + 0.018) / 0.006) ** 2)) * front
+            c = _mix(c, _rgb(1, 1, 1), np.maximum(hi, lo) * eye)
         # 머리 깃 끝은 조금 진하게
         c = _mix(c, _rgb(0.95, 0.6, 0.1), _smooth(0.82, 0.92, z))
     elif mat in ("FeatherDark",):
@@ -176,16 +184,6 @@ def shade(mat, P, N):
         c = _mix(c, _rgb(0.8, 0.42, 0.05), _smooth(0.2, 0.42, y))  # 날개·꼬리 끝
     elif mat == "Beak":
         c = _mix(_rgb(0.95, 0.4, 0.06), _rgb(1.0, 0.66, 0.2), _smooth(0.45, 0.56, z))
-    elif mat in ("Eye", "EyeShine"):
-        c = _mix(_rgb(0.03, 0.03, 0.05), _rgb(0.22, 0.13, 0.08), _smooth(0.63, 0.56, z))
-        for sx in (-1, 1):
-            hi = np.array([sx * 0.11 + 0.018, -0.39, 0.628])
-            lo = np.array([sx * 0.11 - 0.015, -0.395, 0.58])
-            c = _mix(c, _rgb(1, 1, 1), 1 - _smooth(0.012, 0.018, np.linalg.norm(P - hi, axis=1)))
-            c = _mix(c, _rgb(0.9, 0.9, 1), 1 - _smooth(0.005, 0.009, np.linalg.norm(P - lo, axis=1)))
-        lit = np.ones_like(lit)
-    elif mat == "Cheek":
-        c = np.tile(_rgb(1.0, 0.6, 0.55), (len(P), 1))
     elif mat == "Helmet":
         c = _mix(_rgb(0.6, 0.08, 0.06), _rgb(0.9, 0.2, 0.14), _smooth(0.66, 0.84, z))
         spec = _smooth(0.86, 0.97, N @ LIGHT)  # 칠한 광택
