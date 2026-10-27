@@ -43,6 +43,7 @@ export type Data = {
 	bagLevel: number,
 	bag: { BagItem },
 	codex: { [string]: boolean },
+	canaryUses: { day: number, count: number },
 	stats: { totalEarned: number, bestOre: number, bestHaul: number },
 	social: { [string]: any },
 }
@@ -58,6 +59,7 @@ local TEMPLATE: Data = {
 	bagLevel = 0, -- 판매소 가방 늘리기 단계 (D-028)
 	bag = {},
 	codex = {}, -- 도감 (D-035): 캔 적 있는 광물 "Coal", 압력별 "Coal|High"
+	canaryUses = { day = 0, count = 0 }, -- 카나리아 광물 바꾸기 하루 횟수 (D-045). day = 한국 날짜 번호
 	stats = { totalEarned = 0, bestOre = 0, bestHaul = 0 },
 	social = {},
 }
@@ -91,14 +93,15 @@ function PlayerData.addCoins(player: Player, amount: number)
 	end
 end
 
--- 가방 무게의 TRAPPED_BAG_LOSS 비율만큼 무작위 광물을 뺀다 (D-029).
+-- 가방 무게의 TRAPPED_BAG_LOSS 비율만큼 무작위 광물을 뺀다 (D-029). 카나리아 갇힘 보호면 CANARY_GUARD_LOSS (D-045).
 -- 무작위 순서로 보면서 그 비율을 넘지 않는 것만 빼서, 절대 비율보다 많이 잃지 않는다 (1개뿐이면 안 잃음)
 function PlayerData.loseBag(data: Data)
 	local total = 0
 	for _, item in data.bag do
 		total += item.weight
 	end
-	local budget = total * Economy.TRAPPED_BAG_LOSS
+	local rate = if data.canary >= Economy.CANARY_PERKS.guard then Economy.CANARY_GUARD_LOSS else Economy.TRAPPED_BAG_LOSS
+	local budget = total * rate
 	local order = table.clone(data.bag)
 	rng:Shuffle(order)
 	local lose: { [BagItem]: boolean } = {}

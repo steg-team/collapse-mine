@@ -2,7 +2,7 @@
 -- 인벤토리 창 (B 담당, D-022, 무게 D-027)
 -- 화면 아래 가방 버튼(BagHud)을 누르거나 B 키로 연다. 같은 광물·압력끼리 묶어 개수·무게·값·1kg당 값을 보여 주고,
 -- 어디서나 한 개씩 버릴 수 있고, 판매소 근처에서는 묶음별로 또는 전부 팔 수 있다 (판정·금액은 서버, Remotes.Bag).
--- 다음 곡괭이 재료·카나리아 먹이로 쓰이는 광물은 줄 아래에 "⚒ 돌 곡괭이 재료 2/3"처럼 표시한다.
+-- 다음 곡괭이·가방·카나리아 재료로 쓰이는 광물은 줄 아래에 "⚒ 동굴 진주 곡괭이 2/5 · 🐤 카나리아 Lv2 희귀 1/2"처럼 표시한다 (D-044).
 
 local Players = game:GetService("Players")
 local RS = game:GetService("ReplicatedStorage")
@@ -176,30 +176,33 @@ local function render()
 		else "무거우면 느려져요. 싼 것부터 버려 보세요"
 	sellAll.Visible = nearShop and #items > 0
 
-	-- "팔까, 쓸까": 다음 곡괭이 재료와 카나리아 먹이에 쓰이는 광물은 줄 아래에 표시해서 모르고 팔지 않게 한다.
-	-- 개수는 압력과 상관없이 같은 광물 전부 (제작소가 압력을 가리지 않고 싼 것부터 씀)
+	-- "팔까, 쓸까": 다음 업그레이드(곡괭이·가방·카나리아)에 쓰이는 광물은 줄 아래에 표시해서 모르고 팔지 않게 한다.
+	-- 개수는 압력과 상관없이 같은 광물(등급 재료면 같은 등급) 전부 (업그레이드가 압력을 가리지 않고 싼 것부터 씀)
 	local countOf: { [string]: number } = {}
-	local rareCount = 0
+	local gradeCount: { [string]: number } = {}
 	for _, item in items do
 		countOf[item.ore] = (countOf[item.ore] or 0) + 1
 		local info = oreInfo[item.ore]
-		if info and info.grade == Economy.CANARY_FEED_GRADE then
-			rareCount += 1
+		if info then
+			gradeCount[info.grade] = (gradeCount[info.grade] or 0) + 1
 		end
 	end
 	-- 서버 전부 팔기가 남기는 것과 같은 규칙 (Economy.materialNeeds)
-	local tier = player:GetAttribute("PickaxeTier") or 1
-	local needOres, needRare = Economy.materialNeeds(tier, player:GetAttribute("CanaryLevel") or 0)
+	local needs = Economy.materialNeeds(player:GetAttribute("PickaxeTier") or 1, player:GetAttribute("CanaryLevel") or 0, player:GetAttribute("BagLevel") or 0)
 	local function useTag(oreId: string): string?
-		local need = needOres[oreId]
-		if need then
-			return `⚒ {Economy.PICKAXES[tier + 1].name} 재료 {countOf[oreId]}/{need}`
-		end
 		local info = oreInfo[oreId]
-		if needRare > 0 and info and info.grade == Economy.CANARY_FEED_GRADE then
-			return `🐤 카나리아 먹이 ({Economy.CANARY_FEED_GRADE} 광물 {rareCount}/{needRare})`
+		local tags = {}
+		for _, need in needs do
+			local n = need.recipe.ores and need.recipe.ores[oreId]
+			if n then
+				table.insert(tags, `{need.icon} {need.label} {countOf[oreId]}/{n}`)
+			end
+			local g = info and need.recipe.grades and need.recipe.grades[info.grade]
+			if g then
+				table.insert(tags, `{need.icon} {need.label} {info.grade} {gradeCount[info.grade]}/{g}`)
+			end
 		end
-		return nil
+		return if #tags > 0 then table.concat(tags, " · ") else nil
 	end
 
 	-- 가방이 한도를 넘었을 때 맨 위 안내: 무료 방법(판매소 가방 늘리기)을 먼저, 패스는 그 옆에 조용히.
@@ -214,7 +217,9 @@ local function render()
 		card.BackgroundColor3 = Color3.fromRGB(70, 52, 30)
 		Instance.new("UICorner").Parent = card
 		card.Parent = list
-		local nextUp = Economy.BAG_UPGRADES[(player:GetAttribute("BagLevel") or 0) + 1]
+		local bagLevel = player:GetAttribute("BagLevel") or 0
+		local nextUp = Economy.BAG_LEVELS[bagLevel + 2]
+		local tier = player:GetAttribute("PickaxeTier") or 1
 		local pass = Social.Passes.BigBag
 		local showPass = pass.id ~= 0 and player:GetAttribute("HasBigBag") ~= true
 		local textWidth = if showPass then -128 else -16
@@ -226,10 +231,12 @@ local function render()
 			TextSize = 12,
 			TextTruncate = Enum.TextTruncate.AtEnd,
 			TextColor3 = Color3.fromRGB(220, 210, 190),
-			Text = if nextUp then `판매소 "가방 늘리기"로 +{nextUp.kg}kg ({nextUp.coins} 코인)` else "팔거나 싼 것부터 버려 보세요",
+			Text = if nextUp and tier >= (nextUp.stage or 0)
+				then `판매소 "가방 늘리기"로 {Economy.bagCapacity(bagLevel + 1, player:GetAttribute("HasBigBag") == true)}kg까지 ({Economy.recipeText(nextUp :: any)})`
+				else "팔거나 싼 것부터 버려 보세요",
 		})
 		if showPass then
-			local b = button(card, `+{Economy.BIG_BAG_EXTRA_KG}kg 패스 보기`, { Name = "BigBagPass", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -8, 0.5, 0), Size = UDim2.fromOffset(112, 32), TextSize = 13 })
+			local b = button(card, `가방 ×{Economy.BIG_BAG_MULT} 패스 보기`, { Name = "BigBagPass", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -8, 0.5, 0), Size = UDim2.fromOffset(112, 32), TextSize = 13 })
 			b.Activated:Connect(function()
 				MarketplaceService:PromptGamePassPurchase(player, pass.id)
 			end)
@@ -246,10 +253,13 @@ local function render()
 		row.BackgroundColor3 = Color3.fromRGB(44, 41, 38)
 		Instance.new("UICorner").Parent = row
 		row.Parent = list
+		-- 카나리아 광물 바꾸기 (D-045, Lv4부터): 일반·고급 줄에 "🐤 바꾸기" (10개 → 고급 1처럼, 판정은 서버 Bag.transmute)
+		local rule = info and (player:GetAttribute("CanaryLevel") or 0) >= Economy.CANARY_PERKS.transmute and Economy.CANARY_TRANSMUTE[info.grade]
+		local rightPad = if rule then 236 else 160
 
 		text(row, {
 			Position = UDim2.new(0, 10, 0, 0),
-			Size = UDim2.new(1, -160, 0, 36),
+			Size = UDim2.new(1, -rightPad, 0, 36),
 			TextXAlignment = Enum.TextXAlignment.Left,
 			TextSize = 14,
 			TextTruncate = Enum.TextTruncate.AtEnd,
@@ -266,12 +276,18 @@ local function render()
 			),
 		})
 		if tag then
-			text(row, { Name = "Use", Position = UDim2.new(0, 10, 0, 28), Size = UDim2.new(1, -160, 0, 16), TextXAlignment = Enum.TextXAlignment.Left, TextSize = 12, TextTruncate = Enum.TextTruncate.AtEnd, TextColor3 = Color3.fromRGB(255, 200, 90), Text = tag })
+			text(row, { Name = "Use", Position = UDim2.new(0, 10, 0, 28), Size = UDim2.new(1, -rightPad, 0, 16), TextXAlignment = Enum.TextXAlignment.Left, TextSize = 12, TextTruncate = Enum.TextTruncate.AtEnd, TextColor3 = Color3.fromRGB(255, 200, 90), Text = tag })
 		end
 		local drop = button(row, "버리기", { Name = "Drop", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -82, 0.5, 0), Size = UDim2.fromOffset(70, 28), BackgroundColor3 = Color3.fromRGB(90, 84, 76), TextColor3 = Color3.new(1, 1, 1) })
 		drop.Activated:Connect(function()
 			act("drop", g)
 		end)
+		if rule then
+			local tm = button(row, `🐤 {rule.need}→1`, { Name = "Transmute", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -158, 0.5, 0), Size = UDim2.fromOffset(70, 28), BackgroundColor3 = Color3.fromRGB(110, 200, 255), TextSize = 13 })
+			tm.Activated:Connect(function()
+				act("transmute", g)
+			end)
+		end
 		if nearShop then
 			local sell = button(row, "팔기", { Name = "Sell", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -6, 0.5, 0), Size = UDim2.fromOffset(70, 28) })
 			sell.Activated:Connect(function()
@@ -319,7 +335,7 @@ bagButton.Activated:Connect(toggle)
 player:GetAttributeChangedSignal("BagKg"):Connect(reload)
 player:GetAttributeChangedSignal("BagValue"):Connect(reload)
 -- 부스트가 켜지고 꺼지거나 패스를 사면 값·안내만 다시 그린다
-for _, name in { "SellMultiplier", "HasBigBag", "BagCapacity" } do
+for _, name in { "SellMultiplier", "HasBigBag", "BagCapacity", "CanaryLevel", "PickaxeTier", "BagLevel" } do
 	player:GetAttributeChangedSignal(name):Connect(function()
 		if gui.Enabled then
 			render()
