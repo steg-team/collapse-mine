@@ -41,14 +41,15 @@ def tag(ob):
     return ob
 
 
-def ball(m, r, loc, scale=(1, 1, 1), rot=(0, 0, 0), seg=14, top_only=False):
-    """타원체: 반지름 r 공을 scale배로 늘림. top_only면 윗반구만 (헬멧)"""
+def ball(m, r, loc, scale=(1, 1, 1), rot=(0, 0, 0), seg=14, top_only=False, taper=0.0):
+    """타원체: 반지름 r 공을 scale배로 늘림. top_only면 윗반구만 (헬멧). taper면 +Y 끝으로 갈수록 가늘게 (날개·꼬리 깃)"""
     bm = bmesh.new()
     bmesh.ops.create_uvsphere(bm, u_segments=seg, v_segments=max(8, seg * 2 // 3), radius=r)
     if top_only:
         bmesh.ops.delete(bm, geom=[v for v in bm.verts if v.co.z < -1e-4], context='VERTS')
     for v in bm.verts:
-        v.co.x *= scale[0]; v.co.y *= scale[1]; v.co.z *= scale[2]
+        k = 1 - taper * max(v.co.y / r, 0)
+        v.co.x *= scale[0] * k; v.co.y *= scale[1]; v.co.z *= scale[2] * (0.5 + 0.5 * k)
     return tag(_place(_obj(bm, m), loc, rot))
 
 
@@ -77,45 +78,45 @@ def blob(obs, voxel=0.012, target=900):
 
 def build():
     setup("Canary")
-    # Lv1 기본 새. 귀여운 펫 비율: 머리가 몸통만큼 크고, 눈이 크고 반짝임, 배는 밝은 색, 볼 홍조
+    # Lv1 기본 새. 카나리아는 원래 병아리를 닮았으니 빵빵하지 않게(몸통·머리 폭을 줄임): 앞이 들린 서양배 몸통(앉은 자세), 길게 접힌 날개와 긴 꼬리,
+    # 머리 깃 없음, 작은 살구색 부리, 레몬 노랑. 귀여움은 큰 머리와 그린 눈(텍스처)으로
     LEVEL["n"] = 1
-    body = ball("Feather", 0.25, (0, 0.04, 0.26), scale=(1, 1.15, 0.95), seg=24)
-    head = ball("Feather", 0.235, (0, -0.15, 0.56), seg=24)
-    tuft = part(cyl, "Feather", 0.045, 0.16, (0, -0.1, 0.8), rot=(-30, 0, 0), verts=12, r2=0.0)
-    blob([body, head, tuft])
-    part(cyl, "Beak", 0.055, 0.13, (0, -0.42, 0.5), rot=(95, 0, 0), verts=16, r2=0.0)
+    body = ball("Feather", 0.22, (0, 0.07, 0.24), scale=(0.78, 1.42, 0.8), rot=(-22, 0, 0), seg=24)
+    head = ball("Feather", 0.2, (0, -0.16, 0.53), scale=(0.95, 1, 1), seg=24)
+    blob([body, head])
+    part(cyl, "Beak", 0.042, 0.1, (0, -0.38, 0.5), rot=(95, 0, 0), verts=16, r2=0.0)
     for sx in (-1, 1):
-        ball("FeatherDark", 0.17, (sx * 0.23, 0.08, 0.3), scale=(0.3, 1.25, 0.85), rot=(-15, sx * 8, 0))
-        part(cyl, "Beak", 0.03, 0.08, (sx * 0.08, -0.02, 0.04), verts=10)
-    ball("FeatherDark", 0.13, (0, 0.33, 0.3), scale=(0.9, 1.2, 0.3), rot=(30, 0, 0))
+        ball("FeatherDark", 0.16, (sx * 0.175, 0.17, 0.28), scale=(0.18, 1.75, 0.68), rot=(-24, sx * 5, 0), taper=0.75)
+        ball("FeatherDark", 0.12, (sx * 0.03, 0.48, 0.13), scale=(0.45, 2.0, 0.14), rot=(-28, sx * 6, 0), taper=0.4)
+        part(cyl, "Beak", 0.022, 0.08, (sx * 0.06, -0.01, 0.04), verts=10)
 
-    # Lv2 광부 헬멧 + 램프: 머리 위 반구, 챙, 앞 램프(Roblox Neon + PointLight 자리)
+    # Lv2 광부 헬멧 + 램프: 머리 위 반구, 챙, 앞 램프(Roblox Neon + PointLight 자리).
+    # 챙이 눈 위(눈 꼭대기 0.59)에 오도록 높게 얹는다. 눈을 가리면 화나 보인다
     LEVEL["n"] = 2
-    # 챙이 눈 위(눈 꼭대기 0.66)에 오도록 높게 얹는다. 눈을 가리면 화나 보인다
-    ball("Helmet", 0.24, (0, -0.14, 0.7), scale=(1, 1, 0.7), seg=24, top_only=True)
-    part(cyl, "Helmet", 0.265, 0.022, (0, -0.14, 0.7), verts=28)
-    part(cyl, "Iron", 0.055, 0.05, (0, -0.36, 0.79), rot=(100, 0, 0), verts=16)
-    part(cyl, "Lamp", 0.042, 0.02, (0, -0.39, 0.795), rot=(100, 0, 0), verts=16)
+    ball("Helmet", 0.21, (0, -0.16, 0.64), scale=(1, 1, 0.7), seg=24, top_only=True)
+    part(cyl, "Helmet", 0.235, 0.022, (0, -0.16, 0.64), verts=28)
+    part(cyl, "Iron", 0.046, 0.05, (0, -0.36, 0.72), rot=(100, 0, 0), verts=16)
+    part(cyl, "Lamp", 0.035, 0.02, (0, -0.39, 0.725), rot=(100, 0, 0), verts=16)
 
     # Lv3 목도리: 목에 두른 고리 + 옆으로 늘어진 끝
     LEVEL["n"] = 3
-    part(torus, "Scarf", 0.2, 0.045, (0, -0.1, 0.43), rot=(10, 0, 0), seg=24, mseg=8)
-    part(box, "Scarf", (0.09, 0.035, 0.2), (0.17, -0.02, 0.32), rot=(10, 0, -20), bevel=0.012)
+    part(torus, "Scarf", 0.155, 0.04, (0, -0.12, 0.38), rot=(14, 0, 0), seg=24, mseg=8)
+    part(box, "Scarf", (0.08, 0.035, 0.18), (0.14, -0.05, 0.28), rot=(10, 0, -20), bevel=0.012)
 
     # Lv4 가슴 보석: 위아래로 뾰족한 팔면체 (Roblox Neon)
     LEVEL["n"] = 4
     for s in (1, -1):
-        part(cyl, "Gem", 0.055, 0.065, (0, -0.31, 0.36 + s * 0.032), rot=(0 if s > 0 else 180, 0, 0), verts=4, r2=0.0)
+        part(cyl, "Gem", 0.045, 0.055, (0, -0.27, 0.31 + s * 0.028), rot=(0 if s > 0 else 180, 0, 0), verts=4, r2=0.0)
 
-    # Lv5 황금 깃털: 날개 덮개(조금 크게 겹침), 꼬리 부채 5장, 볏 3개
+    # Lv5 황금 깃털: 날개 덮개(조금 크게 겹침), 긴 꼬리 부채 5장, 헬멧 위 볏 3개
     LEVEL["n"] = 5
     for sx in (-1, 1):
-        ball("GoldFeather", 0.17, (sx * 0.24, 0.09, 0.31), scale=(0.32, 1.3, 0.88), rot=(-15, sx * 8, 0))
-    for yaw in (-40, -20, 0, 20, 40):
+        ball("GoldFeather", 0.16, (sx * 0.182, 0.18, 0.29), scale=(0.2, 1.8, 0.72), rot=(-24, sx * 5, 0), taper=0.75)
+    for yaw in (-30, -15, 0, 15, 30):
         r = math.radians(yaw)
-        ball("GoldFeather", 0.15, (math.sin(r) * 0.12, 0.42 + math.cos(r) * 0.06, 0.36), scale=(0.35, 1.3, 0.15), rot=(25, 0, yaw))
-    for dx in (-0.06, 0, 0.06):
-        part(cyl, "GoldFeather", 0.035, 0.13, (dx, -0.1, 0.9 + (0.02 if dx == 0 else 0)), rot=(-20, dx * 200, 0), verts=10, r2=0.0)
+        ball("GoldFeather", 0.12, (math.sin(r) * 0.12, 0.5 + math.cos(r) * 0.03, 0.15), scale=(0.35, 1.9, 0.15), rot=(-28, 0, yaw))
+    for dx in (-0.055, 0, 0.055):
+        part(cyl, "GoldFeather", 0.03, 0.12, (dx, -0.12, 0.82 + (0.02 if dx == 0 else 0)), rot=(-20, dx * 200, 0), verts=10, r2=0.0)
     return join_and_export_levels("Canary", "Canary.fbx")
 
 
@@ -152,38 +153,37 @@ def shade(mat, P, N):
     x, y, z = P[:, 0], P[:, 1], P[:, 2]
     lit = 0.86 + 0.14 * _smooth(-0.2, 0.6, N @ LIGHT)
     if mat in ("Feather", "Belly"):
-        c = _mix(_rgb(0.97, 0.64, 0.12), _rgb(1.0, 0.86, 0.30), _smooth(0.05, 0.75, z))
+        c = _mix(_rgb(0.98, 0.8, 0.16), _rgb(1.0, 0.93, 0.34), _smooth(0.05, 0.7, z))  # 레몬 노랑
         # 깃털 비늘: 뒤·옆에서 위로 겹친 반원 줄 (앞 배 쪽은 매끈)
         ang = np.arctan2(x, y + 0.1)
         row = np.modf(z * 18 + 0.25 * np.cos(ang * 9))[0]
         scale = _smooth(0.78, 0.98, row) * _smooth(-0.1, 0.3, y + 0.15)
         c = c * (1 - 0.12 * scale[:, None])
         # 배: 앞쪽 아래 크림색 타원 (가장자리 부드럽게)
-        e = (x / 0.15) ** 2 + ((z - 0.26) / 0.17) ** 2
+        e = (x / 0.13) ** 2 + ((z - 0.25) / 0.16) ** 2
         belly = (1 - _smooth(0.7, 1.05, e)) * _smooth(0.0, -0.25, y + 0.05)
-        c = _mix(c, _rgb(1.0, 0.95, 0.74), belly)
+        c = _mix(c, _rgb(1.0, 0.97, 0.62), 0.7 * belly)
         # 볼 홍조
         for sx in (-1, 1):
-            d = np.linalg.norm(P - np.array([sx * 0.165, -0.33, 0.5]), axis=1)
+            d = np.linalg.norm(P - np.array([sx * 0.135, -0.28, 0.48]), axis=1)
             c = _mix(c, _rgb(1.0, 0.56, 0.52), 0.75 * (1 - _smooth(0.02, 0.05, d)))
         # 눈: 얼굴에 그린 납작한 세로 타원 + 큰 반짝임·작은 반짝임 (튀어나온 구슬 눈은 무섭게 보여서 그림으로)
         front = _smooth(-0.22, -0.3, y)
         for sx in (-1, 1):
-            ex, ez = x - sx * 0.1, z - 0.565
+            ex, ez = x - sx * 0.09, z - 0.545
             eye = (1 - _smooth(0.85, 1.0, (ex / 0.034) ** 2 + (ez / 0.046) ** 2)) * front
             c = _mix(c, _rgb(0.16, 0.1, 0.08), eye)
             hi = (1 - _smooth(0.6, 1.0, ((ex - sx * 0.008) / 0.013) ** 2 + ((ez - 0.014) / 0.013) ** 2)) * front
             lo = (1 - _smooth(0.6, 1.0, ((ex + sx * 0.01) / 0.006) ** 2 + ((ez + 0.018) / 0.006) ** 2)) * front
             c = _mix(c, _rgb(1, 1, 1), np.maximum(hi, lo) * eye)
-        # 머리 깃 끝은 조금 진하게
-        c = _mix(c, _rgb(0.95, 0.6, 0.1), _smooth(0.82, 0.92, z))
     elif mat in ("FeatherDark",):
-        c = _mix(_rgb(0.9, 0.52, 0.08), _rgb(1.0, 0.76, 0.22), _smooth(0.15, 0.4, z))
-        row = np.modf((y + 0.4) * 14)[0]
-        c = c * (1 - 0.18 * _smooth(0.8, 0.98, row)[:, None])
-        c = _mix(c, _rgb(0.8, 0.42, 0.05), _smooth(0.2, 0.42, y))  # 날개·꼬리 끝
+        c = _mix(_rgb(0.95, 0.74, 0.12), _rgb(1.0, 0.9, 0.3), _smooth(0.1, 0.4, z))
+        # 긴 깃털 결: 날개 길이 방향으로 비스듬한 가는 줄 (고리 무늬는 애벌레처럼 보여서 피함)
+        line = np.modf(z * 28 - y * 9 + 100)[0]
+        c = c * (1 - 0.13 * _smooth(0.86, 0.98, line)[:, None])
+        c = _mix(c, _rgb(0.82, 0.6, 0.1), _smooth(0.35, 0.7, y))  # 날개·꼬리 끝은 조금 진하게
     elif mat == "Beak":
-        c = _mix(_rgb(0.95, 0.4, 0.06), _rgb(1.0, 0.66, 0.2), _smooth(0.45, 0.56, z))
+        c = _mix(_rgb(0.93, 0.6, 0.42), _rgb(1.0, 0.8, 0.62), _smooth(0.45, 0.56, z))  # 카나리아 부리·발은 살구빛
     elif mat == "Helmet":
         c = _mix(_rgb(0.6, 0.08, 0.06), _rgb(0.9, 0.2, 0.14), _smooth(0.66, 0.84, z))
         spec = _smooth(0.86, 0.97, N @ LIGHT)  # 칠한 광택
@@ -200,8 +200,8 @@ def shade(mat, P, N):
         c = _mix(c, _rgb(0.95, 0.95, 0.98), _smooth(0.92, 0.97, np.modf(z * 25 + 100)[0]) * 0.6)
     elif mat == "GoldFeather":
         c = _mix(_rgb(0.78, 0.3, 0.0), _rgb(1.0, 0.78, 0.12), _smooth(0.1, 0.9, (N @ LIGHT + 1) / 2))
-        row = np.modf((y + 0.5) * 16)[0]
-        c = c * (1 - 0.15 * _smooth(0.82, 0.98, row)[:, None])
+        line = np.modf(z * 28 - y * 9 + 100)[0]
+        c = c * (1 - 0.15 * _smooth(0.86, 0.98, line)[:, None])
         c = _mix(c, _rgb(1, 0.97, 0.75), 0.8 * _smooth(0.9, 0.99, N @ LIGHT))
     else:
         c = np.tile(_rgb(0.8, 0.8, 0.8), (len(P), 1))
