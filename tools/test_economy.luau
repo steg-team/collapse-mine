@@ -86,6 +86,12 @@ local earned2 = Bag.sellAll(p)
 check("튜토리얼 중엔 재료도 팖", earned2 > 0 and #data.bag == 0, #data.bag)
 p:SetAttribute("TutorialActive", false)
 
+-- 4-2. 선택 판매: 체크한 묶음(광물|압력)만 팔고 나머지는 재료든 아니든 그대로 (D-043)
+reset()
+mine("Coal", 1, "High"); mine("Coal", 1, "Low"); mine("Quartz", 1); settle()
+local picked = Bag.sellGroups(p, { ["Coal|High"] = true })
+check("선택 판매는 체크한 묶음만", picked > 0 and #data.bag == 2 and data.coins == picked, `{picked} bag={#data.bag}`)
+
 -- 5. 갇힘 차감: 무게 절반을 넘지 않음, 1개면 안 잃음 (D-029)
 local worst = 0
 for _ = 1, 200 do
