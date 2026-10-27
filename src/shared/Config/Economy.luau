@@ -71,6 +71,8 @@ local Economy = {
 	}),
 	-- 카나리아가 반응하는 등급
 	CANARY_DETECT_GRADES = table.freeze({ ["희귀"] = true, ["에픽"] = true, ["전설"] = true, ["신화"] = true, ["???"] = true }),
+	-- 카나리아 울음소리 (Roblox 무료 소리 에셋). 바꾸려면 id만 갈면 된다
+	CANARY_CHIRP_SOUND = "rbxassetid://0",
 
 	-- 기획서 "광물 등급" 테두리 색 (인벤토리·도감 창)
 	GRADE_COLOR = table.freeze({
