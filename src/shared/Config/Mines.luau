@@ -230,6 +230,17 @@ Mines.COLLAPSE_FX = table.freeze({
 	fadeTime = 0.6, -- 마지막에 화면이 어두워지는 시간(초). 허브로 옮겨진 뒤 같은 시간에 밝아짐
 })
 
+-- 광산 지도 (D-042, A의 StageMap): 화면 왼쪽 🗺️ 버튼 → 스테이지 고르기. 숫자는 임시값
+Mines.STAGE_MAP = table.freeze({
+	buttonOffset = 272, -- 화면 세로 가운데에서 아래로 (📅 0, 🚀 68, 📜 136, 👥 204 다음)
+	cooldown = 3, -- 이동 사이 최소 간격(초)
+})
+-- 아직 없는 다음 광산 (지도에 잠긴 카드로 미리 보여 줌, 기획서 광산 표 4·5번). 광산을 만들면 Mines.list로 옮긴다
+Mines.UPCOMING = table.freeze({
+	table.freeze({ name = "용암 광산", requiredPickaxe = 4, hint = "붉은 균열, 열기 · 우라늄, 용암석" }),
+	table.freeze({ name = "무너진 고대 도시", requiredPickaxe = 5, hint = "유적, 잔해 · ??? 등급" }),
+})
+
 local byId: { [string]: Mine } = {}
 for _, m in Mines.list do
 	byId[m.id] = m
