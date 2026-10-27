@@ -25,6 +25,7 @@ B 담당 기능이 지금 어디까지 됐고, 다른 담당이 무엇을 붙이
 
 ## A 담당께
 
+- **곡괭이 이름 (이슈 #55)**: 이름이 바뀌었다 (D-044). `Pickaxe.TIERS`·광산 지도·입장 안내의 이름 사본 대신 `Economy.PICKAXES[단계].name`을 읽어 달라. 4스테이지 이름(석탄 굴 / 용암 광산)도 정해 달라.
 - 채굴 → 가방은 #26(D-025)으로 연결됐다. 광석이 깨지면 `OreMined`만 오고, 코인은 B가 판매 때 준다.
 - `leaderstats.Coins`는 화면 표시용 사본이다. 코인을 바꿀 일이 생기면 직접 고치지 말고 B에 말해 달라 (원본은 `data.coins`, `PlayerData.addCoins`).
 - 곡괭이: B가 제작·강화하면 `PickaxeUpgraded(player, tier, enhance)`가 오고, 플레이어 속성 `PickaxeTier`·`PickaxeEnhance`도 바뀐다. 리버스하면 `(player, 1, 0)`.
@@ -35,6 +36,7 @@ B 담당 기능이 지금 어디까지 됐고, 다른 담당이 무엇을 붙이
 
 ## C 담당께
 
+- **보상 코인 (이슈 #56)**: 광물 가격이 공유 기획 공식으로 내려갔다 (D-044). 출석·퀘스트 `reward.coins`를 새 가격에 맞춰 달라.
 - **가방 확장 패스 구매 입구 (D-038)**: 인벤토리의 가방 가득 카드에서 클라이언트가 `MarketplaceService:PromptGamePassPurchase`로 `Social.Passes.BigBag.id`를 띄운다. 패스 id가 0이면 버튼이 숨겨지니, 대시보드에서 패스를 만들고 id만 넣으면 보인다. 효과 확인은 C의 `Payments`(구매 완료 캐시)를 그대로 쓴다. 나중에 상점 UI를 만들면 이 버튼을 그쪽으로 옮겨도 된다.
 - **성장 공지 요청 (이슈 #48)**: `PickaxeUpgraded`를 받아 철 곡괭이 이상 제작·리버스를 서버 공지로.
 - 판매가 배수를 올리는 상품(패스·부스트의 `SellPrice`)이 생기면 B 화면(가방 HUD "💰×2", 판매 알림)에 자동으로 보인다.
@@ -50,7 +52,7 @@ B 담당 기능이 지금 어디까지 됐고, 다른 담당이 무엇을 붙이
 
 ## Studio에서 할 일 (팀 플레이스에 한 번)
 
-- 카나리아 새: 블렌더에서 `tools/blender/build_canary.py` 실행 → Studio Ctrl+M으로 `~/Downloads/CollapseMine/Canary.fbx` 가져오기 → 명령창에서 `tools/import_canary.luau` 실행 → Ctrl+S.
+- 카나리아 새 (D-045, 레벨 장비 포함): 블렌더에서 `tools/blender/build_canary.py` 실행 → Studio Ctrl+M으로 `~/Downloads/CollapseMine/Canary.fbx` 가져오기 → 명령창에서 `tools/import_canary.luau` 실행 → Ctrl+S.
 
 ## 로컬 테스트 방법
 
