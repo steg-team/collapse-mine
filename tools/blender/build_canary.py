@@ -11,7 +11,8 @@
   Lv3 목도리 (출구 길 안내 — 붕괴 때 앞장서는 안내원)
   Lv4 가슴 보석 (광물을 상위 등급으로 바꾸기)
   Lv5 황금 꼬리깃·볏 (갇힐 때 가방 지켜 주기, 신화 "카나리아의 황금 깃털")
-내보낼 때 (레벨, 재질)별로 합쳐 Canary_L<레벨>_<재질> 이름으로 나간다.
+레벨마다 한 덩어리로 합쳐 손그림처럼 칠한 텍스처(512px)를 입혀 Canary_L<레벨>_Paint 로 나간다 (FBX에 텍스처 포함,
+~/Downloads/CollapseMine/Canary_L<n>_Tex.png 도 같이 저장). 빛나는 램프·보석만 Canary_L<n>_Lamp/_Gem (Roblox Neon).
 Roblox 쪽 tools/import_canary.luau가 이름으로 색·재질을 입히고, 서버가 카나리아 레벨보다 높은 L 장비는 숨긴다.
 """
 import bpy, bmesh, math, sys, os
@@ -82,12 +83,9 @@ def build():
     head = ball("Feather", 0.235, (0, -0.15, 0.56), seg=24)
     tuft = part(cyl, "Feather", 0.045, 0.16, (0, -0.1, 0.8), rot=(-30, 0, 0), verts=12, r2=0.0)
     blob([body, head, tuft])
-    ball("Belly", 0.17, (0, -0.19, 0.25), scale=(1, 0.45, 1.1), seg=18)
     part(cyl, "Beak", 0.055, 0.13, (0, -0.42, 0.5), rot=(95, 0, 0), verts=16, r2=0.0)
     for sx in (-1, 1):
-        ball("Eye", 0.055, (sx * 0.11, -0.35, 0.6), scale=(1, 0.6, 1.15), seg=12)
-        ball("EyeShine", 0.018, (sx * 0.11 + 0.02, -0.385, 0.635), seg=8)
-        ball("Cheek", 0.04, (sx * 0.17, -0.31, 0.5), scale=(1, 0.4, 0.7), seg=8)
+        ball("Eye", 0.055, (sx * 0.11, -0.35, 0.6), scale=(1, 0.6, 1.15), seg=16)
         ball("FeatherDark", 0.17, (sx * 0.23, 0.08, 0.3), scale=(0.3, 1.25, 0.85), rot=(-15, sx * 8, 0))
         part(cyl, "Beak", 0.03, 0.08, (sx * 0.08, -0.02, 0.04), verts=10)
     ball("FeatherDark", 0.13, (0, 0.33, 0.3), scale=(0.9, 1.2, 0.3), rot=(30, 0, 0))
@@ -122,13 +120,170 @@ def build():
     return join_and_export_levels("Canary", "Canary.fbx")
 
 
+# ---------- 그림 텍스처: 표면 위치·방향으로 색을 계산해 이미지에 칠한다 ----------
+# 레벨마다 한 덩어리(Neon으로 빛나야 하는 램프·보석만 따로)로 합치고, UV를 펴고, UV 공간에서 삼각형을 그려
+# 칸마다 3D 위치·법선·원래 재질을 알아낸 뒤 손그림처럼 칠한다 (깃털 비늘, 배·볼, 눈 반짝임, 헬멧 광택, 목도리 뜨개 줄).
+# 조명은 아주 약하게만 굽는다 (Roblox가 다시 비추므로 두 번 어두워지지 않게).
+import numpy as np
+
+TEX = 512
+GLOW = {"Lamp", "Gem"}  # Neon 재질로 따로 내보내는 것 (텍스처 없음)
+LIGHT = np.array([-0.35, -0.55, 0.76]); LIGHT /= np.linalg.norm(LIGHT)
+
+
+def _rgb(*c):
+    return np.array(c, np.float32)
+
+
+def _smooth(e0, e1, x):
+    t = np.clip((x - e0) / (e1 - e0), 0, 1)
+    return t * t * (3 - 2 * t)
+
+
+def _mix(a, b, t):
+    return a + (b - a) * t[..., None]
+
+
+def _hash(p):
+    """3D 위치 → 0~1 얼룩 (흠집·깃털 결 흔들림용)"""
+    return np.modf(np.sin(p @ np.array([12.9898, 78.233, 37.719])) * 43758.5453)[0] % 1.0
+
+
+def shade(mat, P, N):
+    x, y, z = P[:, 0], P[:, 1], P[:, 2]
+    lit = 0.86 + 0.14 * _smooth(-0.2, 0.6, N @ LIGHT)
+    if mat in ("Feather", "Belly"):
+        c = _mix(_rgb(0.97, 0.64, 0.12), _rgb(1.0, 0.86, 0.30), _smooth(0.05, 0.75, z))
+        # 깃털 비늘: 뒤·옆에서 위로 겹친 반원 줄 (앞 배 쪽은 매끈)
+        ang = np.arctan2(x, y + 0.1)
+        row = np.modf(z * 18 + 0.25 * np.cos(ang * 9))[0]
+        scale = _smooth(0.78, 0.98, row) * _smooth(-0.1, 0.3, y + 0.15)
+        c = c * (1 - 0.12 * scale[:, None])
+        # 배: 앞쪽 아래 크림색 타원 (가장자리 부드럽게)
+        e = (x / 0.15) ** 2 + ((z - 0.26) / 0.17) ** 2
+        belly = (1 - _smooth(0.7, 1.05, e)) * _smooth(0.0, -0.25, y + 0.05)
+        c = _mix(c, _rgb(1.0, 0.95, 0.74), belly)
+        # 볼 홍조
+        for sx in (-1, 1):
+            d = np.linalg.norm(P - np.array([sx * 0.165, -0.33, 0.5]), axis=1)
+            c = _mix(c, _rgb(1.0, 0.56, 0.52), 0.75 * (1 - _smooth(0.02, 0.05, d)))
+        # 머리 깃 끝은 조금 진하게
+        c = _mix(c, _rgb(0.95, 0.6, 0.1), _smooth(0.82, 0.92, z))
+    elif mat in ("FeatherDark",):
+        c = _mix(_rgb(0.9, 0.52, 0.08), _rgb(1.0, 0.76, 0.22), _smooth(0.15, 0.4, z))
+        row = np.modf((y + 0.4) * 14)[0]
+        c = c * (1 - 0.18 * _smooth(0.8, 0.98, row)[:, None])
+        c = _mix(c, _rgb(0.8, 0.42, 0.05), _smooth(0.2, 0.42, y))  # 날개·꼬리 끝
+    elif mat == "Beak":
+        c = _mix(_rgb(0.95, 0.4, 0.06), _rgb(1.0, 0.66, 0.2), _smooth(0.45, 0.56, z))
+    elif mat in ("Eye", "EyeShine"):
+        c = _mix(_rgb(0.03, 0.03, 0.05), _rgb(0.22, 0.13, 0.08), _smooth(0.63, 0.56, z))
+        for sx in (-1, 1):
+            hi = np.array([sx * 0.11 + 0.018, -0.39, 0.628])
+            lo = np.array([sx * 0.11 - 0.015, -0.395, 0.58])
+            c = _mix(c, _rgb(1, 1, 1), 1 - _smooth(0.012, 0.018, np.linalg.norm(P - hi, axis=1)))
+            c = _mix(c, _rgb(0.9, 0.9, 1), 1 - _smooth(0.005, 0.009, np.linalg.norm(P - lo, axis=1)))
+        lit = np.ones_like(lit)
+    elif mat == "Cheek":
+        c = np.tile(_rgb(1.0, 0.6, 0.55), (len(P), 1))
+    elif mat == "Helmet":
+        c = _mix(_rgb(0.6, 0.08, 0.06), _rgb(0.9, 0.2, 0.14), _smooth(0.66, 0.84, z))
+        spec = _smooth(0.86, 0.97, N @ LIGHT)  # 칠한 광택
+        c = _mix(c, _rgb(1.0, 0.75, 0.7), 0.7 * spec)
+        scuff = (_hash(np.floor(P * 90)) > 0.985).astype(np.float32)  # 드문드문 작은 흠집
+        c = c * (1 - 0.12 * scuff[:, None])
+        c = _mix(c, _rgb(0.95, 0.85, 0.3), _smooth(0.004, 0.0, np.abs(z - 0.71)) )  # 챙 위 노란 띠
+    elif mat == "Iron":
+        c = _mix(_rgb(0.2, 0.2, 0.23), _rgb(0.55, 0.55, 0.6), _smooth(0.4, 0.95, N @ LIGHT))
+    elif mat == "Scarf":
+        ang = np.arctan2(x, y + 0.1)
+        knit = np.abs(np.modf(ang * 6 + 100)[0] - 0.5) * 2
+        c = _mix(_rgb(0.16, 0.32, 0.78), _rgb(0.3, 0.5, 0.95), knit)
+        c = _mix(c, _rgb(0.95, 0.95, 0.98), _smooth(0.92, 0.97, np.modf(z * 25 + 100)[0]) * 0.6)
+    elif mat == "GoldFeather":
+        c = _mix(_rgb(0.78, 0.3, 0.0), _rgb(1.0, 0.78, 0.12), _smooth(0.1, 0.9, (N @ LIGHT + 1) / 2))
+        row = np.modf((y + 0.5) * 16)[0]
+        c = c * (1 - 0.15 * _smooth(0.82, 0.98, row)[:, None])
+        c = _mix(c, _rgb(1, 0.97, 0.75), 0.8 * _smooth(0.9, 0.99, N @ LIGHT))
+    else:
+        c = np.tile(_rgb(0.8, 0.8, 0.8), (len(P), 1))
+    return np.clip(c * lit[:, None], 0, 1)
+
+
+def paint(ob, name):
+    """ob을 UV 펴고 칠한 텍스처 하나를 입힌다"""
+    bpy.ops.object.select_all(action='DESELECT')
+    ob.select_set(True); bpy.context.view_layer.objects.active = ob
+    bpy.ops.object.mode_set(mode='EDIT'); bpy.ops.mesh.select_all(action='SELECT')
+    bpy.ops.uv.smart_project(angle_limit=math.radians(60), island_margin=0.02)
+    bpy.ops.object.mode_set(mode='OBJECT')
+    me = ob.data; me.calc_loop_triangles()
+    uvl = me.uv_layers.active.data
+    mats = [m.name for m in me.materials]
+    col = np.zeros((TEX, TEX, 3), np.float32); filled = np.zeros((TEX, TEX), bool)
+    cn = me.corner_normals
+    by_mat = {}
+    for t in me.loop_triangles:
+        by_mat.setdefault(t.material_index, []).append(t)
+    for mi, tris in by_mat.items():
+        Ps, Ns, idx = [], [], []
+        for t in tris:
+            uv = np.array([uvl[l].uv for l in t.loops]) * TEX
+            P = np.array([me.vertices[v].co for v in t.vertices]); N = np.array([cn[l].vector for l in t.loops])
+            x0, y0 = np.floor(uv.min(0)).astype(int); x1, y1 = np.ceil(uv.max(0)).astype(int)
+            xs, ys = np.meshgrid(np.arange(max(x0, 0), min(x1 + 1, TEX)), np.arange(max(y0, 0), min(y1 + 1, TEX)))
+            px = np.stack([xs.ravel() + 0.5, ys.ravel() + 0.5], 1)
+            a, b, c = uv
+            den = (b[1] - c[1]) * (a[0] - c[0]) + (c[0] - b[0]) * (a[1] - c[1])
+            if abs(den) < 1e-12:
+                continue
+            w0 = ((b[1] - c[1]) * (px[:, 0] - c[0]) + (c[0] - b[0]) * (px[:, 1] - c[1])) / den
+            w1 = ((c[1] - a[1]) * (px[:, 0] - c[0]) + (a[0] - c[0]) * (px[:, 1] - c[1])) / den
+            w = np.stack([w0, w1, 1 - w0 - w1], 1)
+            inside = (w >= -0.02).all(1)
+            if not inside.any():
+                continue
+            w = w[inside]; q = px[inside].astype(int)
+            Ps.append(w @ P); n = w @ N; Ns.append(n / np.linalg.norm(n, axis=1, keepdims=True)); idx.append(q)
+        if not Ps:
+            continue
+        q = np.concatenate(idx)
+        col[q[:, 1], q[:, 0]] = shade(mats[mi], np.concatenate(Ps), np.concatenate(Ns))
+        filled[q[:, 1], q[:, 0]] = True
+    # 섬 가장자리 번짐 방지: 빈 칸을 옆 칸 색으로 몇 번 채운다
+    for _ in range(6):
+        acc = np.zeros_like(col); cnt = np.zeros(filled.shape, np.float32)
+        for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            acc += np.roll(np.roll(col * filled[..., None], dy, 0), dx, 1); cnt += np.roll(np.roll(filled, dy, 0), dx, 1)
+        grow = (~filled) & (cnt > 0)
+        col[grow] = acc[grow] / cnt[grow][:, None]; filled |= grow
+    img = bpy.data.images.new(name, TEX, TEX, alpha=False)
+    img.pixels.foreach_set(np.concatenate([col, np.ones((TEX, TEX, 1), np.float32)], 2).ravel())
+    img.filepath_raw = os.path.join(os.path.expanduser("~"), "Downloads", "CollapseMine", f"{name}.png")
+    img.file_format = 'PNG'; img.save()
+    m = bpy.data.materials.new(name); m.use_nodes = True
+    nt = m.node_tree; tex = nt.nodes.new("ShaderNodeTexImage"); tex.image = img
+    nt.links.new(tex.outputs["Color"], nt.nodes["Principled BSDF"].inputs["Base Color"])
+    nt.nodes.active = tex
+    me.materials.clear(); me.materials.append(m)
+    for p in me.polygons:
+        p.material_index = 0
+    return ob
+
+
 def join_and_export_levels(prefix, filename):
-    """rbx_common.join_and_export와 같지만 (레벨, 재질)별로 합친다. 레벨마다 켜고 끌 수 있게"""
+    """레벨마다 한 덩어리로 합쳐 칠한다 (Canary_L<n>_Paint). 빛나는 램프·보석은 Canary_L<n>_<재질>로 따로 (Roblox Neon)"""
     col = STATE["col"]
+    for ob in col.objects:  # 합치기 전에 위치·회전을 메시에 굽는다 (칠할 때 3D 위치가 맞게)
+        ob.select_set(True)
+    bpy.context.view_layer.objects.active = col.objects[0]
+    bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
     groups = {}
     for ob in list(col.objects):
-        groups.setdefault((ob.get("lv", 1), ob.data.materials[0].name), []).append(ob)
-    for (lv, mname), obs in groups.items():
+        mname = ob.data.materials[0].name
+        key = (ob.get("lv", 1), mname if mname in GLOW else "Paint")
+        groups.setdefault(key, []).append(ob)
+    for (lv, kind), obs in groups.items():
         bpy.ops.object.select_all(action='DESELECT')
         for o in obs:
             o.select_set(True)
@@ -136,13 +291,14 @@ def join_and_export_levels(prefix, filename):
         if len(obs) > 1:
             bpy.ops.object.join()
         j = bpy.context.view_layer.objects.active
-        j.name = j.data.name = f"{prefix}_L{lv}_{mname}"
+        j.name = j.data.name = f"{prefix}_L{lv}_{kind}"
         j["lv"] = lv
+        if kind == "Paint":
+            paint(j, f"{prefix}_L{lv}_Tex")
     bpy.ops.object.select_all(action='DESELECT')
     for ob in col.objects:
         ob.select_set(True)
     bpy.context.view_layer.objects.active = col.objects[0]
-    bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
     bpy.context.scene.cursor.location = (0, 0, 0)
     bpy.ops.object.origin_set(type='ORIGIN_CURSOR')
     tris = sum(len(p.vertices) - 2 for ob in col.objects for p in ob.data.polygons)
@@ -151,7 +307,7 @@ def join_and_export_levels(prefix, filename):
     path = os.path.join(out_dir, filename)
     bpy.ops.export_scene.fbx(filepath=path, use_selection=True, object_types={'MESH'},
                              apply_unit_scale=True, apply_scale_options='FBX_SCALE_ALL', axis_forward='-Z', axis_up='Y',
-                             mesh_smooth_type='FACE', bake_space_transform=True)
+                             mesh_smooth_type='FACE', bake_space_transform=True, path_mode='COPY', embed_textures=True)
     print("내보냄:", path, "| 오브젝트", len(col.objects), "| 삼각형", tris)
     return path
 
