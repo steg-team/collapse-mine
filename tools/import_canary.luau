@@ -17,19 +17,8 @@ local SS = game:GetService("ServerStorage")
 -- Paint = 블렌더에서 칠한 텍스처를 입은 메시 (FBX에 텍스처가 같이 들어 있어 가져오기가 TextureID를 채운다). 색은 흰색으로 둬야 텍스처 색 그대로
 local LOOK = {
 	Paint = { Color3.fromRGB(255, 255, 255), Enum.Material.SmoothPlastic },
-	Feather = { Color3.fromRGB(255, 210, 60), Enum.Material.SmoothPlastic },
-	FeatherDark = { Color3.fromRGB(242, 168, 35), Enum.Material.SmoothPlastic },
-	Beak = { Color3.fromRGB(255, 140, 30), Enum.Material.SmoothPlastic },
-	Eye = { Color3.fromRGB(15, 15, 18), Enum.Material.Glass },
-	EyeShine = { Color3.fromRGB(255, 255, 255), Enum.Material.Neon },
-	Belly = { Color3.fromRGB(255, 238, 170), Enum.Material.SmoothPlastic },
-	Cheek = { Color3.fromRGB(255, 150, 140), Enum.Material.SmoothPlastic },
-	Helmet = { Color3.fromRGB(200, 45, 35), Enum.Material.SmoothPlastic },
-	Iron = { Color3.fromRGB(62, 62, 68), Enum.Material.Metal },
 	Lamp = { Color3.fromRGB(255, 240, 190), Enum.Material.Neon },
-	Scarf = { Color3.fromRGB(55, 100, 210), Enum.Material.Fabric },
 	Gem = { Color3.fromRGB(90, 220, 240), Enum.Material.Neon },
-	GoldFeather = { Color3.fromRGB(255, 160, 20), Enum.Material.Metal },
 }
 
 local src = workspace:FindFirstChild("Canary")

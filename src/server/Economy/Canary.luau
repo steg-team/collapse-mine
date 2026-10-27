@@ -21,6 +21,8 @@ local Economy = require(Config:WaitForChild("Economy"))
 local Mines = require(Config:WaitForChild("Mines"))
 
 local UPDATE = 0.5
+-- 어깨 위 새 크기 배율. 메시 원본(키 약 0.9)은 R15 사각 머리에 가려져서 키운다 (Studio 더미로 확인)
+local BIRD_SCALE = 1.4
 
 -- 레벨에 맞게 장비를 보이고 숨기고, 헤드랜턴 빛 거리를 맞춘다
 local function applyLevel(bird: Model, level: number)
@@ -44,7 +46,9 @@ local function attachBird(char: Model)
 	end
 	local bird = template:Clone()
 	bird.Name = "Canary"
-	local seat = CFrame.new(torso.Size.X / 2 - 0.3, torso.Size.Y / 2, 0.1)
+	bird:ScaleTo(BIRD_SCALE)
+	-- 오른쪽 어깨 바깥·조금 앞 (뒤로 가면 머리에 가려진다)
+	local seat = CFrame.new(torso.Size.X / 2 - 0.2, torso.Size.Y / 2, -0.15)
 	bird:PivotTo(torso.CFrame * seat) -- 템플릿 피벗 = 발 밑 가운데
 	local body = bird.PrimaryPart :: BasePart
 	for _, p in bird:GetDescendants() do
