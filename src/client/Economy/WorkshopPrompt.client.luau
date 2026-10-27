@@ -8,16 +8,8 @@ local RS = game:GetService("ReplicatedStorage")
 
 local Config = RS:WaitForChild("Shared"):WaitForChild("Config")
 local Economy = require(Config:WaitForChild("Economy"))
-local Mines = require(Config:WaitForChild("Mines"))
 
 local player = Players.LocalPlayer
-
-local displayName: { [string]: string } = {}
-for _, m in Mines.list do
-	for _, o in m.ores do
-		displayName[o.name] = o.displayName
-	end
-end
 
 local prompts: { ProximityPrompt } = {}
 
@@ -29,22 +21,18 @@ local function texts(): { [string]: string }
 
 	local craft = "가장 좋은 곡괭이예요"
 	if nextSpec then
-		local parts = { `{nextSpec.coins} 코인` }
-		for oreId, n in nextSpec.ores do
-			table.insert(parts, `{displayName[oreId] or oreId} {n}`)
-		end
-		craft = `{nextSpec.name} · {table.concat(parts, " + ")}`
+		craft = `{nextSpec.name} · {Economy.recipeText(nextSpec)}`
 	end
 
 	local enh = `{now and now.name or ""} +{enhance} (최대)`
 	if now and enhance < Economy.ENHANCE_MAX then
-		enh = `{now.name} +{enhance} → +{enhance + 1} · {now.enhanceCost * (enhance + 1)} 코인`
+		enh = `{now.name} +{enhance} → +{enhance + 1} · {Economy.enhanceCost(tier, enhance)} 코인`
 	end
 	local level = player:GetAttribute("CanaryLevel") or 0
 	local nextCanary = Economy.CANARY[level + 1]
-	local canary = `카나리아 Lv{level} (다 컸어요)`
+	local canary = `카나리아 Lv{level + 1} (다 컸어요)`
 	if nextCanary then
-		canary = `카나리아 Lv{level} → Lv{level + 1} · {nextCanary.coins} 코인 + {Economy.CANARY_FEED_GRADE} 광물 {nextCanary.rare}`
+		canary = `카나리아 Lv{level + 2} ({Economy.CANARY_PERK_NAME[level + 1]}) · {Economy.recipeText(nextCanary :: any)}`
 	end
 	local R = Economy.REBIRTH
 	local rebirths = player:GetAttribute("Rebirths") or 0
@@ -52,9 +40,17 @@ local function texts(): { [string]: string }
 	local rebirth = `판매가 ×{1 + (rebirths + 1) * R.sellBonus} 영구 · {Economy.PICKAXES[R.needTier].name} + {R.coins * (rebirths + 1)} 코인`
 
 	local bagLevel = player:GetAttribute("BagLevel") or 0
-	local nextBag = Economy.BAG_UPGRADES[bagLevel + 1]
-	local cap = player:GetAttribute("BagCapacity") or Economy.BAG_MAX_KG
-	local bag = if nextBag then `{cap}kg → {cap + nextBag.kg}kg · {nextBag.coins} 코인` else `{cap}kg (가장 커요)`
+	local nextBag = Economy.BAG_LEVELS[bagLevel + 2]
+	local hasBigBag = player:GetAttribute("HasBigBag") == true
+	local cap = Economy.bagCapacity(bagLevel, hasBigBag)
+	local bag = `{cap}kg (가장 커요)`
+	if nextBag then
+		local nextCap = Economy.bagCapacity(bagLevel + 1, hasBigBag)
+		local lockedBy = if tier < (nextBag.stage or 0) then Economy.PICKAXES[nextBag.stage or 1] else nil
+		bag = if lockedBy
+			then `{cap}kg → {nextCap}kg · 🔒 {lockedBy.name} 필요`
+			else `{cap}kg → {nextCap}kg · {Economy.recipeText(nextBag :: any)}`
+	end
 
 	return { CraftPrompt = craft, EnhancePrompt = enh, CanaryPrompt = canary, RebirthPrompt = rebirth, BagUpgradePrompt = bag }
 end
@@ -83,3 +79,4 @@ player:GetAttributeChangedSignal("CanaryLevel"):Connect(refresh)
 player:GetAttributeChangedSignal("Rebirths"):Connect(refresh)
 player:GetAttributeChangedSignal("BagLevel"):Connect(refresh)
 player:GetAttributeChangedSignal("BagCapacity"):Connect(refresh)
+player:GetAttributeChangedSignal("HasBigBag"):Connect(refresh)

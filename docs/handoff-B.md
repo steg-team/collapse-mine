@@ -2,7 +2,7 @@
 
 B 담당 기능이 지금 어디까지 됐고, 다른 담당이 무엇을 붙이면 되는지 적는다. 바뀔 때마다 이 문서를 고친다.
 다른 담당에게 할 일이 생기면 여기 적는 것과 별개로 GitHub 이슈(라벨 `담당-A`/`담당-C`)를 연다. B에게 요청할 일은 라벨 `담당-B` 이슈로 남겨 달라.
-규칙의 근거는 `decisions.md` D-014(데이터 저장), D-020(가방·판매소), D-021(곡괭이 제작·강화), D-022(인벤토리 창·코인 원본), D-023(광산 카나리아), D-024(리버스), D-027(가방 무게), D-028(가방 늘리기), D-029(갇힘 차감), D-035(도감), D-036(카나리아 광맥), D-037(재료 남기고 팔기), D-043(선택 판매).
+규칙의 근거는 `decisions.md` D-014(데이터 저장), D-020(가방·판매소), D-021(곡괭이 제작·강화), D-022(인벤토리 창·코인 원본), D-023(광산 카나리아), D-024(리버스), D-027(가방 무게), D-028(가방 늘리기), D-029(갇힘 차감), D-035(도감), D-036(카나리아 광맥), D-037(재료 남기고 팔기), D-043(선택 판매), D-044(공유 기획 숫자·업그레이드 레시피).
 
 ## 지금 되는 것
 
@@ -12,33 +12,31 @@ B 담당 기능이 지금 어디까지 됐고, 다른 담당이 무엇을 붙이
 | 가방 담기 | `src/server/Economy/Bag.luau` | 동작. A의 `OreMined`(#26)로 채굴과 연결됨. 무게(kg) 한도, 넘으면 느려짐 (D-027) |
 | 판매소 | `Bag.luau` (`Bag.sellAll`) | 동작. 허브 `Shop/Counter`에 "재료 빼고 전부 팔기" 프롬프트. 다음 곡괭이 재료·카나리아 먹이는 남김 (D-037) |
 | 가방 HUD | `src/client/Economy/BagHud.client.luau` | 동작. 화면 아래 "가방 3/20 · 120 코인어치", 누르면 인벤토리 창 |
-| 가방 늘리기 | `Bag.upgrade` | 동작. 판매소 "가방 늘리기"(F), 30kg → 최대 80kg. 리버스하면 처음으로 |
-| 인벤토리 창 | `src/client/Economy/InventoryPanel.client.luau` | 동작. 가방 버튼·B 키. 판매소 근처면 줄을 체크해서 고른 것만 팔기(D-043) 또는 재료 빼고 전부 팔기 (`Remotes.Bag`). 다음 곡괭이 재료·카나리아 먹이는 줄 아래 "⚒ 돌 곡괭이 재료 2/3" 표시 |
+| 가방 늘리기 | `Bag.upgrade` | 동작. 판매소 "가방 늘리기"(F), 코인 + 그 광산 일반·고급 광물, 30 → 45 → 67.5kg (광산이 생기면 단계 추가). 리버스하면 처음으로 |
+| 인벤토리 창 | `src/client/Economy/InventoryPanel.client.luau` | 동작. 가방 버튼·B 키. 판매소 근처면 줄을 체크해서 고른 것만 팔기(D-043) 또는 재료 빼고 전부 팔기 (`Remotes.Bag`). 다음 곡괭이·가방·카나리아 재료는 줄 아래 "⚒ 동굴 진주 곡괭이 2/5" 표시, 카나리아 Lv4부터 줄마다 "🐤 10→1" 바꾸기 |
 | 탈출 수확·보너스 | `Bag.luau` | `PlayerEscaped` → `HaulSecured` + 보너스 코인 |
 | 갇힘 차감 | `Bag.luau`, `PlayerData.luau` | 갇힘·경보 중 광산 안 죽음·퇴장 → 가방 무게의 절반까지, 한 경보에 한 번 (D-029, D-039) |
 | 출석·퀘스트 코인 | `Bag.luau` | `DailyLoginClaimed`·`QuestCompleted`의 `reward.coins` 지급 |
-| 곡괭이 제작·강화 | `src/server/Economy/Workshop.luau` | 동작. 제작소 Counter "다음 곡괭이 만들기"(E)·"곡괭이 강화"(F) |
-| 광산 카나리아 | `src/client/Economy/CanaryHud.client.luau`, `Workshop.feedCanary` | 동작. 광산 안 오른쪽 상태 줄, 제작소 "카나리아 키우기"(G). 숨은 광맥 감지(`Canary.luau`, D-036)는 A의 `RareVeins`(#43)가 생기면 켜짐. 새 모델·소리는 아직 |
+| 곡괭이 제작·강화 | `src/server/Economy/Workshop.luau` | 동작. 제작소 Counter "다음 곡괭이 만들기"(E)·"곡괭이 강화"(F). 업그레이드 값은 모두 레시피(코인 + 광물 + 등급), 확인·차감은 `Bag.pay` (D-044) |
+| 광산 카나리아 | `src/client/Economy/CanaryHud.client.luau`, `Workshop.feedCanary` | 동작. 광산 안 오른쪽 상태 줄, 제작소 "카나리아 키우기"(G). 숨은 광맥 감지(`Canary.luau`, D-036)는 A의 `RareVeins`(#43)와 연결됨. 어깨 위 새 모델·울음소리 (`ServerStorage.CanaryBird` 필요, 아래 Studio 할 일) |
 | 리버스 | `Workshop.rebirth` | 동작. 제작소 "리버스"(R 3초). 코인·곡괭이·가방 초기화, 판매가 영구 배수 |
 | 광물 도감 | `src/client/Economy/CodexPanel.client.luau`, `Bag.luau` | 동작. 인벤토리 창 "📖 도감"·N 키. 광물 × 압력 칸, 새 칸이면 알림, 가방 버튼에 빨간 점 (D-035). 완성 보상은 아직 |
 | 한 줄 알림 | `Bag.notify`, `BagHud` | 판매 결과·제작 실패 이유를 화면 아래에 3초 |
 
 ## A 담당께
 
+- **곡괭이 이름 (이슈 #55)**: 이름이 바뀌었다 (D-044). `Pickaxe.TIERS`·광산 지도·입장 안내의 이름 사본 대신 `Economy.PICKAXES[단계].name`을 읽어 달라. 4스테이지 이름(석탄 굴 / 용암 광산)도 정해 달라.
 - 채굴 → 가방은 #26(D-025)으로 연결됐다. 광석이 깨지면 `OreMined`만 오고, 코인은 B가 판매 때 준다.
 - `leaderstats.Coins`는 화면 표시용 사본이다. 코인을 바꿀 일이 생기면 직접 고치지 말고 B에 말해 달라 (원본은 `data.coins`, `PlayerData.addCoins`).
 - 곡괭이: B가 제작·강화하면 `PickaxeUpgraded(player, tier, enhance)`가 오고, 플레이어 속성 `PickaxeTier`·`PickaxeEnhance`도 바뀐다. 리버스하면 `(player, 1, 0)`.
-- **걸음 속도 (D-027, A 할 일, 이슈 #37)**: B가 플레이어 속성 `BagSpeedMultiplier`(1 → 0.6)를 갱신한다. 가방이 30kg을 넘으면 1보다 작아진다. 캐릭터 걸음 속도에 곱해 달라. 예:
-  ```lua
-  local function apply() humanoid.WalkSpeed = BASE_WALK * (player:GetAttribute("BagSpeedMultiplier") or 1) end
-  player:GetAttributeChangedSignal("BagSpeedMultiplier"):Connect(apply)
-  ```
-  부스트 등 다른 속도 효과와 겹치면 A 쪽에서 한 곳에서 곱해 주면 된다.
+- 걸음 속도(#37)는 A의 `CharacterSpeed`가 `BagSpeedMultiplier`를 곱한다. 완료.
 - `oreId`가 `Mines.luau` 광물표에 없는 이름이면 B가 경고만 찍고 담지 않는다.
-- **희귀 광맥 (D-036, A 할 일, 이슈 #43)**: 카나리아가 감지할 숨은 광맥을 A가 만들어 달라. B는 서버에서 `require(Server.Mining.RareVeins).nearest(mineId, position)`(가장 가까운 광맥 중심까지 거리, 없으면 nil)를 0.5초마다 부른다. 모듈이 없으면 B는 광맥 감지 없이 동작한다. 개수·위치·확률·소진 제안은 D-036에.
+- 희귀 광맥(#43)은 A의 `RareVeins.nearest`를 B가 0.5초마다 부른다. 완료. 함수 이름·반환(거리 또는 nil)을 바꾸면 알려 달라.
+- 카나리아 새는 캐릭터 안 `Canary` 모델(파트 전부 CanQuery·CanTouch 끔)이다. 채굴 레이·출구 발판에 안 걸리지만, 캐릭터 파트를 훑는 코드가 있으면 이 모델은 건너뛰어 달라.
 
 ## C 담당께
 
+- **보상 코인 (이슈 #56)**: 광물 가격이 공유 기획 공식으로 내려갔다 (D-044). 출석·퀘스트 `reward.coins`를 새 가격에 맞춰 달라.
 - **가방 확장 패스 구매 입구 (D-038)**: 인벤토리의 가방 가득 카드에서 클라이언트가 `MarketplaceService:PromptGamePassPurchase`로 `Social.Passes.BigBag.id`를 띄운다. 패스 id가 0이면 버튼이 숨겨지니, 대시보드에서 패스를 만들고 id만 넣으면 보인다. 효과 확인은 C의 `Payments`(구매 완료 캐시)를 그대로 쓴다. 나중에 상점 UI를 만들면 이 버튼을 그쪽으로 옮겨도 된다.
 - **성장 공지 요청 (이슈 #48)**: `PickaxeUpgraded`를 받아 철 곡괭이 이상 제작·리버스를 서버 공지로.
 - 판매가 배수를 올리는 상품(패스·부스트의 `SellPrice`)이 생기면 B 화면(가방 HUD "💰×2", 판매 알림)에 자동으로 보인다.
@@ -49,8 +47,12 @@ B 담당 기능이 지금 어디까지 됐고, 다른 담당이 무엇을 붙이
 
 ## 아직 안 된 것 (B 다음 작업 순서)
 
-1. 카나리아 새 모델(어깨 위)·울음소리: 모델이 생기면.
-2. 곡괭이 5단계·용암 광산: 광산 설정이 생기면 `PICKAXES`에 한 줄.
+1. 곡괭이 5단계·용암 광산: 광산 설정이 생기면 `PICKAXES`에 한 줄.
+2. 도감 광산 완성 보상: 숫자가 정해지면.
+
+## Studio에서 할 일 (팀 플레이스에 한 번)
+
+- 카나리아 새 (D-045, 레벨 장비 포함): 블렌더에서 `tools/blender/build_canary.py` 실행 → Studio Ctrl+M으로 `~/Downloads/CollapseMine/Canary.fbx` 가져오기 → 명령창에서 `tools/import_canary.luau` 실행 → Ctrl+S.
 
 ## 로컬 테스트 방법
 

@@ -1,5 +1,12 @@
 --!strict
 -- 경제 밸런스 숫자 (B 담당). "임시값"은 밸런스 테스트 전 숫자다.
+-- 숫자 출처: 공유 기획(곡괭이·가방·광물 도감 탭)과 D-044. 광물 기본가 = 2 × 2.2^(스테이지 − 1) × 등급 배수 (Mines.luau value)
+--
+-- 레시피 = 업그레이드 하나의 값: { coins, ores = { 광물 = 개수 }, grades = { 등급 = 개수 } }.
+-- ores는 그 광물, grades는 그 등급이면 어느 광산 것이든. 곡괭이·가방·카나리아가 같은 꼴이라
+-- 확인·차감(Bag.pay), 전부 팔기 때 남길 재료(materialNeeds), 프롬프트 문구가 한 가지 방식으로 읽는다.
+
+export type Recipe = { coins: number, ores: { [string]: number }?, grades: { [string]: number }? }
 
 local Economy = {
 	-- 붕괴 때 갇히면(또는 경보 중 광산 안에서 접속을 끊으면) 가방 무게에서 잃는 비율 (D-029, 임시값)
@@ -8,16 +15,18 @@ local Economy = {
 
 	-- 가방은 무게(kg) 하나로 잰다 (D-027). 광물 무게 = OreMined 의 weight (A, 평균 1kg 남짓)
 	-- 한도까지는 그대로, 넘으면 무거울수록 느려지고, 한도 × BAG_HARD_LIMIT 를 넘으면 더 안 담긴다 (임시값)
-	BAG_MAX_KG = 30,
-	-- "가방 확장" 게임패스(BigBag)로 늘어나는 무게 (임시값)
-	BIG_BAG_EXTRA_KG = 20,
 	BAG_HARD_LIMIT = 1.5,
-	-- 판매소 "가방 늘리기" (D-028). 단계마다 kg만큼 한도가 늘고 coins를 낸다. 리버스하면 0단계로 (임시값)
-	BAG_UPGRADES = table.freeze({
-		{ kg = 10, coins = 500 },
-		{ kg = 10, coins = 2000 },
-		{ kg = 15, coins = 8000 },
-		{ kg = 15, coins = 25000 },
+	-- 공유 기획 가방 12단계는 광물 개수(칸)로 적혀 있다. 우리 가방은 무게라서 칸 × 이 값 = kg
+	BAG_KG_PER_SLOT = 1.5,
+	-- "가방 확장" 게임패스(BigBag): 모든 단계 한도 × 이 값 (공유 기획 가방 탭)
+	BIG_BAG_MULT = 2,
+	-- 가방 단계 (D-028, D-044). 1단계가 시작. 판매소 "가방 늘리기"로 한 단계씩. stage = 그 광산에 갈 수 있어야(곡괭이 단계) 살 수 있음.
+	-- 값 = 해금 스테이지 다음 곡괭이 코인의 40% + 그 광산 일반·고급 광물. 리버스하면 1단계로.
+	-- 공유 기획 4단계(65칸, 5스테이지, 29K)부터는 그 광산이 생기면 한 줄씩 붙인다 (임시값)
+	BAG_LEVELS = table.freeze({
+		{ slots = 20 },
+		{ slots = 30, stage = 1, coins = 140, ores = { Coal = 15, Quartz = 2 } },
+		{ slots = 45, stage = 3, coins = 4400, ores = { Limestone = 15, Azurite = 2 } },
 	}),
 	-- 한도 × BAG_HARD_LIMIT 일 때 걸음 속도 배수. 완전히 멈추지는 않게 (임시값)
 	BAG_MIN_SPEED = 0.6,
@@ -29,36 +38,63 @@ local Economy = {
 	-- 키는 OreMined 계약의 pressure 값 (임시값)
 	PRESSURE_MULT = table.freeze({
 		Low = 1, -- 상압
-		High = 1.5, -- 고압
-		Extreme = 3, -- 초고압
+		High = 2, -- 고압
+		Extreme = 5, -- 초고압 (공유 기획 A-05)
 	}),
 
 	-- 판매소·제작소 Counter에서 이 거리 밖이면 거부 (ProximityPrompt 거리 + 여유)
 	SELL_REACH = 16,
 
-	-- 곡괭이 단계 (D-021). 단계 = Mines.luau 의 requiredPickaxe. 다음 단계는 코인 + 가방 속 광물로 만든다.
-	-- 재료는 바로 전 광산에서 나오는 고급·에픽 광물 ("팔까, 쓸까"). 숫자는 모두 임시값
-	-- enhanceCost = 이 단계에서 강화 1회 기본 비용. n강 → n+1강은 enhanceCost × (n+1)
+	-- 곡괭이 단계 (D-021, D-044). 단계 = Mines.luau 의 requiredPickaxe (= 갈 수 있는 광산).
+	-- 다음 곡괭이 = 공유 기획 코인 + 바로 전 광산 광물을 등급 골고루 (일반 20·10, 고급 5, 희귀 2, 에픽 1). 한 광산을 골고루 파야 넘어간다.
+	-- 이름은 핵심 재료인 에픽 광물 이름 ("동굴 진주 곡괭이가 필요해요" = 동굴 진주를 찾으면 된다). 첫 곡괭이만 "낡은 곡괭이".
+	-- 5단계(4스테이지 다음)는 4스테이지 광산·광물이 정해지면 한 줄. 숫자는 모두 임시값
+	-- enhanceCost = 강화 기본 비용 = 다음 곡괭이 코인의 5% (4단계는 공유 기획 4스테이지 다음 곡괭이 28K 기준). Economy.enhanceCost 참고
 	PICKAXES = table.freeze({
-		{ name = "나무 곡괭이", coins = 0, ores = {}, enhanceCost = 50 },
-		{ name = "돌 곡괭이", coins = 300, ores = { Quartz = 3 }, enhanceCost = 300 },
-		{ name = "철 곡괭이", coins = 2000, ores = { Silver = 3, Platinum = 1 }, enhanceCost = 1500 },
-		{ name = "금 곡괭이", coins = 10000, ores = { Azurite = 3, WaterPearl = 1 }, enhanceCost = 6000 },
+		{ name = "낡은 곡괭이", coins = 0, enhanceCost = 18 },
+		{ name = "동굴 진주 곡괭이", coins = 350, ores = { Coal = 20, Copper = 10, Quartz = 5, Amber = 2, CavePearl = 1 }, enhanceCost = 65 },
+		{ name = "백금 곡괭이", coins = 1300, ores = { Iron = 20, Tin = 10, Silver = 5, Magnetite = 2, Platinum = 1 }, enhanceCost = 550 },
+		{ name = "물빛 진주 곡괭이", coins = 11000, ores = { Limestone = 20, Calcite = 10, Azurite = 5, Malachite = 2, WaterPearl = 1 }, enhanceCost = 1400 },
 	}),
 	-- 단계마다 강화 상한. 다음 단계를 만들면 강화는 0부터 (임시값)
 	ENHANCE_MAX = 5,
 
-	-- 광산 카나리아 (D-023). 레벨 = data.canary (0부터). range = 희귀 이상 광물을 알아채는 거리(스터드)
-	-- 다음 레벨은 제작소에서 코인 + 희귀 등급 광물로 키운다 (기획서 "희귀: 카나리아 성장"). 숫자는 모두 임시값
+	-- 광산 카나리아 (D-023, D-044). 저장값 data.canary는 0부터, 화면에는 +1 해서 Lv1~5 (공유 기획 "등급 1~5, 20→60").
+	-- range = 희귀 광맥·희귀 이상 광물을 알아채는 거리(스터드). 다음 레벨은 코인 + 희귀(어느 광산이든), 위쪽은 에픽도.
+	-- 코인 = 그 단계 광산 다음 곡괭이 코인의 30%. 숫자는 모두 임시값
 	CANARY = table.freeze({
 		[0] = { range = 20 },
-		{ range = 30, coins = 200, rare = 2 },
-		{ range = 45, coins = 1000, rare = 4 },
-		{ range = 60, coins = 5000, rare = 6 },
+		{ range = 30, coins = 100, grades = { ["희귀"] = 2 } },
+		{ range = 40, coins = 400, grades = { ["희귀"] = 4 } },
+		{ range = 50, coins = 3300, grades = { ["희귀"] = 6, ["에픽"] = 1 } },
+		{ range = 60, coins = 8400, grades = { ["희귀"] = 8, ["에픽"] = 2 } },
 	}),
-	-- 카나리아가 반응하는 등급 / 키울 때 받는 등급
+	-- 카나리아 펫 기능 (D-045). 레벨(저장값, 0부터)이 이 값 이상이면 켜진다. 장비 모델(헬멧·목도리·보석·황금 깃)과 한 짝
+	CANARY_PERKS = table.freeze({
+		lamp = 1, -- Lv2 헤드랜턴 보조: 광산 안에서 새 램프가 빛난다
+		guide = 2, -- Lv3 출구 안내: 붕괴 경보 중 출구 방향 화살표
+		transmute = 3, -- Lv4 광물 바꾸기: 같은 광산 아래 등급 여러 개 → 한 등급 위 1개
+		guard = 4, -- Lv5 갇힘 보호: 갇힐 때 잃는 무게 비율이 줄어든다
+	}),
+	CANARY_PERK_NAME = table.freeze({ [0] = "희귀 감지·붕괴 경보", "헤드랜턴", "출구 안내", "광물 바꾸기", "갇힘 보호" }),
+	-- 헤드랜턴 빛 거리(스터드): 기본 + 레벨마다 (임시값)
+	CANARY_LAMP_RANGE = 14,
+	CANARY_LAMP_RANGE_PER_LEVEL = 4,
+	-- 광물 바꾸기: 등급 → { 바뀌는 등급, 필요 개수 }. 같은 광산 광물로만, 하루 횟수 제한 (한국 시각 자정, 임시값).
+	-- 에픽은 곡괭이 핵심 재료라 바꿔서 만들 수 없게 희귀까지만
+	CANARY_TRANSMUTE = table.freeze({
+		["일반"] = table.freeze({ to = "고급", need = 10 }),
+		["고급"] = table.freeze({ to = "희귀", need = 5 }),
+	}),
+	CANARY_TRANSMUTE_DAILY = 10,
+	-- 갇힘 보호일 때 잃는 무게 비율 (기본 TRAPPED_BAG_LOSS 대신)
+	CANARY_GUARD_LOSS = 0.35,
+
+	-- 카나리아가 반응하는 등급
 	CANARY_DETECT_GRADES = table.freeze({ ["희귀"] = true, ["에픽"] = true, ["전설"] = true, ["신화"] = true, ["???"] = true }),
-	CANARY_FEED_GRADE = "희귀",
+	-- 카나리아 울음소리: ProSoundEffects "Cockatiel Bird Interior Whistling Chirps 1" (무료, 3.4초 중 앞부분만 재생)
+	CANARY_CHIRP_SOUND = "rbxassetid://9113844972",
+	CANARY_CHIRP_LENGTH = 0.9,
 
 	-- 기획서 "광물 등급" 테두리 색 (인벤토리·도감 창)
 	GRADE_COLOR = table.freeze({
@@ -75,17 +111,71 @@ local Economy = {
 	-- 필요 코인 = coins × (지금까지 리버스 횟수 + 1). 판매가 배수 = 1 + sellBonus × 리버스 횟수. 숫자는 모두 임시값
 	REBIRTH = table.freeze({
 		needTier = 4,
-		coins = 50000,
+		coins = 28000,
 		sellBonus = 0.25,
 	}),
 }
 
--- 다음 단계에 쓸 재료 (D-037): 다음 곡괭이 재료 { 광물 = 개수 }, 카나리아 먹이(CANARY_FEED_GRADE 등급) 개수.
--- 서버 "재료 빼고 전부 팔기"(Bag)와 인벤토리 "⚒ 재료" 표시가 같이 쓴다. 규칙을 바꿀 땐 여기만 고친다
-function Economy.materialNeeds(pickaxeTier: number, canaryLevel: number): ({ [string]: number }, number)
-	local nextPickaxe = Economy.PICKAXES[pickaxeTier + 1]
-	local nextCanary = Economy.CANARY[canaryLevel + 1]
-	return if nextPickaxe then nextPickaxe.ores else {}, if nextCanary then nextCanary.rare else 0
+-- 강화 n → n+1 비용: 다음 곡괭이 코인의 5%에서 강화가 오를수록 6%까지 (공유 기획 "5~6%")
+function Economy.enhanceCost(tier: number, enhance: number): number
+	return math.floor(Economy.PICKAXES[tier].enhanceCost * (1 + 0.05 * enhance))
+end
+
+-- 가방 무게 한도(kg): 단계 칸 수 × BAG_KG_PER_SLOT, 가방 확장 패스면 × BIG_BAG_MULT
+function Economy.bagCapacity(bagLevel: number, hasBigBag: boolean): number
+	local level = Economy.BAG_LEVELS[math.clamp(bagLevel + 1, 1, #Economy.BAG_LEVELS)]
+	return level.slots * Economy.BAG_KG_PER_SLOT * (if hasBigBag then Economy.BIG_BAG_MULT else 1)
+end
+
+-- 레시피를 한 줄로: "350 코인 + 석탄 20 + 구리 10 + 희귀 2" (프롬프트 안내용, 광물은 무거운 개수부터)
+local displayName: { [string]: string }? = nil
+function Economy.recipeText(recipe: Recipe): string
+	if not displayName then
+		local names = {}
+		for _, m in require(script.Parent:WaitForChild("Mines")).list do
+			for _, o in m.ores do
+				names[o.name] = o.displayName
+			end
+		end
+		displayName = names
+	end
+	local names = displayName :: { [string]: string }
+	local items: { { string | number } } = {}
+	for oreId, n in recipe.ores or {} do
+		table.insert(items, { names[oreId] or oreId, n })
+	end
+	for grade, n in recipe.grades or {} do
+		table.insert(items, { grade, n })
+	end
+	table.sort(items, function(a, b)
+		return (a[2] :: number) > (b[2] :: number)
+	end)
+	local parts = { `{recipe.coins} 코인` }
+	for _, it in items do
+		table.insert(parts, `{it[1]} {it[2]}`)
+	end
+	return table.concat(parts, " + ")
+end
+
+export type Need = { label: string, icon: string, recipe: Recipe }
+
+-- 바로 다음 업그레이드들의 레시피 (D-037, D-044): 다음 곡괭이, 다음 가방(그 광산에 갈 수 있을 때만), 카나리아 다음 레벨.
+-- 서버 "재료 빼고 전부 팔기"(Bag)와 인벤토리 재료 표시가 같이 쓴다. 규칙을 바꿀 땐 여기만 고친다
+function Economy.materialNeeds(pickaxeTier: number, canaryLevel: number, bagLevel: number): { Need }
+	local out: { Need } = {}
+	local pickaxe = Economy.PICKAXES[pickaxeTier + 1]
+	if pickaxe then
+		table.insert(out, { label = pickaxe.name, icon = "⚒", recipe = pickaxe })
+	end
+	local bag = Economy.BAG_LEVELS[bagLevel + 2]
+	if bag and pickaxeTier >= (bag.stage or 0) then
+		table.insert(out, { label = `가방 {bagLevel + 2}단계`, icon = "🎒", recipe = bag :: any })
+	end
+	local canary = Economy.CANARY[canaryLevel + 1]
+	if canary then
+		table.insert(out, { label = `카나리아 Lv{canaryLevel + 2}`, icon = "🐤", recipe = canary :: any })
+	end
+	return out
 end
 
 return table.freeze(Economy)

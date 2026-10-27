@@ -2,7 +2,7 @@
 --[[
 	제작소: 곡괭이 제작(다음 단계)·강화 (B 담당, D-021), 카나리아 키우기 (D-023), 리버스 (D-024)
 	허브 Workshop/Counter 프롬프트 네 개 (Counter.prompt) ("CraftPrompt" E, "EnhancePrompt" F, "CanaryPrompt" G, "RebirthPrompt" R 3초).
-	비용은 Config/Economy.luau PICKAXES·CANARY. 곡괭이 성능(파워·속도·강화 효과)은 A가 PickaxeUpgraded·속성을 받아 정한다.
+	비용은 Config/Economy.luau PICKAXES·CANARY (레시피, 확인·차감은 Bag.pay). 곡괭이 성능(파워·속도·강화 효과)은 A가 PickaxeUpgraded·속성을 받아 정한다.
 ]]
 
 local RS = game:GetService("ReplicatedStorage")
@@ -11,53 +11,15 @@ local Shared = RS:WaitForChild("Shared")
 local Events = require(Shared:WaitForChild("Events"))
 local EventBus = require(Shared:WaitForChild("EventBus"))
 local Economy = require(Shared:WaitForChild("Config"):WaitForChild("Economy"))
-local Mines = require(Shared.Config:WaitForChild("Mines"))
 local PlayerData = require(script.Parent.PlayerData)
 local Bag = require(script.Parent.Bag)
 local Counter = require(script.Parent.Counter)
-
--- 광물 이름 → 화면에 보일 이름 (실패 안내용), 등급 (카나리아 먹이)
-local displayName: { [string]: string } = {}
-local gradeOf: { [string]: string } = {}
-for _, m in Mines.list do
-	for _, o in m.ores do
-		displayName[o.name] = o.displayName
-		gradeOf[o.name] = o.grade
-	end
-end
 
 local Workshop = {}
 
 local function coinsOf(player: Player): number
 	local data = PlayerData.get(player)
 	return data and data.coins or 0
-end
-
--- 가방에서 조건에 맞는 광물 need개의 번호. 값이 싼 것부터 고른다 (비싸게 캔 건 팔 수 있게 남김). 모자라면 nil, 모자란 수
-local function pick(data: PlayerData.Data, match: (PlayerData.BagItem) -> boolean, need: number): ({ number }?, number)
-	local found: { number } = {}
-	for i, item in data.bag do
-		if match(item) then
-			table.insert(found, i)
-		end
-	end
-	if #found < need then
-		return nil, need - #found
-	end
-	table.sort(found, function(a, b)
-		return data.bag[a].value < data.bag[b].value
-	end)
-	return table.move(found, 1, need, 1, {}), 0
-end
-
-local function removeFromBag(player: Player, data: PlayerData.Data, use: { number })
-	table.sort(use, function(a, b)
-		return a > b
-	end) -- 뒤에서부터 지워야 앞 번호가 안 밀린다
-	for _, i in use do
-		table.remove(data.bag, i)
-	end
-	Bag.sync(player)
 end
 
 local function upgraded(player: Player, data: PlayerData.Data)
@@ -77,22 +39,10 @@ function Workshop.craft(player: Player): (boolean, string)
 	if not spec then
 		return false, "가장 좋은 곡괭이예요"
 	end
-	if coinsOf(player) < spec.coins then
-		return false, `코인이 {spec.coins - coinsOf(player)} 부족해요`
+	local ok, why = Bag.pay(player, spec)
+	if not ok then
+		return false, why :: string
 	end
-	local use: { number } = {}
-	for oreId, need in spec.ores do
-		local found, short = pick(data, function(item)
-			return item.ore == oreId
-		end, need)
-		if not found then
-			return false, `{displayName[oreId] or oreId} {short}개가 더 필요해요`
-		end
-		table.move(found, 1, #found, #use + 1, use)
-	end
-
-	removeFromBag(player, data, use)
-	PlayerData.addCoins(player, -spec.coins)
 	data.pickaxe.tier = nextTier
 	data.pickaxe.enhance = 0
 	upgraded(player, data)
@@ -109,7 +59,7 @@ function Workshop.enhance(player: Player): (boolean, string)
 	if p.enhance >= Economy.ENHANCE_MAX then
 		return false, "강화가 최대예요. 다음 곡괭이를 만들어 보세요"
 	end
-	local cost = Economy.PICKAXES[p.tier].enhanceCost * (p.enhance + 1)
+	local cost = Economy.enhanceCost(p.tier, p.enhance)
 	if coinsOf(player) < cost then
 		return false, `코인이 {cost - coinsOf(player)} 부족해요`
 	end
@@ -129,20 +79,13 @@ function Workshop.feedCanary(player: Player): (boolean, string)
 	if not spec then
 		return false, "카나리아가 다 컸어요"
 	end
-	if coinsOf(player) < spec.coins then
-		return false, `코인이 {spec.coins - coinsOf(player)} 부족해요`
+	local ok, why = Bag.pay(player, spec :: any)
+	if not ok then
+		return false, why :: string
 	end
-	local use, short = pick(data, function(item)
-		return gradeOf[item.ore] == Economy.CANARY_FEED_GRADE
-	end, spec.rare)
-	if not use then
-		return false, `{Economy.CANARY_FEED_GRADE} 광물 {short}개가 더 필요해요`
-	end
-	removeFromBag(player, data, use)
-	PlayerData.addCoins(player, -spec.coins)
 	data.canary += 1
 	player:SetAttribute("CanaryLevel", data.canary)
-	return true, `카나리아가 자랐어요 (탐지 {spec.range}m)`
+	return true, `카나리아가 Lv{data.canary + 1}이 됐어요 (탐지 {spec.range}m)`
 end
 
 -- 리버스: 코인·곡괭이·가방(내용과 늘린 단계)을 처음으로 되돌리고 판매가 보너스를 영구히 얻는다.
