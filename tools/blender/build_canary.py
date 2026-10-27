@@ -1,7 +1,7 @@
 """
 광산 카나리아(어깨 위 펫 새, D-023, D-045) — 블렌더에서 실행하면 ~/Downloads/CollapseMine/Canary.fbx 로 내보낸다.
 화면 없이: /Applications/Blender.app/Contents/MacOS/Blender -b --python tools/blender/build_canary.py
-(삼각형 2천 개 남짓이라 GPU 없는 노트북에서도 몇 초)
+(삼각형 6천 개 남짓, GPU 없는 노트북에서도 몇 초)
 
 1 블렌더 단위 = 1 스터드, 발 밑 가운데가 원점, 앞(부리)은 -Y. 키 약 0.8스터드 (R15 어깨에 앉는 크기).
 
@@ -24,8 +24,8 @@ except ImportError:
 
 # 새 전용 색 (rbx_common PALETTE에 더해서 setup이 재질을 만든다)
 PALETTE.update({
-    "Feather": (1.0, 0.84, 0.25), "FeatherDark": (0.92, 0.70, 0.16),
-    "Beak": (1.0, 0.55, 0.12), "Eye": (0.05, 0.05, 0.06),
+    "Feather": (1.0, 0.82, 0.22), "FeatherDark": (0.95, 0.66, 0.12), "Belly": (1.0, 0.93, 0.62),
+    "Beak": (1.0, 0.52, 0.10), "Eye": (0.04, 0.04, 0.05), "EyeShine": (1.0, 1.0, 1.0), "Cheek": (1.0, 0.55, 0.50),
     "Helmet": (0.80, 0.16, 0.12), "Lamp": (1.0, 0.95, 0.70), "Scarf": (0.20, 0.40, 0.85),
     "GoldFeather": (1.0, 0.58, 0.04),  # 몸통 노랑과 구분되게 진한 주황빛 금 (Roblox Metal)
 })
@@ -35,13 +35,15 @@ LEVEL = {"n": 1}  # 지금 만드는 부품이 붙는 레벨 (build 안에서 �
 
 def tag(ob):
     ob["lv"] = LEVEL["n"]
+    for p in ob.data.polygons:
+        p.use_smooth = True  # 면이 각져 보이지 않게 (작은 펫은 매끈해야 귀엽다)
     return ob
 
 
-def ball(m, r, loc, scale=(1, 1, 1), rot=(0, 0, 0), seg=12, top_only=False):
+def ball(m, r, loc, scale=(1, 1, 1), rot=(0, 0, 0), seg=14, top_only=False):
     """타원체: 반지름 r 공을 scale배로 늘림. top_only면 윗반구만 (헬멧)"""
     bm = bmesh.new()
-    bmesh.ops.create_uvsphere(bm, u_segments=seg, v_segments=max(6, seg * 2 // 3), radius=r)
+    bmesh.ops.create_uvsphere(bm, u_segments=seg, v_segments=max(8, seg * 2 // 3), radius=r)
     if top_only:
         bmesh.ops.delete(bm, geom=[v for v in bm.verts if v.co.z < -1e-4], context='VERTS')
     for v in bm.verts:
@@ -53,46 +55,70 @@ def part(fn, *a, **k):
     return tag(fn(*a, **k))
 
 
+def blob(obs, voxel=0.012, target=900):
+    """여러 덩어리를 이음새 없는 한 덩어리로: 합치고 → 복셀로 다시 짜고 → 다듬고 → 삼각형 수 줄이기 (A의 광물 턴어라운드와 같은 방법)"""
+    bpy.ops.object.select_all(action='DESELECT')
+    for o in obs:
+        o.select_set(True)
+    bpy.context.view_layer.objects.active = obs[0]
+    bpy.ops.object.join()
+    ob = bpy.context.view_layer.objects.active
+    for name, kind, setup_ in (("rm", 'REMESH', lambda m: (setattr(m, "mode", 'VOXEL'), setattr(m, "voxel_size", voxel))),
+                               ("sm", 'SMOOTH', lambda m: (setattr(m, "factor", 0.6), setattr(m, "iterations", 6)))):
+        md = ob.modifiers.new(name, kind); setup_(md)
+        bpy.ops.object.modifier_apply(modifier=md.name)
+    n = len(ob.data.polygons)
+    if n > target:
+        md = ob.modifiers.new("dc", 'DECIMATE'); md.ratio = target / n
+        bpy.ops.object.modifier_apply(modifier=md.name)
+    return tag(ob)
+
+
 def build():
     setup("Canary")
-    # Lv1 기본 새: 몸통(앞뒤로 조금 긴 알), 머리, 머리 깃, 부리(끝이 -Y), 눈, 날개, 꼬리, 발
+    # Lv1 기본 새. 귀여운 펫 비율: 머리가 몸통만큼 크고, 눈이 크고 반짝임, 배는 밝은 색, 볼 홍조
     LEVEL["n"] = 1
-    ball("Feather", 0.28, (0, 0.03, 0.28), scale=(1, 1.25, 1), seg=16)
-    ball("Feather", 0.2, (0, -0.2, 0.56), seg=14)
-    part(cyl, "FeatherDark", 0.05, 0.14, (0, -0.14, 0.78), rot=(-35, 0, 0), verts=6, r2=0.0)
-    part(cyl, "Beak", 0.065, 0.16, (0, -0.43, 0.53), rot=(90, 0, 0), verts=8, r2=0.0)
+    body = ball("Feather", 0.25, (0, 0.04, 0.26), scale=(1, 1.15, 0.95), seg=24)
+    head = ball("Feather", 0.235, (0, -0.15, 0.56), seg=24)
+    tuft = part(cyl, "Feather", 0.045, 0.16, (0, -0.1, 0.8), rot=(-30, 0, 0), verts=12, r2=0.0)
+    blob([body, head, tuft])
+    ball("Belly", 0.17, (0, -0.19, 0.25), scale=(1, 0.45, 1.1), seg=18)
+    part(cyl, "Beak", 0.055, 0.13, (0, -0.42, 0.5), rot=(95, 0, 0), verts=16, r2=0.0)
     for sx in (-1, 1):
-        ball("Eye", 0.035, (sx * 0.13, -0.33, 0.61), seg=8)
-        ball("FeatherDark", 0.2, (sx * 0.26, 0.07, 0.3), scale=(0.25, 1.25, 0.8), rot=(-10, 0, 0), seg=10)
-        part(cyl, "Beak", 0.03, 0.08, (sx * 0.08, -0.02, 0.04), verts=6)
-    part(box, "FeatherDark", (0.22, 0.32, 0.05), (0, 0.42, 0.3), rot=(25, 0, 0))
+        ball("Eye", 0.055, (sx * 0.11, -0.35, 0.6), scale=(1, 0.6, 1.15), seg=12)
+        ball("EyeShine", 0.018, (sx * 0.11 + 0.02, -0.385, 0.635), seg=8)
+        ball("Cheek", 0.04, (sx * 0.17, -0.31, 0.5), scale=(1, 0.4, 0.7), seg=8)
+        ball("FeatherDark", 0.17, (sx * 0.23, 0.08, 0.3), scale=(0.3, 1.25, 0.85), rot=(-15, sx * 8, 0))
+        part(cyl, "Beak", 0.03, 0.08, (sx * 0.08, -0.02, 0.04), verts=10)
+    ball("FeatherDark", 0.13, (0, 0.33, 0.3), scale=(0.9, 1.2, 0.3), rot=(30, 0, 0))
 
     # Lv2 광부 헬멧 + 램프: 머리 위 반구, 챙, 앞 램프(Roblox Neon + PointLight 자리)
     LEVEL["n"] = 2
-    ball("Helmet", 0.215, (0, -0.19, 0.6), scale=(1, 1, 0.8), seg=14, top_only=True)
-    part(cyl, "Helmet", 0.235, 0.025, (0, -0.19, 0.6), verts=16)
-    part(cyl, "Iron", 0.06, 0.05, (0, -0.39, 0.68), rot=(90, 0, 0), verts=10)
-    part(cyl, "Lamp", 0.045, 0.02, (0, -0.42, 0.68), rot=(90, 0, 0), verts=10)
+    # 챙이 눈 위(눈 꼭대기 0.66)에 오도록 높게 얹는다. 눈을 가리면 화나 보인다
+    ball("Helmet", 0.24, (0, -0.14, 0.7), scale=(1, 1, 0.7), seg=24, top_only=True)
+    part(cyl, "Helmet", 0.265, 0.022, (0, -0.14, 0.7), verts=28)
+    part(cyl, "Iron", 0.055, 0.05, (0, -0.36, 0.79), rot=(100, 0, 0), verts=16)
+    part(cyl, "Lamp", 0.042, 0.02, (0, -0.39, 0.795), rot=(100, 0, 0), verts=16)
 
     # Lv3 목도리: 목에 두른 고리 + 옆으로 늘어진 끝
     LEVEL["n"] = 3
-    part(torus, "Scarf", 0.17, 0.045, (0, -0.15, 0.42), rot=(12, 0, 0), seg=14, mseg=5)
-    part(box, "Scarf", (0.09, 0.04, 0.2), (0.14, -0.04, 0.3), rot=(10, 0, -20))
+    part(torus, "Scarf", 0.2, 0.045, (0, -0.1, 0.43), rot=(10, 0, 0), seg=24, mseg=8)
+    part(box, "Scarf", (0.09, 0.035, 0.2), (0.17, -0.02, 0.32), rot=(10, 0, -20), bevel=0.012)
 
     # Lv4 가슴 보석: 위아래로 뾰족한 팔면체 (Roblox Neon)
     LEVEL["n"] = 4
     for s in (1, -1):
-        part(cyl, "Gem", 0.06, 0.07, (0, -0.33, 0.32 + s * 0.035), rot=(0 if s > 0 else 180, 0, 0), verts=4, r2=0.0)
+        part(cyl, "Gem", 0.055, 0.065, (0, -0.31, 0.36 + s * 0.032), rot=(0 if s > 0 else 180, 0, 0), verts=4, r2=0.0)
 
-    # Lv5 황금 깃털: 날개를 덮는 금빛 깃(조금 크게 겹침), 위로 펼친 꼬리 부채 5장, 볏 3개
+    # Lv5 황금 깃털: 날개 덮개(조금 크게 겹침), 꼬리 부채 5장, 볏 3개
     LEVEL["n"] = 5
     for sx in (-1, 1):
-        ball("GoldFeather", 0.2, (sx * 0.27, 0.08, 0.31), scale=(0.27, 1.3, 0.84), rot=(-10, 0, 0), seg=10)
+        ball("GoldFeather", 0.17, (sx * 0.24, 0.09, 0.31), scale=(0.32, 1.3, 0.88), rot=(-15, sx * 8, 0))
     for yaw in (-40, -20, 0, 20, 40):
         r = math.radians(yaw)
-        part(box, "GoldFeather", (0.08, 0.34, 0.03), (math.sin(r) * 0.16, 0.45 + math.cos(r) * 0.08, 0.4), rot=(28, 0, yaw))
+        ball("GoldFeather", 0.15, (math.sin(r) * 0.12, 0.42 + math.cos(r) * 0.06, 0.36), scale=(0.35, 1.3, 0.15), rot=(25, 0, yaw))
     for dx in (-0.06, 0, 0.06):
-        part(cyl, "GoldFeather", 0.035, 0.13, (dx, -0.17, 0.8 + (0.02 if dx == 0 else 0)), rot=(-20, dx * 200, 0), verts=6, r2=0.0)
+        part(cyl, "GoldFeather", 0.035, 0.13, (dx, -0.1, 0.9 + (0.02 if dx == 0 else 0)), rot=(-20, dx * 200, 0), verts=10, r2=0.0)
     return join_and_export_levels("Canary", "Canary.fbx")
 
 

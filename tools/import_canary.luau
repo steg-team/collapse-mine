@@ -15,10 +15,13 @@ local CHS = game:GetService("ChangeHistoryService")
 local SS = game:GetService("ServerStorage")
 
 local LOOK = {
-	Feather = { Color3.fromRGB(255, 214, 64), Enum.Material.SmoothPlastic },
-	FeatherDark = { Color3.fromRGB(235, 178, 40), Enum.Material.SmoothPlastic },
+	Feather = { Color3.fromRGB(255, 210, 60), Enum.Material.SmoothPlastic },
+	FeatherDark = { Color3.fromRGB(242, 168, 35), Enum.Material.SmoothPlastic },
 	Beak = { Color3.fromRGB(255, 140, 30), Enum.Material.SmoothPlastic },
 	Eye = { Color3.fromRGB(15, 15, 18), Enum.Material.Glass },
+	EyeShine = { Color3.fromRGB(255, 255, 255), Enum.Material.Neon },
+	Belly = { Color3.fromRGB(255, 238, 170), Enum.Material.SmoothPlastic },
+	Cheek = { Color3.fromRGB(255, 150, 140), Enum.Material.SmoothPlastic },
 	Helmet = { Color3.fromRGB(200, 45, 35), Enum.Material.SmoothPlastic },
 	Iron = { Color3.fromRGB(62, 62, 68), Enum.Material.Metal },
 	Lamp = { Color3.fromRGB(255, 240, 190), Enum.Material.Neon },
