@@ -269,15 +269,16 @@ local function sellAllNotice(player: Player, earned: number, kept: number): stri
 	return if kept > 0 then "재료만 남았어요. 인벤토리에서 따로 팔 수 있어요" else "가방이 비어 있어요"
 end
 
--- 인벤토리 창은 같은 광물·같은 압력끼리 한 줄로 묶어 보여 준다. 그 묶음을 판다
-function Bag.sellGroup(player: Player, oreId: string, pressure: string): number
+-- 인벤토리 창은 같은 광물·같은 압력끼리 한 줄로 묶어 보여 준다. 체크한 묶음들("Coal|High" 키)만 판다 (D-043).
+-- 다다음 곡괭이·카나리아처럼 전부 팔기 규칙이 모르는 목표용 재료는 체크를 안 하면 남는다
+function Bag.sellGroups(player: Player, keys: { [string]: boolean }): number
 	local data = PlayerData.get(player)
 	if not data then
 		return 0
 	end
 	local sold, kept = {}, {}
 	for _, item in data.bag do
-		table.insert(if item.ore == oreId and item.pressure == pressure then sold else kept, item)
+		table.insert(if keys[item.ore .. "|" .. item.pressure] then sold else kept, item)
 	end
 	if #sold == 0 then
 		return 0
@@ -309,7 +310,7 @@ end
 -- 인벤토리 창 (클라이언트 → 서버). Remotes.Bag (RemoteFunction)
 --   "get"                     → 가방 목록 { {ore, weight, pressure, value} }
 --   "codex"                   → 도감 { ["Coal"] = true, ["Coal|High"] = true, ... }
---   "sell", oreId, pressure   → 그 묶음 판매 (판매소 근처만), 판 금액
+--   "sellSelected", { "Coal|High", ... } → 체크한 묶음들 판매 (판매소 근처만), 판 금액 (D-043)
 --   "sellAll"                 → 재료(다음 곡괭이·카나리아 먹이)를 남기고 전부 판매 (판매소 근처만), 판 금액
 --   "drop", oreId, pressure   → 그 묶음에서 한 개 버리기 (어디서나)
 -- 결과 문구는 Counter.notify 로 HUD 알림 줄에 띄운다
@@ -319,6 +320,8 @@ local REMOTE_COOLDOWN = 0.15
 local CARRY_POLL = 0.5
 local carried: { [Player]: { mineId: string, value: number } } = {}
 local lastCall: { [Player]: number } = {}
+
+local MAX_SELECTED = 200 -- 묶음 수 상한 (광물 × 압력 칸 수보다 넉넉히. 큰 표를 보내 서버를 붙잡는 것 방지)
 
 local function onBagRemote(player: Player, action: any, oreId: any, pressure: any): any
 	if typeof(action) ~= "string" then
@@ -352,11 +355,21 @@ local function onBagRemote(player: Player, action: any, oreId: any, pressure: an
 		return nil
 	end
 	local earned = 0
-	if action == "sell" then
-		if not group then
+	if action == "sellSelected" then
+		-- 이 함수의 oreId 자리에 키 목록이 온다
+		local list = oreId
+		if typeof(list) ~= "table" or #list == 0 or #list > MAX_SELECTED then
 			return nil
 		end
-		earned = Bag.sellGroup(player, oreId, pressure)
+		local keys: { [string]: boolean } = {}
+		for i = 1, #list do -- 배열 부분만 본다 (해시 칸에 큰 표를 숨겨 보내도 돌지 않게)
+			local key = list[i]
+			if typeof(key) ~= "string" or #key > 64 then
+				return nil
+			end
+			keys[key] = true
+		end
+		earned = Bag.sellGroups(player, keys)
 	elseif action == "sellAll" then
 		local kept
 		earned, kept = Bag.sellAll(player)

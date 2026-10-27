@@ -1,7 +1,7 @@
 --!strict
 -- 인벤토리 창 (B 담당, D-022, 무게 D-027)
 -- 화면 아래 가방 버튼(BagHud)을 누르거나 B 키로 연다. 같은 광물·압력끼리 묶어 개수·무게·값·1kg당 값을 보여 주고,
--- 어디서나 한 개씩 버릴 수 있고, 판매소 근처에서는 묶음별로 또는 전부 팔 수 있다 (판정·금액은 서버, Remotes.Bag).
+-- 어디서나 한 개씩 버릴 수 있고, 판매소 근처에서는 체크한 묶음만 팔거나(D-043) 재료 빼고 전부 팔 수 있다 (판정·금액은 서버, Remotes.Bag).
 -- 다음 곡괭이 재료·카나리아 먹이로 쓰이는 광물은 줄 아래에 "⚒ 돌 곡괭이 재료 2/3"처럼 표시한다.
 
 local Players = game:GetService("Players")
@@ -99,10 +99,11 @@ layout.SortOrder = Enum.SortOrder.LayoutOrder
 layout.Parent = list
 
 local footer = text(frame, { AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 16, 1, -14), Size = UDim2.new(1, -190, 0, 36), TextSize = 14, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left, TextColor3 = Color3.fromRGB(200, 200, 200) })
--- 다음 곡괭이 재료·카나리아 먹이는 남기고 판다 (서버 Bag.sellAll, D-037). 재료도 팔려면 그 줄의 "팔기"
-local sellAll = button(frame, "재료 빼고 팔기", { AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -14, 1, -14), Size = UDim2.fromOffset(150, 36) })
+-- 아무것도 체크 안 했으면 "재료 빼고 팔기"(서버 Bag.sellAll, D-037), 체크했으면 "선택한 n줄 팔기"(D-043)
+local sellAll = button(frame, "재료 빼고 팔기", { AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -14, 1, -14), Size = UDim2.fromOffset(170, 36) })
 
 local items: { Item } = {}
+local selected: { [string]: boolean } = {} -- 체크한 묶음 키 "Coal|High". 팔거나 창을 닫으면 비운다
 local nearShop = false
 local busy = false
 
@@ -236,7 +237,15 @@ local function render()
 		end
 	end
 
+	local present: { [string]: boolean } = {}
+	local pickCount, pickValue = 0, 0
 	for i, g in groups() do
+		local key = g.ore .. "|" .. g.pressure
+		present[key] = true
+		if selected[key] then
+			pickCount += 1
+			pickValue += g.value
+		end
 		local info = oreInfo[g.ore]
 		local tag = useTag(g.ore)
 		local row = Instance.new("Frame")
@@ -247,9 +256,27 @@ local function render()
 		Instance.new("UICorner").Parent = row
 		row.Parent = list
 
+		-- 판매소 근처면 줄 왼쪽에 체크 칸. 줄 전체를 눌러도 체크된다 (모바일에서 작은 칸 맞히기 어려움)
+		local left = if nearShop then 40 else 10
+		if nearShop then
+			local hit = Instance.new("TextButton")
+			hit.Name = "Pick"
+			hit.Size = UDim2.new(1, -84, 1, 0)
+			hit.BackgroundTransparency = 1
+			hit.Text = ""
+			hit.Parent = row
+			text(row, { Name = "Check", Position = UDim2.new(0, 8, 0, 4), Size = UDim2.fromOffset(26, 28), TextSize = 20, Text = if selected[key] then "☑" else "☐", TextColor3 = if selected[key] then Color3.fromRGB(255, 190, 50) else Color3.fromRGB(170, 170, 170) })
+			hit.Activated:Connect(function()
+				selected[key] = not selected[key] or nil
+				render()
+			end)
+			if selected[key] then
+				row.BackgroundColor3 = Color3.fromRGB(64, 56, 40)
+			end
+		end
 		text(row, {
-			Position = UDim2.new(0, 10, 0, 0),
-			Size = UDim2.new(1, -160, 0, 36),
+			Position = UDim2.new(0, left, 0, 0),
+			Size = UDim2.new(1, -84 - left, 0, 36),
 			TextXAlignment = Enum.TextXAlignment.Left,
 			TextSize = 14,
 			TextTruncate = Enum.TextTruncate.AtEnd,
@@ -266,19 +293,20 @@ local function render()
 			),
 		})
 		if tag then
-			text(row, { Name = "Use", Position = UDim2.new(0, 10, 0, 28), Size = UDim2.new(1, -160, 0, 16), TextXAlignment = Enum.TextXAlignment.Left, TextSize = 12, TextTruncate = Enum.TextTruncate.AtEnd, TextColor3 = Color3.fromRGB(255, 200, 90), Text = tag })
+			text(row, { Name = "Use", Position = UDim2.new(0, left, 0, 28), Size = UDim2.new(1, -84 - left, 0, 16), TextXAlignment = Enum.TextXAlignment.Left, TextSize = 12, TextTruncate = Enum.TextTruncate.AtEnd, TextColor3 = Color3.fromRGB(255, 200, 90), Text = tag })
 		end
-		local drop = button(row, "버리기", { Name = "Drop", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -82, 0.5, 0), Size = UDim2.fromOffset(70, 28), BackgroundColor3 = Color3.fromRGB(90, 84, 76), TextColor3 = Color3.new(1, 1, 1) })
+		local drop = button(row, "버리기", { Name = "Drop", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -6, 0.5, 0), Size = UDim2.fromOffset(70, 28), BackgroundColor3 = Color3.fromRGB(90, 84, 76), TextColor3 = Color3.new(1, 1, 1) })
 		drop.Activated:Connect(function()
 			act("drop", g)
 		end)
-		if nearShop then
-			local sell = button(row, "팔기", { Name = "Sell", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -6, 0.5, 0), Size = UDim2.fromOffset(70, 28) })
-			sell.Activated:Connect(function()
-				act("sell", g)
-			end)
+	end
+	-- 팔리거나 다 버려서 없어진 묶음은 체크도 지운다
+	for key in selected do
+		if not present[key] then
+			selected[key] = nil
 		end
 	end
+	sellAll.Text = if pickCount > 0 then `선택한 {pickCount}줄 팔기 ({math.floor(pickValue * mult + 0.5)})` else "재료 빼고 팔기"
 end
 
 local function reload()
@@ -294,16 +322,28 @@ end
 
 local function toggle()
 	gui.Enabled = not gui.Enabled
+	table.clear(selected)
 	nearShop = isNearShop()
 	reload()
 end
 
 sellAll.Activated:Connect(function()
-	if not busy then
-		busy = true
-		remote:InvokeServer("sellAll")
-		busy = false
+	if busy then
+		return
 	end
+	local keys = {}
+	for key in selected do
+		table.insert(keys, key)
+	end
+	busy = true
+	if #keys > 0 then
+		remote:InvokeServer("sellSelected", keys)
+		table.clear(selected)
+	else
+		remote:InvokeServer("sellAll")
+	end
+	busy = false
+	render()
 end)
 close.Activated:Connect(toggle)
 UIS.InputBegan:Connect(function(input, processed)
