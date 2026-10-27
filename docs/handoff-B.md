@@ -18,7 +18,7 @@ B 담당 기능이 지금 어디까지 됐고, 다른 담당이 무엇을 붙이
 | 갇힘 차감 | `Bag.luau`, `PlayerData.luau` | 갇힘·경보 중 광산 안 죽음·퇴장 → 가방 무게의 절반까지, 한 경보에 한 번 (D-029, D-039) |
 | 출석·퀘스트 코인 | `Bag.luau` | `DailyLoginClaimed`·`QuestCompleted`의 `reward.coins` 지급 |
 | 곡괭이 제작·강화 | `src/server/Economy/Workshop.luau` | 동작. 제작소 Counter "다음 곡괭이 만들기"(E)·"곡괭이 강화"(F) |
-| 광산 카나리아 | `src/client/Economy/CanaryHud.client.luau`, `Workshop.feedCanary` | 동작. 광산 안 오른쪽 상태 줄, 제작소 "카나리아 키우기"(G). 숨은 광맥 감지(`Canary.luau`, D-036)는 A의 `RareVeins`(#43)가 생기면 켜짐. 새 모델·소리는 아직 |
+| 광산 카나리아 | `src/client/Economy/CanaryHud.client.luau`, `Workshop.feedCanary` | 동작. 광산 안 오른쪽 상태 줄, 제작소 "카나리아 키우기"(G). 숨은 광맥 감지(`Canary.luau`, D-036)는 A의 `RareVeins`(#43)와 연결됨. 어깨 위 새 모델·울음소리 (`ServerStorage.CanaryBird` 필요, 아래 Studio 할 일) |
 | 리버스 | `Workshop.rebirth` | 동작. 제작소 "리버스"(R 3초). 코인·곡괭이·가방 초기화, 판매가 영구 배수 |
 | 광물 도감 | `src/client/Economy/CodexPanel.client.luau`, `Bag.luau` | 동작. 인벤토리 창 "📖 도감"·N 키. 광물 × 압력 칸, 새 칸이면 알림, 가방 버튼에 빨간 점 (D-035). 완성 보상은 아직 |
 | 한 줄 알림 | `Bag.notify`, `BagHud` | 판매 결과·제작 실패 이유를 화면 아래에 3초 |
@@ -28,14 +28,10 @@ B 담당 기능이 지금 어디까지 됐고, 다른 담당이 무엇을 붙이
 - 채굴 → 가방은 #26(D-025)으로 연결됐다. 광석이 깨지면 `OreMined`만 오고, 코인은 B가 판매 때 준다.
 - `leaderstats.Coins`는 화면 표시용 사본이다. 코인을 바꿀 일이 생기면 직접 고치지 말고 B에 말해 달라 (원본은 `data.coins`, `PlayerData.addCoins`).
 - 곡괭이: B가 제작·강화하면 `PickaxeUpgraded(player, tier, enhance)`가 오고, 플레이어 속성 `PickaxeTier`·`PickaxeEnhance`도 바뀐다. 리버스하면 `(player, 1, 0)`.
-- **걸음 속도 (D-027, A 할 일, 이슈 #37)**: B가 플레이어 속성 `BagSpeedMultiplier`(1 → 0.6)를 갱신한다. 가방이 30kg을 넘으면 1보다 작아진다. 캐릭터 걸음 속도에 곱해 달라. 예:
-  ```lua
-  local function apply() humanoid.WalkSpeed = BASE_WALK * (player:GetAttribute("BagSpeedMultiplier") or 1) end
-  player:GetAttributeChangedSignal("BagSpeedMultiplier"):Connect(apply)
-  ```
-  부스트 등 다른 속도 효과와 겹치면 A 쪽에서 한 곳에서 곱해 주면 된다.
+- 걸음 속도(#37)는 A의 `CharacterSpeed`가 `BagSpeedMultiplier`를 곱한다. 완료.
 - `oreId`가 `Mines.luau` 광물표에 없는 이름이면 B가 경고만 찍고 담지 않는다.
-- **희귀 광맥 (D-036, A 할 일, 이슈 #43)**: 카나리아가 감지할 숨은 광맥을 A가 만들어 달라. B는 서버에서 `require(Server.Mining.RareVeins).nearest(mineId, position)`(가장 가까운 광맥 중심까지 거리, 없으면 nil)를 0.5초마다 부른다. 모듈이 없으면 B는 광맥 감지 없이 동작한다. 개수·위치·확률·소진 제안은 D-036에.
+- 희귀 광맥(#43)은 A의 `RareVeins.nearest`를 B가 0.5초마다 부른다. 완료. 함수 이름·반환(거리 또는 nil)을 바꾸면 알려 달라.
+- 카나리아 새는 캐릭터 안 `Canary` 모델(파트 전부 CanQuery·CanTouch 끔)이다. 채굴 레이·출구 발판에 안 걸리지만, 캐릭터 파트를 훑는 코드가 있으면 이 모델은 건너뛰어 달라.
 
 ## C 담당께
 
@@ -49,8 +45,12 @@ B 담당 기능이 지금 어디까지 됐고, 다른 담당이 무엇을 붙이
 
 ## 아직 안 된 것 (B 다음 작업 순서)
 
-1. 카나리아 새 모델(어깨 위)·울음소리: 모델이 생기면.
-2. 곡괭이 5단계·용암 광산: 광산 설정이 생기면 `PICKAXES`에 한 줄.
+1. 곡괭이 5단계·용암 광산: 광산 설정이 생기면 `PICKAXES`에 한 줄.
+2. 도감 광산 완성 보상: 숫자가 정해지면.
+
+## Studio에서 할 일 (팀 플레이스에 한 번)
+
+- 카나리아 새: 블렌더에서 `tools/blender/build_canary.py` 실행 → Studio Ctrl+M으로 `~/Downloads/CollapseMine/Canary.fbx` 가져오기 → 명령창에서 `tools/import_canary.luau` 실행 → Ctrl+S.
 
 ## 로컬 테스트 방법
 

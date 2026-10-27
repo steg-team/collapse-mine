@@ -228,6 +228,7 @@ AI 에이전트는 구현 전에 이 문서와 `game-design.md`를 읽고, 둘�
   - 새 모델(어깨 위 새)과 울음소리는 아직 없다 (화면 표시만).
 - 이유: 기획서 "광산 카나리아: 펫 새가 희귀 광물 근처에서 울고, 등급을 올리면 탐지 범위가 넓어짐, 붕괴가 가까워지면 불안해하며 경보 역할", 광물 등급표 "희귀: 판매, 카나리아 성장".
 - 영향: `src/client/Economy/CanaryHud.client.luau`, `Workshop.luau`(`feedCanary`), `WorkshopPrompt`(비용 표시), `Config/Economy.luau` `CANARY`. 붕괴 상태는 C의 `ReplicatedStorage.CollapseState`를 읽는다.
+- 보강 (2026-10-27): 어깨 위 새 모델과 울음소리를 붙였다. 모델은 블렌더 스크립트(`tools/blender/build_canary.py`, 삼각형 약 950개)로 만들고 `tools/import_canary.luau`로 `ServerStorage.CanaryBird`에 둔다. 서버가 캐릭터마다 복제해 오른쪽 어깨에 붙여서 다른 사람에게도 보인다. 움직임(조용하면 살랑, 짹짹이면 깡충, 붕괴 경보면 떨기)과 울음소리(가까울수록 자주, 경보 때는 높고 빠르게)는 자기 화면에서 자기 새에만 한다. 템플릿이 없으면 새 없이 HUD만 동작.
 
 ## D-024 리버스
 

@@ -5,10 +5,15 @@
 	카나리아 탐지 범위 안이면 플레이어 속성 CanaryVeinDistance(스터드), 밖이면 nil 로 둔다. HUD(CanaryHud)가 읽는다.
 	광맥 위치는 A의 Mining/RareVeins (서버 전용). 위치는 클라이언트에 보내지 않고 거리만 보낸다 (탐지 범위를 서버가 정함).
 	RareVeins 모듈이 아직 없으면 아무것도 하지 않는다 (A 작업 #43 전에도 B가 동작하게).
+
+	어깨 위 새 (D-023 보강): 캐릭터가 생길 때마다 ServerStorage.CanaryBird(블렌더 메시, tools/import_canary.luau)를 복제해
+	오른쪽 어깨에 붙인다. 서버가 붙여서 다른 사람에게도 보인다. 움직임·울음소리는 각자 클라이언트(CanaryHud)가 자기 새에만.
+	템플릿이 없으면 새 없이 HUD만 동작한다.
 ]]
 
 local Players = game:GetService("Players")
 local RS = game:GetService("ReplicatedStorage")
+local ServerStorage = game:GetService("ServerStorage")
 
 local Config = RS:WaitForChild("Shared"):WaitForChild("Config")
 local Economy = require(Config:WaitForChild("Economy"))
@@ -16,9 +21,57 @@ local Mines = require(Config:WaitForChild("Mines"))
 
 local UPDATE = 0.5
 
+-- 새를 몸통 오른쪽 어깨 위에 앉힌다. 클라이언트가 이 Weld(이름 Seat)의 C0를 흔들어 움직인다
+local function attachBird(char: Model)
+	local template = ServerStorage:FindFirstChild("CanaryBird") :: Model?
+	local torso = (char:WaitForChild("UpperTorso", 5) or char:FindFirstChild("Torso")) :: BasePart?
+	if not template or not template.PrimaryPart or not torso or char:FindFirstChild("Canary") then
+		return
+	end
+	local bird = template:Clone()
+	bird.Name = "Canary"
+	local seat = CFrame.new(torso.Size.X / 2 - 0.3, torso.Size.Y / 2, 0.1)
+	bird:PivotTo(torso.CFrame * seat) -- 템플릿 피벗 = 발 밑 가운데
+	local body = bird.PrimaryPart :: BasePart
+	for _, p in bird:GetDescendants() do
+		if p:IsA("BasePart") then
+			p.Anchored = false
+			p.Massless = true
+			p.CanCollide = false
+			p.CanQuery = false -- 채굴 레이·클릭에 안 걸리게
+			p.CanTouch = false -- 출구 발판·포탈 Touched에 안 걸리게
+			p.CastShadow = false
+			if p ~= body then
+				local w = Instance.new("WeldConstraint")
+				w.Part0 = body
+				w.Part1 = p
+				w.Parent = p
+			end
+		end
+	end
+	local weld = Instance.new("Weld")
+	weld.Name = "Seat"
+	weld.Part0 = torso
+	weld.Part1 = body
+	weld.C0 = torso.CFrame:ToObjectSpace(body.CFrame)
+	weld.Parent = body
+	bird.Parent = char
+end
+
+local function onPlayer(player: Player)
+	player.CharacterAdded:Connect(attachBird)
+	if player.Character then
+		task.spawn(attachBird, player.Character)
+	end
+end
+
 local Canary = {}
 
 function Canary.start()
+	Players.PlayerAdded:Connect(onPlayer)
+	for _, player in Players:GetPlayers() do
+		onPlayer(player)
+	end
 	task.spawn(function()
 		local mining = script.Parent.Parent:WaitForChild("Mining", 30)
 		local mod = mining and mining:WaitForChild("RareVeins", 30)
