@@ -86,8 +86,11 @@ def build():
     blob([body, head])
     part(cyl, "Beak", 0.042, 0.1, (0, -0.38, 0.5), rot=(95, 0, 0), verts=16, r2=0.0)
     for sx in (-1, 1):
-        ball("FeatherDark", 0.16, (sx * 0.175, 0.17, 0.28), scale=(0.18, 1.75, 0.68), rot=(-24, sx * 5, 0), taper=0.75)
-        ball("FeatherDark", 0.12, (sx * 0.03, 0.48, 0.13), scale=(0.45, 2.0, 0.14), rot=(-28, sx * 6, 0), taper=0.4)
+        # 날개: 몸통 옆에 반쯤 묻혀 접힌 모양 (몸에서 떨어지면 지느러미·팔처럼 보인다). 끝은 꼬리 쪽 가운데로 모임
+        ball("FeatherDark", 0.16, (sx * 0.125, 0.15, 0.27), scale=(0.3, 1.6, 0.66), rot=(-22, -sx * 6, 0), taper=0.55)
+    # 꼬리: 넓적한 깃 하나 (가는 막대 두 개는 꼬챙이처럼 보였다)
+    ball("FeatherDark", 0.12, (0, 0.42, 0.14), scale=(0.75, 1.6, 0.22), rot=(-26, 0, 0), taper=0.25)
+    for sx in (-1, 1):
         part(cyl, "Beak", 0.022, 0.08, (sx * 0.06, -0.01, 0.04), verts=10)
 
     # Lv2 광부 헬멧 + 램프: 머리 위 반구, 챙, 앞 램프(Roblox Neon + PointLight 자리).
@@ -111,10 +114,10 @@ def build():
     # Lv5 황금 깃털: 날개 덮개(조금 크게 겹침), 긴 꼬리 부채 5장, 헬멧 위 볏 3개
     LEVEL["n"] = 5
     for sx in (-1, 1):
-        ball("GoldFeather", 0.16, (sx * 0.182, 0.18, 0.29), scale=(0.2, 1.8, 0.72), rot=(-24, sx * 5, 0), taper=0.75)
+        ball("GoldFeather", 0.16, (sx * 0.13, 0.16, 0.275), scale=(0.32, 1.65, 0.68), rot=(-22, -sx * 6, 0), taper=0.55)
     for yaw in (-30, -15, 0, 15, 30):
         r = math.radians(yaw)
-        ball("GoldFeather", 0.12, (math.sin(r) * 0.12, 0.5 + math.cos(r) * 0.03, 0.15), scale=(0.35, 1.9, 0.15), rot=(-28, 0, yaw))
+        ball("GoldFeather", 0.11, (math.sin(r) * 0.1, 0.47 + math.cos(r) * 0.03, 0.14), scale=(0.45, 1.9, 0.12), rot=(-26, 0, yaw), taper=0.25)
     for dx in (-0.055, 0, 0.055):
         part(cyl, "GoldFeather", 0.03, 0.12, (dx, -0.12, 0.82 + (0.02 if dx == 0 else 0)), rot=(-20, dx * 200, 0), verts=10, r2=0.0)
     return join_and_export_levels("Canary", "Canary.fbx")
@@ -154,11 +157,6 @@ def shade(mat, P, N):
     lit = 0.86 + 0.14 * _smooth(-0.2, 0.6, N @ LIGHT)
     if mat in ("Feather", "Belly"):
         c = _mix(_rgb(0.98, 0.8, 0.16), _rgb(1.0, 0.93, 0.34), _smooth(0.05, 0.7, z))  # 레몬 노랑
-        # 깃털 비늘: 뒤·옆에서 위로 겹친 반원 줄 (앞 배 쪽은 매끈)
-        ang = np.arctan2(x, y + 0.1)
-        row = np.modf(z * 18 + 0.25 * np.cos(ang * 9))[0]
-        scale = _smooth(0.78, 0.98, row) * _smooth(-0.1, 0.3, y + 0.15)
-        c = c * (1 - 0.12 * scale[:, None])
         # 배: 앞쪽 아래 크림색 타원 (가장자리 부드럽게)
         e = (x / 0.13) ** 2 + ((z - 0.25) / 0.16) ** 2
         belly = (1 - _smooth(0.7, 1.05, e)) * _smooth(0.0, -0.25, y + 0.05)
@@ -178,9 +176,9 @@ def shade(mat, P, N):
             c = _mix(c, _rgb(1, 1, 1), np.maximum(hi, lo) * eye)
     elif mat in ("FeatherDark",):
         c = _mix(_rgb(0.95, 0.74, 0.12), _rgb(1.0, 0.9, 0.3), _smooth(0.1, 0.4, z))
-        # 긴 깃털 결: 날개 길이 방향으로 비스듬한 가는 줄 (고리 무늬는 애벌레처럼 보여서 피함)
-        line = np.modf(z * 28 - y * 9 + 100)[0]
-        c = c * (1 - 0.13 * _smooth(0.86, 0.98, line)[:, None])
+        # 날개 끝 쪽에만 긴 깃 두세 줄 (몸통·날개 전체에 줄을 넣으면 등고선처럼 휘어 보여서 뒤틀려 보인다)
+        line = np.modf(z * 16 - y * 5 + 100)[0]
+        c = c * (1 - 0.12 * (_smooth(0.88, 0.97, line) * _smooth(0.12, 0.3, y))[:, None])
         c = _mix(c, _rgb(0.82, 0.6, 0.1), _smooth(0.35, 0.7, y))  # 날개·꼬리 끝은 조금 진하게
     elif mat == "Beak":
         c = _mix(_rgb(0.93, 0.6, 0.42), _rgb(1.0, 0.8, 0.62), _smooth(0.45, 0.56, z))  # 카나리아 부리·발은 살구빛
