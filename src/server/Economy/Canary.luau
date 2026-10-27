@@ -9,6 +9,7 @@
 	어깨 위 새 (D-023 보강): 캐릭터가 생길 때마다 ServerStorage.CanaryBird(블렌더 메시, tools/import_canary.luau)를 복제해
 	오른쪽 어깨에 붙인다. 서버가 붙여서 다른 사람에게도 보인다. 움직임·울음소리는 각자 클라이언트(CanaryHud)가 자기 새에만.
 	템플릿이 없으면 새 없이 HUD만 동작한다.
+	레벨 장비 (D-045): 메시 이름 Canary_L<n>_<재질>. 카나리아 레벨(화면 Lv)보다 높은 n은 숨긴다. 헬멧 램프(_Lamp)에 PointLight (헤드랜턴 보조).
 ]]
 
 local Players = game:GetService("Players")
@@ -20,6 +21,19 @@ local Economy = require(Config:WaitForChild("Economy"))
 local Mines = require(Config:WaitForChild("Mines"))
 
 local UPDATE = 0.5
+
+-- 레벨에 맞게 장비를 보이고 숨기고, 헤드랜턴 빛 거리를 맞춘다
+local function applyLevel(bird: Model, level: number)
+	for _, p in bird:GetDescendants() do
+		if p:IsA("BasePart") then
+			local n = tonumber(p.Name:match("^Canary_L(%d+)_"))
+			p.Transparency = if n and n > level + 1 then 1 else 0
+		elseif p:IsA("PointLight") then
+			p.Enabled = level >= Economy.CANARY_PERKS.lamp
+			p.Range = Economy.CANARY_LAMP_RANGE + Economy.CANARY_LAMP_RANGE_PER_LEVEL * (level - Economy.CANARY_PERKS.lamp)
+		end
+	end
+end
 
 -- 새를 몸통 오른쪽 어깨 위에 앉힌다. 클라이언트가 이 Weld(이름 Seat)의 C0를 흔들어 움직인다
 local function attachBird(char: Model)
@@ -41,6 +55,13 @@ local function attachBird(char: Model)
 			p.CanQuery = false -- 채굴 레이·클릭에 안 걸리게
 			p.CanTouch = false -- 출구 발판·포탈 Touched에 안 걸리게
 			p.CastShadow = false
+			if p.Name:match("_Lamp$") then
+				local light = Instance.new("PointLight")
+				light.Color = Color3.fromRGB(255, 236, 190)
+				light.Brightness = 1.6
+				light.Shadows = true
+				light.Parent = p
+			end
 			if p ~= body then
 				local w = Instance.new("WeldConstraint")
 				w.Part0 = body
@@ -55,11 +76,21 @@ local function attachBird(char: Model)
 	weld.Part1 = body
 	weld.C0 = torso.CFrame:ToObjectSpace(body.CFrame)
 	weld.Parent = body
+	local player = Players:GetPlayerFromCharacter(char)
+	if player then
+		applyLevel(bird, player:GetAttribute("CanaryLevel") or 0)
+	end
 	bird.Parent = char
 end
 
 local function onPlayer(player: Player)
 	player.CharacterAdded:Connect(attachBird)
+	player:GetAttributeChangedSignal("CanaryLevel"):Connect(function()
+		local bird = player.Character and player.Character:FindFirstChild("Canary")
+		if bird then
+			applyLevel(bird :: Model, player:GetAttribute("CanaryLevel") or 0)
+		end
+	end)
 	if player.Character then
 		task.spawn(attachBird, player.Character)
 	end

@@ -32,7 +32,7 @@ local function texts(): { [string]: string }
 	local nextCanary = Economy.CANARY[level + 1]
 	local canary = `카나리아 Lv{level + 1} (다 컸어요)`
 	if nextCanary then
-		canary = `카나리아 Lv{level + 1} → Lv{level + 2} · {Economy.recipeText(nextCanary :: any)}`
+		canary = `카나리아 Lv{level + 2} ({Economy.CANARY_PERK_NAME[level + 1]}) · {Economy.recipeText(nextCanary :: any)}`
 	end
 	local R = Economy.REBIRTH
 	local rebirths = player:GetAttribute("Rebirths") or 0

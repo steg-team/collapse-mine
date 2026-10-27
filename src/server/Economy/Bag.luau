@@ -42,11 +42,21 @@ local Collapse = require(script.Parent.Parent:WaitForChild("Social"):WaitForChil
 local baseValue: { [string]: number } = {}
 local displayName: { [string]: string } = {}
 local gradeOf: { [string]: string } = {}
+-- 광물 → 같은 광산에서 한 등급 위 광물 (카나리아 광물 바꾸기, D-045). 광산마다 고급·희귀는 하나씩
+local upgradeOf: { [string]: string } = {}
 for _, m in Mines.list do
+	local byGrade: { [string]: string } = {}
 	for _, o in m.ores do
 		baseValue[o.name] = o.value
 		displayName[o.name] = o.displayName
 		gradeOf[o.name] = o.grade
+		byGrade[o.grade] = o.name
+	end
+	for _, o in m.ores do
+		local rule = Economy.CANARY_TRANSMUTE[o.grade]
+		if rule and byGrade[rule.to] then
+			upgradeOf[o.name] = byGrade[rule.to]
+		end
 	end
 end
 
@@ -60,7 +70,7 @@ end
 
 -- 레시피(코인 + 광물 + 등급, Economy.Recipe)를 한 번에 확인하고 한 번에 낸다. 곡괭이·가방·카나리아 공용.
 -- 광물은 값이 싼 것부터 쓴다 (비싸게 캔 건 팔 수 있게). 모자라면 아무것도 빼지 않고 모자란 것을 전부 적어 돌려준다
--- ("코인 50, 석영 2개가 더 필요해요" — 하나씩 알려 주면 채울 때마다 또 실패해서)
+-- ("더 필요해요: 코인 50, 석영 2개" — 하나씩 알려 주면 채울 때마다 또 실패해서)
 function Bag.pay(player: Player, recipe: Economy.Recipe): (boolean, string?)
 	local data = PlayerData.get(player)
 	if not data then
@@ -90,10 +100,19 @@ function Bag.pay(player: Player, recipe: Economy.Recipe): (boolean, string?)
 		end
 	end
 	-- 광물 지정을 먼저 잡고 등급은 남은 것에서 (호박석 2 + 희귀 아무거나 2 → 호박석이 희귀 칸에 먼저 먹히지 않게)
-	for oreId, n in recipe.ores or {} do
+	-- 많이 필요한 것부터 (안내 문구 순서 = 프롬프트 순서)
+	local ores = recipe.ores or {}
+	local oreIds = {}
+	for oreId in ores do
+		table.insert(oreIds, oreId)
+	end
+	table.sort(oreIds, function(a, b)
+		return ores[a] > ores[b]
+	end)
+	for _, oreId in oreIds do
 		take(function(item)
 			return item.ore == oreId
-		end, n, displayName[oreId] or oreId)
+		end, ores[oreId], displayName[oreId] or oreId)
 	end
 	for grade, n in recipe.grades or {} do
 		take(function(item)
@@ -101,7 +120,7 @@ function Bag.pay(player: Player, recipe: Economy.Recipe): (boolean, string?)
 		end, n, `{grade} 광물`)
 	end
 	if #short > 0 then
-		return false, `{table.concat(short, ", ")}이 더 필요해요`
+		return false, `더 필요해요: {table.concat(short, ", ")}`
 	end
 	local kept = {}
 	for i, item in data.bag do
@@ -113,6 +132,39 @@ function Bag.pay(player: Player, recipe: Economy.Recipe): (boolean, string?)
 	PlayerData.addCoins(player, -recipe.coins)
 	Bag.sync(player)
 	return true
+end
+
+-- 카나리아 광물 바꾸기 (D-045, Lv4부터): 가방의 oreId need개(값 싼 것부터) → 같은 광산 한 등급 위 광물 1개 (상압 1kg).
+-- 어디서나 되고, 하루 CANARY_TRANSMUTE_DAILY번 (한국 시각 자정에 초기화). 바꾼 광물은 캔 게 아니라 도감에는 안 적는다
+function Bag.transmute(player: Player, oreId: string): (boolean, string)
+	local data = PlayerData.get(player)
+	if not data then
+		return false, "데이터를 불러오는 중이에요"
+	end
+	if data.canary < Economy.CANARY_PERKS.transmute then
+		return false, `카나리아가 Lv{Economy.CANARY_PERKS.transmute + 1}이 되면 바꿀 수 있어요`
+	end
+	local target = upgradeOf[oreId]
+	local rule = Economy.CANARY_TRANSMUTE[gradeOf[oreId] or ""]
+	if not target or not rule then
+		return false, "이 광물은 바꿀 수 없어요"
+	end
+	local today = math.floor((os.time() + 9 * 3600) / 86400)
+	local uses = data.canaryUses
+	if uses.day ~= today then
+		uses.day, uses.count = today, 0
+	end
+	if uses.count >= Economy.CANARY_TRANSMUTE_DAILY then
+		return false, "오늘은 카나리아가 지쳤어요. 내일 다시 바꿔 줘요"
+	end
+	local ok, why = Bag.pay(player, { coins = 0, ores = { [oreId] = rule.need } })
+	if not ok then
+		return false, why :: string
+	end
+	uses.count += 1
+	table.insert(data.bag, { ore = target, weight = 1, pressure = "Low", value = Bag.priceOf(target, 1, "Low") :: number })
+	Bag.sync(player)
+	return true, `🐤 {displayName[oreId]} {rule.need}개 → {displayName[target]} 1개 (오늘 {Economy.CANARY_TRANSMUTE_DAILY - uses.count}번 남음)`
 end
 
 -- 판매소 "가방 늘리기" 한 단계. 실패하면 이유를 돌려준다
@@ -378,6 +430,7 @@ end
 --   "sell", oreId, pressure   → 그 묶음 판매 (판매소 근처만), 판 금액
 --   "sellAll"                 → 재료(다음 곡괭이·가방·카나리아)를 남기고 전부 판매 (판매소 근처만), 판 금액
 --   "drop", oreId, pressure   → 그 묶음에서 한 개 버리기 (어디서나)
+--   "transmute", oreId        → 카나리아 광물 바꾸기 (어디서나, Lv4부터, D-045)
 -- 결과 문구는 Counter.notify 로 HUD 알림 줄에 띄운다
 -- Remote가 없으면 서버가 만든다 (Studio 수작업 없이 Rojo만으로 동작하게)
 local REMOTE_COOLDOWN = 0.15
@@ -410,6 +463,12 @@ local function onBagRemote(player: Player, action: any, oreId: any, pressure: an
 	if action == "drop" then
 		if group and Bag.dropOne(player, oreId, pressure) then
 			Counter.notify(player, "한 개 버렸어요")
+		end
+		return nil
+	elseif action == "transmute" then
+		if typeof(oreId) == "string" then
+			local _, msg = Bag.transmute(player, oreId)
+			Counter.notify(player, msg)
 		end
 		return nil
 	end

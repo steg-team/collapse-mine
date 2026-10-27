@@ -253,10 +253,13 @@ local function render()
 		row.BackgroundColor3 = Color3.fromRGB(44, 41, 38)
 		Instance.new("UICorner").Parent = row
 		row.Parent = list
+		-- 카나리아 광물 바꾸기 (D-045, Lv4부터): 일반·고급 줄에 "🐤 바꾸기" (10개 → 고급 1처럼, 판정은 서버 Bag.transmute)
+		local rule = info and (player:GetAttribute("CanaryLevel") or 0) >= Economy.CANARY_PERKS.transmute and Economy.CANARY_TRANSMUTE[info.grade]
+		local rightPad = if rule then 236 else 160
 
 		text(row, {
 			Position = UDim2.new(0, 10, 0, 0),
-			Size = UDim2.new(1, -160, 0, 36),
+			Size = UDim2.new(1, -rightPad, 0, 36),
 			TextXAlignment = Enum.TextXAlignment.Left,
 			TextSize = 14,
 			TextTruncate = Enum.TextTruncate.AtEnd,
@@ -273,12 +276,18 @@ local function render()
 			),
 		})
 		if tag then
-			text(row, { Name = "Use", Position = UDim2.new(0, 10, 0, 28), Size = UDim2.new(1, -160, 0, 16), TextXAlignment = Enum.TextXAlignment.Left, TextSize = 12, TextTruncate = Enum.TextTruncate.AtEnd, TextColor3 = Color3.fromRGB(255, 200, 90), Text = tag })
+			text(row, { Name = "Use", Position = UDim2.new(0, 10, 0, 28), Size = UDim2.new(1, -rightPad, 0, 16), TextXAlignment = Enum.TextXAlignment.Left, TextSize = 12, TextTruncate = Enum.TextTruncate.AtEnd, TextColor3 = Color3.fromRGB(255, 200, 90), Text = tag })
 		end
 		local drop = button(row, "버리기", { Name = "Drop", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -82, 0.5, 0), Size = UDim2.fromOffset(70, 28), BackgroundColor3 = Color3.fromRGB(90, 84, 76), TextColor3 = Color3.new(1, 1, 1) })
 		drop.Activated:Connect(function()
 			act("drop", g)
 		end)
+		if rule then
+			local tm = button(row, `🐤 {rule.need}→1`, { Name = "Transmute", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -158, 0.5, 0), Size = UDim2.fromOffset(70, 28), BackgroundColor3 = Color3.fromRGB(110, 200, 255), TextSize = 13 })
+			tm.Activated:Connect(function()
+				act("transmute", g)
+			end)
+		end
 		if nearShop then
 			local sell = button(row, "팔기", { Name = "Sell", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -6, 0.5, 0), Size = UDim2.fromOffset(70, 28) })
 			sell.Activated:Connect(function()
@@ -326,7 +335,7 @@ bagButton.Activated:Connect(toggle)
 player:GetAttributeChangedSignal("BagKg"):Connect(reload)
 player:GetAttributeChangedSignal("BagValue"):Connect(reload)
 -- 부스트가 켜지고 꺼지거나 패스를 사면 값·안내만 다시 그린다
-for _, name in { "SellMultiplier", "HasBigBag", "BagCapacity" } do
+for _, name in { "SellMultiplier", "HasBigBag", "BagCapacity", "CanaryLevel", "PickaxeTier", "BagLevel" } do
 	player:GetAttributeChangedSignal(name):Connect(function()
 		if gui.Enabled then
 			render()

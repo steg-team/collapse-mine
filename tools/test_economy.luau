@@ -39,7 +39,7 @@ local function mine(ore, weight, pressure) EventBus.Fire(Events.OreMined, p, ore
 local function settle() task.wait(0.1) end -- EventBus는 Deferred: 받는 쪽이 같은 프레임 조금 뒤에 돈다
 local function reset()
 	data.bag = {}; data.coins = 0; data.pickaxe = { tier = 1, enhance = 0 }; data.canary = 0
-	data.rebirths = 0; data.bagLevel = 0; data.codex = {}
+	data.rebirths = 0; data.bagLevel = 0; data.codex = {}; data.canaryUses = { day = 0, count = 0 }
 	Bag.sync(p)
 end
 
@@ -162,6 +162,36 @@ local okR = Workshop.rebirth(p)
 check("리버스 초기화", okR and data.coins == 0 and data.pickaxe.tier == 1 and #data.bag == 0 and data.bagLevel == 0 and data.rebirths == 1, `coins={data.coins} tier={data.pickaxe.tier}`)
 check("리버스 후 도감·카나리아 유지, 배수 ×1.25", data.canary == 1 and data.codex.Coal == true and p:GetAttribute("SellMultiplier") == 1.25, p:GetAttribute("SellMultiplier"))
 
+-- 10-2. 카나리아 펫 (D-045): Lv4 광물 바꾸기(같은 광산 한 등급 위, 하루 횟수), Lv5 갇힘 보호
+reset()
+for _ = 1, 10 do mine("Coal", 1) end
+settle()
+local okT0 = Bag.transmute(p, "Coal")
+data.canary = Economy.CANARY_PERKS.transmute
+local okT1 = Bag.transmute(p, "Coal")
+check("광물 바꾸기: Lv4 전엔 안 됨, 석탄 10 → 석영 1", not okT0 and okT1 and #data.bag == 1 and data.bag[1].ore == "Quartz", `{okT0} {okT1} {#data.bag} {data.bag[1] and data.bag[1].ore}`)
+check("에픽은 못 만듦 (희귀 → 에픽 없음)", not Bag.transmute(p, "Amber"))
+data.canaryUses.count = Economy.CANARY_TRANSMUTE_DAILY
+for _ = 1, 10 do mine("Coal", 1) end
+settle()
+check("하루 횟수를 넘으면 안 됨", not Bag.transmute(p, "Coal"))
+data.canary = Economy.CANARY_PERKS.guard
+local worstG = 0
+for _ = 1, 200 do
+	data.bag = {}
+	local total = 0
+	for _ = 1, math.random(2, 12) do
+		local w = math.random(10, 300) / 100
+		total += w
+		table.insert(data.bag, { ore = "Coal", weight = w, pressure = "Low", value = 1 })
+	end
+	PlayerData.loseBag(data)
+	local left = 0
+	for _, it in data.bag do left += it.weight end
+	worstG = math.max(worstG, (total - left) / total)
+end
+check("갇힘 보호면 손실 ≤ 35%", worstG <= Economy.CANARY_GUARD_LOSS + 1e-9, worstG)
+
 -- 11. 코인은 음수가 되지 않고 정수
 check("코인 정수·0 이상", data.coins >= 0 and data.coins == math.floor(data.coins), data.coins)
 
@@ -169,6 +199,12 @@ check("코인 정수·0 이상", data.coins >= 0 and data.coins == math.floor(da
 for k in data do data[k] = nil end
 for k, v in backup do data[k] = v end
 p:SetAttribute("TutorialActive", tutorial)
+-- 화면용 속성도 되돌린다 (제작·리버스·카나리아가 바꿔 놓은 채로 남지 않게)
+p:SetAttribute("PickaxeTier", data.pickaxe.tier)
+p:SetAttribute("PickaxeEnhance", data.pickaxe.enhance)
+p:SetAttribute("CanaryLevel", data.canary)
+p:SetAttribute("BagLevel", data.bagLevel)
+p:SetAttribute("Rebirths", data.rebirths)
 PlayerData.addCoins(p, 0)
 Bag.sync(p)
 print(`[EconomyTest] 끝: 통과 {passed} / 실패 {failed}`)

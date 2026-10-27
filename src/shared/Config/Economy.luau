@@ -69,10 +69,32 @@ local Economy = {
 		{ range = 50, coins = 3300, grades = { ["희귀"] = 6, ["에픽"] = 1 } },
 		{ range = 60, coins = 8400, grades = { ["희귀"] = 8, ["에픽"] = 2 } },
 	}),
+	-- 카나리아 펫 기능 (D-045). 레벨(저장값, 0부터)이 이 값 이상이면 켜진다. 장비 모델(헬멧·목도리·보석·황금 깃)과 한 짝
+	CANARY_PERKS = table.freeze({
+		lamp = 1, -- Lv2 헤드랜턴 보조: 광산 안에서 새 램프가 빛난다
+		guide = 2, -- Lv3 출구 안내: 붕괴 경보 중 출구 방향 화살표
+		transmute = 3, -- Lv4 광물 바꾸기: 같은 광산 아래 등급 여러 개 → 한 등급 위 1개
+		guard = 4, -- Lv5 갇힘 보호: 갇힐 때 잃는 무게 비율이 줄어든다
+	}),
+	CANARY_PERK_NAME = table.freeze({ [0] = "희귀 감지·붕괴 경보", "헤드랜턴", "출구 안내", "광물 바꾸기", "갇힘 보호" }),
+	-- 헤드랜턴 빛 거리(스터드): 기본 + 레벨마다 (임시값)
+	CANARY_LAMP_RANGE = 14,
+	CANARY_LAMP_RANGE_PER_LEVEL = 4,
+	-- 광물 바꾸기: 등급 → { 바뀌는 등급, 필요 개수 }. 같은 광산 광물로만, 하루 횟수 제한 (한국 시각 자정, 임시값).
+	-- 에픽은 곡괭이 핵심 재료라 바꿔서 만들 수 없게 희귀까지만
+	CANARY_TRANSMUTE = table.freeze({
+		["일반"] = table.freeze({ to = "고급", need = 10 }),
+		["고급"] = table.freeze({ to = "희귀", need = 5 }),
+	}),
+	CANARY_TRANSMUTE_DAILY = 10,
+	-- 갇힘 보호일 때 잃는 무게 비율 (기본 TRAPPED_BAG_LOSS 대신)
+	CANARY_GUARD_LOSS = 0.35,
+
 	-- 카나리아가 반응하는 등급
 	CANARY_DETECT_GRADES = table.freeze({ ["희귀"] = true, ["에픽"] = true, ["전설"] = true, ["신화"] = true, ["???"] = true }),
-	-- 카나리아 울음소리 (Roblox 무료 소리 에셋). 바꾸려면 id만 갈면 된다
-	CANARY_CHIRP_SOUND = "rbxassetid://0",
+	-- 카나리아 울음소리: ProSoundEffects "Cockatiel Bird Interior Whistling Chirps 1" (무료, 3.4초 중 앞부분만 재생)
+	CANARY_CHIRP_SOUND = "rbxassetid://9113844972",
+	CANARY_CHIRP_LENGTH = 0.9,
 
 	-- 기획서 "광물 등급" 테두리 색 (인벤토리·도감 창)
 	GRADE_COLOR = table.freeze({
