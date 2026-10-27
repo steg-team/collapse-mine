@@ -6,7 +6,7 @@
 	흐름
 		OreMined (A) ──▶ 값 확정 · 가방에 담기 ──▶ OreBagged (C 랭킹)
 		판매소 Counter 프롬프트·인벤토리 창 ──▶ 재료 남기고 전부 / 종류별 판매 · 코인 ──▶ OreSold (C 랭킹·퀘스트) (D-037)
-		판매소 Counter "가방 늘리기" ──▶ 코인으로 무게 한도 +kg (D-028)
+		판매소 Counter "가방 늘리기" ──▶ 코인 + 광물로 다음 가방 단계 (D-028, D-044)
 		인벤토리 창 ──▶ 한 개 버리기 (광산 안에서 가볍게 탈출)
 		PlayerEscaped (C) ──▶ 광산을 나올 때 들고 있던 가치 = 탈출 수확 ──▶ HaulSecured (C 랭킹) + 탈출 보너스 (D-039)
 		PlayerTrapped (C) · 경보 중 광산 안에서 죽음 ──▶ 가방 일부 차감, 한 경보에 한 번 (PlayerData.trapLoss, D-039)
@@ -54,15 +54,65 @@ local Bag = {}
 
 -- 무게 한도 (kg). 이걸 넘으면 느려지고, × BAG_HARD_LIMIT 를 넘으면 더 안 담긴다
 function Bag.capacity(player: Player): number
-	local kg = Economy.BAG_MAX_KG
-	if Payments.HasPass(player, Social.PassName.BigBag) then
-		kg += Economy.BIG_BAG_EXTRA_KG
-	end
 	local data = PlayerData.get(player)
-	for i = 1, data and data.bagLevel or 0 do
-		kg += Economy.BAG_UPGRADES[i].kg
+	return Economy.bagCapacity(data and data.bagLevel or 0, Payments.HasPass(player, Social.PassName.BigBag))
+end
+
+-- 레시피(코인 + 광물 + 등급, Economy.Recipe)를 한 번에 확인하고 한 번에 낸다. 곡괭이·가방·카나리아 공용.
+-- 광물은 값이 싼 것부터 쓴다 (비싸게 캔 건 팔 수 있게). 모자라면 아무것도 빼지 않고 모자란 것을 전부 적어 돌려준다
+-- ("코인 50, 석영 2개가 더 필요해요" — 하나씩 알려 주면 채울 때마다 또 실패해서)
+function Bag.pay(player: Player, recipe: Economy.Recipe): (boolean, string?)
+	local data = PlayerData.get(player)
+	if not data then
+		return false, "데이터를 불러오는 중이에요"
 	end
-	return kg
+	local short: { string } = {}
+	if data.coins < recipe.coins then
+		table.insert(short, `코인 {recipe.coins - data.coins}`)
+	end
+	local taken: { [number]: boolean } = {}
+	local function take(match: (PlayerData.BagItem) -> boolean, need: number, label: string)
+		local found: { number } = {}
+		for i, item in data.bag do
+			if not taken[i] and match(item) then
+				table.insert(found, i)
+			end
+		end
+		if #found < need then
+			table.insert(short, `{label} {need - #found}개`)
+			return
+		end
+		table.sort(found, function(a, b)
+			return data.bag[a].value < data.bag[b].value
+		end)
+		for k = 1, need do
+			taken[found[k]] = true
+		end
+	end
+	-- 광물 지정을 먼저 잡고 등급은 남은 것에서 (호박석 2 + 희귀 아무거나 2 → 호박석이 희귀 칸에 먼저 먹히지 않게)
+	for oreId, n in recipe.ores or {} do
+		take(function(item)
+			return item.ore == oreId
+		end, n, displayName[oreId] or oreId)
+	end
+	for grade, n in recipe.grades or {} do
+		take(function(item)
+			return gradeOf[item.ore] == grade
+		end, n, `{grade} 광물`)
+	end
+	if #short > 0 then
+		return false, `{table.concat(short, ", ")}이 더 필요해요`
+	end
+	local kept = {}
+	for i, item in data.bag do
+		if not taken[i] then
+			table.insert(kept, item)
+		end
+	end
+	data.bag = kept
+	PlayerData.addCoins(player, -recipe.coins)
+	Bag.sync(player)
+	return true
 end
 
 -- 판매소 "가방 늘리기" 한 단계. 실패하면 이유를 돌려준다
@@ -71,14 +121,18 @@ function Bag.upgrade(player: Player): (boolean, string)
 	if not data then
 		return false, "데이터를 불러오는 중이에요"
 	end
-	local spec = Economy.BAG_UPGRADES[data.bagLevel + 1]
+	local spec = Economy.BAG_LEVELS[data.bagLevel + 2]
 	if not spec then
 		return false, "가방이 가장 커요"
 	end
-	if data.coins < spec.coins then
-		return false, `코인이 {spec.coins - data.coins} 부족해요`
+	if data.pickaxe.tier < (spec.stage or 0) then
+		local need = Economy.PICKAXES[spec.stage or 1]
+		return false, `{need and need.name or "다음 곡괭이"}가 있어야 늘릴 수 있어요`
 	end
-	PlayerData.addCoins(player, -spec.coins)
+	local ok, why = Bag.pay(player, spec :: any)
+	if not ok then
+		return false, why :: string
+	end
 	data.bagLevel += 1
 	player:SetAttribute("BagLevel", data.bagLevel)
 	Bag.sync(player)
@@ -210,8 +264,8 @@ local function sell(player: Player, data: PlayerData.Data, items: { PlayerData.B
 	return earned
 end
 
--- 전부 팔기에서 남길 광물: 다음 곡괭이 재료와 카나리아 먹이를 필요한 개수만큼 (D-037).
--- 제작소(Workshop.pick)처럼 값이 싼 것부터 남긴다. 비싸게 캔 건 팔리고, 제작소는 남긴 걸 그대로 쓴다
+-- 전부 팔기에서 남길 광물: 다음 곡괭이·가방·카나리아 재료를 필요한 개수만큼 (D-037, D-044).
+-- Bag.pay처럼 값이 싼 것부터 남긴다. 비싸게 캔 건 팔리고, 업그레이드는 남긴 걸 그대로 쓴다
 local function reserved(data: PlayerData.Data): { [PlayerData.BagItem]: boolean }
 	local keep: { [PlayerData.BagItem]: boolean } = {}
 	local function hold(match: (PlayerData.BagItem) -> boolean, need: number)
@@ -228,15 +282,27 @@ local function reserved(data: PlayerData.Data): { [PlayerData.BagItem]: boolean 
 			keep[found[i]] = true
 		end
 	end
-	local ores, rare = Economy.materialNeeds(data.pickaxe.tier, data.canary)
-	for oreId, need in ores do
+	-- 업그레이드 셋(곡괭이·가방·카나리아)이 같은 광물을 쓰면 더한다. 광물 지정을 먼저, 등급은 남은 것에서 (Bag.pay와 같은 순서)
+	local ores: { [string]: number } = {}
+	local grades: { [string]: number } = {}
+	for _, need in Economy.materialNeeds(data.pickaxe.tier, data.canary, data.bagLevel) do
+		for oreId, n in need.recipe.ores or {} do
+			ores[oreId] = (ores[oreId] or 0) + n
+		end
+		for grade, n in need.recipe.grades or {} do
+			grades[grade] = (grades[grade] or 0) + n
+		end
+	end
+	for oreId, n in ores do
 		hold(function(item)
 			return item.ore == oreId
-		end, need)
+		end, n)
 	end
-	hold(function(item)
-		return gradeOf[item.ore] == Economy.CANARY_FEED_GRADE
-	end, rare)
+	for grade, n in grades do
+		hold(function(item)
+			return gradeOf[item.ore] == grade
+		end, n)
+	end
 	return keep
 end
 
@@ -310,7 +376,7 @@ end
 --   "get"                     → 가방 목록 { {ore, weight, pressure, value} }
 --   "codex"                   → 도감 { ["Coal"] = true, ["Coal|High"] = true, ... }
 --   "sell", oreId, pressure   → 그 묶음 판매 (판매소 근처만), 판 금액
---   "sellAll"                 → 재료(다음 곡괭이·카나리아 먹이)를 남기고 전부 판매 (판매소 근처만), 판 금액
+--   "sellAll"                 → 재료(다음 곡괭이·가방·카나리아)를 남기고 전부 판매 (판매소 근처만), 판 금액
 --   "drop", oreId, pressure   → 그 묶음에서 한 개 버리기 (어디서나)
 -- 결과 문구는 Counter.notify 로 HUD 알림 줄에 띄운다
 -- Remote가 없으면 서버가 만든다 (Studio 수작업 없이 Rojo만으로 동작하게)
