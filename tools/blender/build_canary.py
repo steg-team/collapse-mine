@@ -57,6 +57,31 @@ def part(fn, *a, **k):
     return tag(fn(*a, **k))
 
 
+def wing_mask(P, N):
+    """몸통 옆 접힌 날개 자리 (0~1). 몸통 축(뒤가 22도 내려감)을 따라 앞이 둥글고 뒤로 가늘어지는 물방울 모양"""
+    y, z = P[:, 1] - 0.12, P[:, 2] - 0.27
+    a = math.radians(22)
+    u = y * math.cos(a) - z * math.sin(a)  # 몸통 길이 방향 (뒤가 +)
+    v = y * math.sin(a) + z * math.cos(a)  # 위아래
+    t = np.clip((u + 0.12) / 0.36, 0, 1)  # 0 = 날개 앞, 1 = 날개 끝
+    half = 0.09 * np.sqrt(np.clip(t / 0.3, 0, 1)) * (1 - t) ** 0.8  # 앞은 둥글게, 뒤로 가늘게
+    inside = (u > -0.12) & (u < 0.24) & (np.abs(v - 0.01) < half) & (np.abs(P[:, 0]) > 0.05) & (np.abs(N[:, 0]) > 0.3)
+    edge = np.abs(v - 0.01) / np.maximum(half, 1e-6)
+    return inside.astype(np.float32), edge, t
+
+
+def surface_decal(src, mat, offset):
+    """src 표면 중 날개 자리 면만 복사해 법선 방향으로 offset만큼 띄운다 (표면을 그대로 따라가서 뭉개지지 않는 장식)"""
+    bm = bmesh.new(); bm.from_mesh(src.data); bm.transform(src.matrix_world)
+    bm.normal_update()
+    P = np.array([f.calc_center_median() for f in bm.faces]); N = np.array([f.normal for f in bm.faces])
+    keep, _, _ = wing_mask(P, N)
+    bmesh.ops.delete(bm, geom=[f for f, k in zip(bm.faces, keep) if k < 0.5], context='FACES')
+    for v in bm.verts:
+        v.co += v.normal * offset
+    return tag(_place(_obj(bm, mat), (0, 0, 0), (0, 0, 0)))
+
+
 def blob(obs, voxel=0.012, target=900):
     """여러 덩어리를 이음새 없는 한 덩어리로: 합치고 → 복셀로 다시 짜고 → 다듬고 → 삼각형 수 줄이기 (A의 광물 턴어라운드와 같은 방법)"""
     bpy.ops.object.select_all(action='DESELECT')
@@ -83,11 +108,9 @@ def build():
     LEVEL["n"] = 1
     body = ball("Feather", 0.22, (0, 0.07, 0.24), scale=(0.78, 1.42, 0.8), rot=(-22, 0, 0), seg=24)
     head = ball("Feather", 0.2, (0, -0.16, 0.53), scale=(0.95, 1, 1), seg=24)
-    blob([body, head])
+    torso = blob([body, head])
     part(cyl, "Beak", 0.042, 0.1, (0, -0.38, 0.5), rot=(95, 0, 0), verts=16, r2=0.0)
-    for sx in (-1, 1):
-        # 날개: 몸통 옆에 반쯤 묻혀 접힌 모양 (몸에서 떨어지면 지느러미·팔처럼 보인다). 끝은 꼬리 쪽 가운데로 모임
-        ball("FeatherDark", 0.16, (sx * 0.125, 0.15, 0.27), scale=(0.3, 1.6, 0.66), rot=(-22, -sx * 6, 0), taper=0.55)
+    # 날개는 입체로 만들지 않고 몸통 텍스처에 그린다 (wing_mask). 타원체를 붙이면 몸통과 만나는 곳이 뭉개졌다
     # 꼬리: 넓적한 깃 하나 (가는 막대 두 개는 꼬챙이처럼 보였다)
     ball("FeatherDark", 0.12, (0, 0.42, 0.14), scale=(0.75, 1.6, 0.22), rot=(-26, 0, 0), taper=0.25)
     for sx in (-1, 1):
@@ -113,8 +136,7 @@ def build():
 
     # Lv5 황금 깃털: 날개 덮개(조금 크게 겹침), 긴 꼬리 부채 5장, 헬멧 위 볏 3개
     LEVEL["n"] = 5
-    for sx in (-1, 1):
-        ball("GoldFeather", 0.16, (sx * 0.13, 0.16, 0.275), scale=(0.32, 1.65, 0.68), rot=(-22, -sx * 6, 0), taper=0.55)
+    surface_decal(torso, "GoldFeather", 0.006)  # 금빛 날개: 그린 날개 자리에 몸통 표면을 그대로 따라 붙는 얇은 금박
     for yaw in (-30, -15, 0, 15, 30):
         r = math.radians(yaw)
         ball("GoldFeather", 0.11, (math.sin(r) * 0.1, 0.47 + math.cos(r) * 0.03, 0.14), scale=(0.45, 1.9, 0.12), rot=(-26, 0, yaw), taper=0.25)
@@ -161,6 +183,12 @@ def shade(mat, P, N):
         e = (x / 0.13) ** 2 + ((z - 0.25) / 0.16) ** 2
         belly = (1 - _smooth(0.7, 1.05, e)) * _smooth(0.0, -0.25, y + 0.05)
         c = _mix(c, _rgb(1.0, 0.97, 0.62), 0.7 * belly)
+        # 접힌 날개 (그림): 조금 진한 노랑 + 진한 테두리 + 끝쪽 긴 깃 두 줄
+        wing, edge, t = wing_mask(P, N)
+        c = _mix(c, _rgb(0.97, 0.76, 0.14), wing)
+        c = _mix(c, _rgb(0.82, 0.55, 0.08), wing * _smooth(0.78, 0.92, edge))
+        quill = (np.abs(edge - 0.35) < 0.06) | (np.abs(edge - 0.0) < 0.05)
+        c = _mix(c, _rgb(0.85, 0.6, 0.1), wing * quill * _smooth(0.45, 0.6, t))
         # 볼 홍조
         for sx in (-1, 1):
             d = np.linalg.norm(P - np.array([sx * 0.135, -0.28, 0.48]), axis=1)
