@@ -1,4 +1,8 @@
-# 결정 기록 (Decision Log)
+# 결정 기록 (Decision Log) — D-001 ~ D-045 보관
+
+> **2026-10-29부터 새 결정은 여기 쓰지 않습니다.** 한 파일에 모두가 덧붙이다 번호·줄이 자꾸 충돌해서 담당별 파일로 나눴습니다.
+> 새 결정: [`decisions-team.md`](decisions-team.md)(T-) · [`decisions-A.md`](decisions-A.md)(A-) · [`decisions-B.md`](decisions-B.md)(B-) · [`decisions-C.md`](decisions-C.md)(C-). 방향과 목표는 [`direction.md`](direction.md).
+> 이 파일의 D-번호 링크는 그대로 유효합니다. 예전 결정을 폐기하거나 고칠 때는 새 파일에 항목을 쓰고, 여기 해당 항목 상태 줄에 "→ T-001로 대체"처럼 한 줄만 붙입니다.
 
 기획·구조에서 정한 것을 시간순으로 남깁니다. **지운 결정도 지우지 말고** 상태만 `폐기`로 바꾸고 이유를 적습니다.
 AI 에이전트는 구현 전에 이 문서와 `game-design.md`를 읽고, 둘이 충돌하면 이 문서의 최신 결정을 따릅니다.
@@ -243,7 +247,7 @@ AI 에이전트는 구현 전에 이 문서와 `game-design.md`를 읽고, 둘�
 
 ## D-025 채굴이 OreMined를 보낸다 (무게·압력 등급)
 
-- 2026-10-23 / 채택 / 이우진 (A)
+- 2026-10-23 / 채택 / 이우진 (A) — 압력 등급 부분 → [T-001](decisions-team.md#t-001-압력-등급을-없앤다)로 대체
 - 결정: 광석을 깨면 A는 코인을 직접 주지 않고 `OreMined(player, oreId, weight, pressure)`만 보낸다. 가방 담기·가격은 B (D-020).
   - 무게 배수: 0.8~1.5 랜덤 (`Mines.ORE_WEIGHT`). 끝방처럼 가치를 높여 박은 광석은 그 배수를 무게에 곱한다.
   - 압력 등급 (`Mines.PRESSURE`): 붕괴까지 10초 이하 → 초고압(`Extreme`), 붕괴 경보 중이거나 광산 깊이의 절반보다 깊으면 → 고압(`High`), 나머지 → 상압(`Low`). 남은 시간은 `Collapse.GetRemainingTime`.
@@ -336,7 +340,7 @@ AI 에이전트는 구현 전에 이 문서와 `game-design.md`를 읽고, 둘�
 
 ## D-034 곡괭이 강화를 "곡괭이 레벨"로 바꾸기 (검토 후보)
 
-- 2026-10-25 / 보류 / B 담당
+- 2026-10-25 / 보류 / B 담당 → [T-004](decisions-team.md#t-004-강화는-곡괭이-레벨로-코인--광물-룬-슬롯)로 대체
 - 결정: 아직 정하지 않은 아이디어. 밸런스 테스트 때 다시 본다. 지금 코드는 D-021 그대로.
 - 문제: 지금 강화는 할 이유가 거의 없다. 나무 +5강(파워 1.5, 750코인)이 돌 곡괭이(1.5, 300코인 + 석영 3)와 성능이 같고 더 비싸며, 다음 곡괭이를 만들면 0으로 돌아간다. 재료가 모자라 기다릴 때만 쓴다.
 - 아이디어:
@@ -506,4 +510,3 @@ AI 에이전트는 구현 전에 이 문서와 `game-design.md`를 읽고, 둘�
   - 갇힘 보호는 붕괴 긴장을 조금 줄이지만 맨 마지막 레벨(에픽 2개 필요)이라 늦게 얻는다.
 - 저장: `data.canaryUses { day, count }` 추가 (Reconcile로 기존 플레이어에게도 채워짐). 레벨 저장값은 그대로 0부터.
 - 영향: `Config/Economy.luau`(CANARY_PERKS·CANARY_TRANSMUTE 등), `Bag.luau`(`Bag.transmute`, `Remotes.Bag` "transmute"), `PlayerData.luau`(갇힘 보호), `Canary.luau`(장비 보이기·램프 빛), `CanaryHud`(출구 화살표), `InventoryPanel`, `WorkshopPrompt`, `tools/import_canary.luau`, `tools/test_economy.luau`.
-
