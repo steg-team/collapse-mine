@@ -74,7 +74,7 @@ Mines.list = {
 		hub = "CollapseMine",
 		name = "기본 광산",
 		order = 1,
-		requiredPickaxe = 1, -- 나무 곡괭이
+		requiredPickaxe = 1, -- 곡괭이 단계 (이름은 Economy.PICKAXES, 1 = 낡은 곡괭이)
 		origin = Vector3.new(0, 0, -900),
 		radius = 350,
 		top = -4,
@@ -117,7 +117,7 @@ Mines.list = {
 		hub = "CollapseMine_iron",
 		name = "철광 갱도",
 		order = 2,
-		requiredPickaxe = 2, -- 돌 곡괭이
+		requiredPickaxe = 2, -- 동굴 진주 곡괭이
 		origin = Vector3.new(-900, 0, -900),
 		radius = 350,
 		top = -4,
@@ -159,7 +159,7 @@ Mines.list = {
 		hub = "CollapseMine_groundwater",
 		name = "지하수 동굴",
 		order = 3,
-		requiredPickaxe = 3, -- 철 곡괭이
+		requiredPickaxe = 3, -- 백금 곡괭이
 		origin = Vector3.new(900, 0, -900),
 		radius = 350,
 		top = -4,
@@ -198,14 +198,9 @@ Mines.list = {
 	},
 } :: { Mine }
 
--- 캘 때 광물에 붙는 값 (A가 OreMined로 보냄. 판매가 = 기본가 × 무게 × 압력 배수, 계산은 B). D-025, 임시값
+-- 캘 때 광물에 붙는 값 (A가 OreMined로 보냄. 판매가 = 기본가 × 무게, 계산은 B). D-025, 압력은 T-001로 없앰. 임시값
 -- 무게 배수 랜덤 범위. 끝방 광석(가치 2배로 박힌 것)은 여기에 그 배수를 곱해 "더 무거운 광물"로 보낸다
 Mines.ORE_WEIGHT = NumberRange.new(0.8, 1.5)
--- 압력 등급: 붕괴까지 extremeSeconds초 이하 → 초고압, 경보 중이거나 지표~바닥 중 highDepth 비율보다 깊으면 → 고압, 나머지 상압
-Mines.PRESSURE = table.freeze({
-	highDepth = 0.5,
-	extremeSeconds = 10,
-})
 
 -- 숨은 희귀 광맥 (D-036, A의 RareVeins): 벽 속 보이지 않는 자리. 근처를 파면 "파다가 발견" 확률이 오르고,
 -- 카나리아(B)가 가장 가까운 광맥까지 거리로 운다. 숫자는 모두 임시값
