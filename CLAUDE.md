@@ -7,7 +7,8 @@
 ## Claude 전용 메모
 
 ### 시작할 때
-- 기능 작업 전에 `docs/game-design.md`와 `docs/decisions.md`에서 관련 부분을 읽습니다.
+- 기능 작업 전에 `docs/direction.md`, `docs/decisions-team.md`, 자기 담당 `docs/decisions-<담당>.md`를 읽습니다. 예전 결정은 `docs/decisions.md`, 세부 기획은 `docs/game-design.md`.
+- 새 결정은 사용자 담당 파일(또는 회의 결정이면 `decisions-team.md`)에만 씁니다. 다른 담당 결정 파일은 고치지 않습니다.
 
 ### 응답
 - 사용자와는 한국어로 대화합니다.

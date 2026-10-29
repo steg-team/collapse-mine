@@ -9,12 +9,18 @@ AI 코딩 에이전트(Claude Code, Codex, Cursor, Copilot 등)가 이 레포에
 
 ## 기획 문서가 기준 (작업 전에 반드시 읽기)
 
-- **[`docs/game-design.md`](docs/game-design.md)**: 게임 기획서. 단일 원본.
-- **[`docs/decisions.md`](docs/decisions.md)**: 결정 기록. 기획서와 충돌하면 여기의 최신 결정이 우선.
-- 기능을 만들기 전에 두 문서에서 해당 부분을 읽고, 그 방향대로 만듭니다.
+- **[`docs/direction.md`](docs/direction.md)**: 게임 방향·원칙·목표 숫자 한 장. 가장 우선.
+- **[`docs/game-design.md`](docs/game-design.md)**: 게임 기획서 (세부). 섹션마다 담당이 있음 (`docs/README.md`).
+- **결정 기록** (2026-10-29부터 담당별로 나눔, 충돌 방지):
+  - [`docs/decisions-team.md`](docs/decisions-team.md) (T-) 회의 결정·여러 담당에 걸치는 것
+  - [`docs/decisions-A.md`](docs/decisions-A.md) · [`-B.md`](docs/decisions-B.md) · [`-C.md`](docs/decisions-C.md) (A-/B-/C-) 담당 안의 결정. **자기 담당 파일만** 고침
+  - [`docs/decisions.md`](docs/decisions.md) D-001~D-045 보관 (새 항목 안 씀)
+- 충돌하면 `direction.md` > `decisions-team.md` > 담당별 결정 > `decisions.md` > `game-design.md` (각 파일 안에서는 최신이 우선).
+- 기능을 만들기 전에 `direction.md`와 관련 결정을 읽고, 그 방향대로 만듭니다.
 - 사용자 요청이 기획과 다르면 **구현 전에 차이를 알리고** 기획서를 고칠지 묻습니다. 기획을 몰래 바꾸는 구현을 하지 않습니다.
-- 기획이 바뀌면 코드보다 문서를 먼저 고칩니다 (`docs/` 수정 PR, `decisions.md`에 새 항목, 팀에 알림).
+- 기획이 바뀌면 코드보다 문서를 먼저 고칩니다 (`docs/` 수정 PR, 결정 파일에 새 항목, 팀에 알림. 어디에 쓰는지는 `docs/README.md`).
 - 기획에 없는 숫자(확률, 가격, 시간)는 임시값으로 넣고 PR 설명에 "임시값"이라고 적습니다.
+- 밸런스 숫자는 md에 따로 적지 않습니다. 원본은 `src/shared/Config/*.luau`, md에는 목표만 (`direction.md`).
 
 ## 관리 방식 (가장 중요)
 
