@@ -2,7 +2,6 @@
 
 local Players = game:GetService("Players")
 local RS = game:GetService("ReplicatedStorage")
-local SSS = game:GetService("ServerScriptService")
 local CS = game:GetService("CollectionService")
 local Debris = game:GetService("Debris")
 
@@ -31,27 +30,9 @@ terrainOnly.FilterDescendantsInstances = { workspace.Terrain }
 -- 이 등급 이상을 캐면 LegendaryFound (C가 서버 전체 공지)
 local LEGENDARY_GRADES = { ["전설"] = true, ["신화"] = true, ["???"] = true }
 
--- 붕괴까지 남은 시간 조회 (C의 Collapse.GetRemainingTime). C 모듈이 Remotes 등을 기다리느라 늦게 뜰 수 있어서
--- 채굴이 그걸 기다리며 멈추지 않게 따로 불러 둔다. 못 불러온 동안은 "경보 아님"으로 친다
-local Collapse = nil
-task.spawn(function()
-	local social = SSS:WaitForChild("Server"):WaitForChild("Social", 30)
-	local mod = social and social:WaitForChild("Collapse", 30)
-	if mod then
-		local ok, m = pcall(require, mod)
-		if ok then Collapse = m else warn("[MiningServer] Collapse 불러오기 실패: " .. tostring(m)) end
-	end
-end)
-
--- 압력 등급 (Mines.PRESSURE, D-025): 붕괴 직전 → 초고압, 경보 중이거나 깊은 곳 → 고압, 나머지 상압
-local function pressureAt(mine: Mines.Mine?, y: number): string
-	if not mine then return "Low" end
-	local remaining = Collapse and Collapse.GetRemainingTime(mine.id)
-	if remaining and remaining <= Mines.PRESSURE.extremeSeconds then return "Extreme" end
-	local depthRatio = (mine.top - y) / (mine.top - mine.bottom)
-	if remaining or depthRatio >= Mines.PRESSURE.highDepth then return "High" end
-	return "Low"
-end
+-- 압력 등급은 없앴다 (T-001). OreMined 계약(4번째 인자 pressure)을 깨지 않으려고 늘 상압("Low")을 보낸다.
+-- 판매가 배수·도감 압력 칸을 정리하면(B) 계약에서 이 인자를 빼는 것도 가능
+local PRESSURE_NONE = "Low"
 
 -- 무게 배수 (Mines.ORE_WEIGHT). 끝방처럼 가치를 높여 박은 광석은 그 배수만큼 무겁게
 local function weightOf(mine: Mines.Mine?, ore: Instance): number
@@ -152,7 +133,7 @@ ev.OnServerEvent:Connect(function(plr, target, hitPos)
 			-- 코인은 여기서 주지 않는다: 가방에 담고(B) 판매소에서 팔 때 들어간다 (D-020). 값 계산도 B
 			local mine = Mines.findAt(orePos) or Mines.get(ore:GetAttribute("MineId") or "")
 			-- (player, oreId, weight, pressure) — Events.luau 계약
-			EventBus.Fire(Events.OreMined, plr, ore:GetAttribute("Ore") or ore.Name, weightOf(mine, ore), pressureAt(mine, orePos.Y))
+			EventBus.Fire(Events.OreMined, plr, ore:GetAttribute("Ore") or ore.Name, weightOf(mine, ore), PRESSURE_NONE)
 			MineSounds.oreBreak(orePos)
 			if LEGENDARY_GRADES[ore:GetAttribute("Grade")] then
 				-- 발견 연출: 팡파르·빛기둥·화면 흔들림 (기획서 "발견 연출", D-041). 공지는 C

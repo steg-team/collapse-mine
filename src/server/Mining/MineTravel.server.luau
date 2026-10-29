@@ -13,6 +13,7 @@ local Shared = RS:WaitForChild("Shared")
 local Mines = require(Shared:WaitForChild("Config"):WaitForChild("Mines"))
 local Events = require(Shared:WaitForChild("Events"))
 local EventBus = require(Shared:WaitForChild("EventBus"))
+local Pickaxe = require(Shared:WaitForChild("Config"):WaitForChild("Pickaxe"))
 
 local COOLDOWN = 2
 local lastTravel = {}
@@ -97,7 +98,6 @@ end
 local lastMapTravel: { [Player]: number } = {}
 Players.PlayerRemoving:Connect(function(plr) lastMapTravel[plr] = nil end)
 
-local PICKAXE_NAMES = { "나무 곡괭이", "돌 곡괭이", "철 곡괭이", "금 곡괭이", "최상위 곡괭이" } -- 안내 문구용 (B의 PICKAXES 이름과 같게)
 
 ;(travelRemote :: RemoteFunction).OnServerInvoke = function(plr: Player, mineId: any)
 	if typeof(mineId) ~= "string" then return { ok = false, message = "잘못된 요청이에요" } end
@@ -113,7 +113,7 @@ local PICKAXE_NAMES = { "나무 곡괭이", "돌 곡괭이", "철 곡괭이", "�
 	end
 	local tier = tonumber(plr:GetAttribute("PickaxeTier")) or 1
 	if tier < mine.requiredPickaxe then
-		local need = PICKAXE_NAMES[mine.requiredPickaxe] or (`곡괭이 {mine.requiredPickaxe}단계`)
+		local need = Pickaxe.name(mine.requiredPickaxe)
 		return { ok = false, message = `{need}가 필요해요` }
 	end
 	local now = os.clock()

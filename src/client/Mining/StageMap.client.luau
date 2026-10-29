@@ -11,11 +11,11 @@ local RS = game:GetService("ReplicatedStorage")
 local Config = RS:WaitForChild("Shared"):WaitForChild("Config")
 local Mines = require(Config:WaitForChild("Mines"))
 local Social = require(Config:WaitForChild("Social"))
+local Pickaxe = require(Config:WaitForChild("Pickaxe"))
 local LOOK = Social.DailyLogin
 local remote = RS:WaitForChild("Remotes"):WaitForChild("StageTravel") :: RemoteFunction
 local player = Players.LocalPlayer
 
-local PICKAXE_NAMES = { "나무 곡괭이", "돌 곡괭이", "철 곡괭이", "금 곡괭이", "최상위 곡괭이" }
 local GOLD = Color3.fromRGB(255, 200, 60)
 local TEXT = Color3.fromRGB(240, 232, 220)
 local DIM = Color3.fromRGB(150, 140, 128)
@@ -160,7 +160,7 @@ local function makeCard(order: number, name: string, needTier: number, hint: str
 
 	label(card, `{order}스테이지`, 13, DIM).LayoutOrder = 1
 	label(card, (if locked then "🔒 " else "") .. name, 18, if locked then DIM else TEXT, true).LayoutOrder = 2
-	label(card, PICKAXE_NAMES[needTier] or `곡괭이 {needTier}단계`, 14, if tier >= needTier then GOLD else DIM).LayoutOrder = 3
+	label(card, Pickaxe.name(needTier), 14, if tier >= needTier then GOLD else DIM).LayoutOrder = 3
 	local h = label(card, hint, 13, DIM)
 	h.LayoutOrder = 4
 	h.Size = UDim2.new(1, 0, 0, 64)
