@@ -15,6 +15,7 @@
 	  9. 튜토리얼            Tutorial
 	 10. 일일 퀘스트         DailyQuest
 	 11. 친구 초대           FriendInvite
+	 12. 성장 공지           GrowthAnnounce
 
 	쓰는 법
 	  local Social = require(ReplicatedStorage.Shared.Config.Social)
@@ -26,11 +27,12 @@
 -- Luau 에는 enum 키워드가 없어서, "이름 = 같은 문자열" 고정 테이블 + 문자열 유니온 타입으로 흉내 낸다.
 -- 문자열을 직접 쓰면 오타가 나도 조용히 지나가지만, Social.AnnounceKind.Colapse 처럼 틀리면 바로 에러가 난다.
 
-export type AnnounceKind = "Legendary" | "Boost" | "Collapse" | "Info"
+export type AnnounceKind = "Legendary" | "Boost" | "Collapse" | "Growth" | "Info"
 local AnnounceKind = table.freeze({
 	Legendary = "Legendary" :: AnnounceKind, -- 전설 광물 발견 (금색)
 	Boost = "Boost" :: AnnounceKind,         -- 서버 부스트 (파랑)
 	Collapse = "Collapse" :: AnnounceKind,   -- 붕괴 경보·결과 (빨강)
+	Growth = "Growth" :: AnnounceKind,       -- 곡괭이 제작·리버스 같은 성장 순간 (보라, C-002)
 	Info = "Info" :: AnnounceKind,           -- 그 밖의 안내 (회색)
 })
 
@@ -92,6 +94,7 @@ local Banner = table.freeze({
 		Legendary = { bg = Color3.fromRGB(70, 45, 10), stroke = Color3.fromRGB(255, 200, 60), icon = "✨" },
 		Boost = { bg = Color3.fromRGB(20, 45, 80), stroke = Color3.fromRGB(90, 180, 255), icon = "🚀" },
 		Collapse = { bg = Color3.fromRGB(80, 15, 15), stroke = Color3.fromRGB(255, 80, 60), icon = "⚠️" },
+		Growth = { bg = Color3.fromRGB(50, 25, 70), stroke = Color3.fromRGB(190, 130, 255), icon = "🌟" },
 		Info = { bg = Color3.fromRGB(25, 25, 30), stroke = Color3.fromRGB(200, 200, 210), icon = "📢" },
 	} :: { [AnnounceKind]: { bg: Color3, stroke: Color3, icon: string } }),
 })
@@ -276,6 +279,13 @@ local FriendInvite = table.freeze({
 	promptMessage = "붕괴 광산에서 같이 캐요! 무너지기 전에 누가 더 많이 들고 나오나 겨뤄 봐요",
 })
 
+-- ───────── 12. 성장 공지 (C-002) ─────────
+-- 곡괭이 제작·리버스 순간을 공지한다 (다른 사람에게 다음 목표를 보여 줌). 강화는 너무 자주라 공지하지 않는다.
+
+local GrowthAnnounce = table.freeze({
+	serverMinTier = 3,       -- 이 단계 곡괭이부터 서버 전체 공지. 그 아래(2단계)는 본인에게만 (도배 방지)
+})
+
 return table.freeze({
 	AnnounceKind = AnnounceKind,
 	MultiplierKind = MultiplierKind,
@@ -291,4 +301,5 @@ return table.freeze({
 	Tutorial = Tutorial,
 	DailyQuest = DailyQuest,
 	FriendInvite = FriendInvite,
+	GrowthAnnounce = GrowthAnnounce,
 })
