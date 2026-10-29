@@ -131,7 +131,8 @@ local CollapseHud = table.freeze({
 
 local DailyLogin = table.freeze({
 	-- 1~7일차 보상 코인 (임시값). 7일차를 크게 둬서 "끝까지 채우고 싶게"
-	rewards = table.freeze({ 10, 20, 30, 50, 70, 100, 200 }),
+	-- 7일 합계 ≈ 첫 곡괭이 한 자루 값(350). 1스테이지 수입(1분 30~40코인)으로 7일차 ≈ 3분어치 (C-001)
+	rewards = table.freeze({ 10, 15, 20, 30, 40, 50, 100 }),
 	-- 하루가 바뀌는 시각을 UTC 기준 몇 시간 미룰지. 0 = UTC 자정 = 한국 오전 9시
 	dayOffsetHours = 0,
 	claimCooldown = 1,       -- 받기 버튼 연타 방지(초)
@@ -232,11 +233,13 @@ local Tutorial = table.freeze({
 -- 하루가 바뀌는 시각은 출석과 같다 (DailyLogin.dayOffsetHours). 코인 지급은 B가 QuestCompleted 를 받아서 한다.
 --
 -- event : 진행이 오르는 게임 이벤트
---   OreMined     광물 하나 캘 때마다 +1 (grades 가 있으면 그 등급만, pressures 가 있으면 그 압력만)
+--   OreMined     광물 하나 캘 때마다 +1 (grades 가 있으면 그 등급만)
+--                (pressures 조건도 남아 있지만 압력 등급을 없애서(T-001) 쓰지 않는다. A가 늘 "Low"를 보냄)
 --   OreSold      판매액만큼 + (코인)
 --   PlayerEscaped 붕괴에서 탈출할 때마다 +1
 --   StageEntered 광산에 들어갈 때마다 +1
 -- text 의 {n} 은 target 숫자로 바뀐다. 숫자·보상 전부 임시값
+-- 보상 기준 (C-001): 그 퀘스트를 하는 동안 판매로 버는 돈의 약 1/3. 퀘스트는 "무엇을 할지" 알려 주는 정도이고 채굴 수입을 대신하지 않게
 
 export type QuestDef = {
 	id: string, text: string, event: string, target: number, reward: number,
@@ -246,14 +249,14 @@ export type QuestDef = {
 local DailyQuest = table.freeze({
 	count = 3,
 	pool = table.freeze({
-		{ id = "MineOres", text = "광물 {n}개 캐기", event = "OreMined", target = 15, reward = 30 },
-		{ id = "MineRare", text = "희귀 이상 광물 {n}개 캐기", event = "OreMined", target = 1, reward = 60,
+		{ id = "MineOres", text = "광물 {n}개 캐기", event = "OreMined", target = 15, reward = 15 },
+		{ id = "MineRare", text = "희귀 이상 광물 {n}개 캐기", event = "OreMined", target = 1, reward = 20,
 			grades = { "희귀", "에픽", "전설", "신화" } },
-		{ id = "HighPressure", text = "고압 이상 광물 {n}개 캐기", event = "OreMined", target = 3, reward = 50,
-			pressures = { "High", "Extreme" } },
-		{ id = "EarnCoins", text = "판매로 {n}코인 벌기", event = "OreSold", target = 100, reward = 40 },
-		{ id = "Escape", text = "붕괴에서 {n}번 탈출하기", event = "PlayerEscaped", target = 1, reward = 80 },
-		{ id = "EnterMines", text = "광산에 {n}번 들어가기", event = "StageEntered", target = 3, reward = 20 },
+		{ id = "MineGood", text = "고급 이상 광물 {n}개 캐기", event = "OreMined", target = 5, reward = 15,
+			grades = { "고급", "희귀", "에픽", "전설", "신화" } }, -- 예전 "고압 이상 캐기" 자리 (압력 등급 없앰, T-001)
+		{ id = "EarnCoins", text = "판매로 {n}코인 벌기", event = "OreSold", target = 100, reward = 15 },
+		{ id = "Escape", text = "붕괴에서 {n}번 탈출하기", event = "PlayerEscaped", target = 1, reward = 30 }, -- 위험을 감수하니 조금 더
+		{ id = "EnterMines", text = "광산에 {n}번 들어가기", event = "StageEntered", target = 3, reward = 10 },
 	} :: { QuestDef }),
 
 	-- UI (왼쪽 버튼 모양은 출석 버튼과 같게)

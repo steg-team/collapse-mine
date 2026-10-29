@@ -94,7 +94,7 @@ local Events = {
 		클라이언트는 플레이어 속성 MineSpeedMultiplier / SellPriceMultiplier 로 같은 값을 읽는다 (서버가 자동 갱신).
 
 	Collapse.GetRemainingTime(mineId: string) -> number?
-		붕괴까지 남은 초. 경보 중이 아니면 nil. A가 압력 등급 계산에 사용.
+		붕괴까지 남은 초. 경보 중이 아니면 nil. B가 퇴장 차감 판정에 사용 (압력 등급은 없앰, T-001).
 
 	Collapse.DiedInsideMine(player) -> string?
 		경보 중인 광산 안에서 죽은(리셋 포함) 적이 있으면 그 광산 id. B가 퇴장 때 차감 판정에 사용.

@@ -7,7 +7,7 @@
 --                                └─ 경보 중 광산에 있던 사람 ────┴─ 이미 나감: 탈출 성공 + 보너스
 --
 -- 내보내는 이벤트 (Events.luau): CollapseWarning, CollapseOccurred, PlayerEscaped, PlayerTrapped
--- 조회 함수: Collapse.GetRemainingTime(mineId) — A가 압력 등급 계산에 사용
+-- 조회 함수: Collapse.GetRemainingTime(mineId) — 경보 중인지·남은 시간 (B가 퇴장 차감 판정에 사용)
 --
 -- 시간은 workspace:GetServerTimeNow() 기준. 클라이언트도 같은 시계를 볼 수 있어서 카운트다운 UI를 맞추기 쉽다.
 
@@ -120,7 +120,8 @@ local function doCollapse(mine: Mines.Mine, st: State)
 
 	Announcer.announce(`{mine.name}이(가) 무너졌습니다! 탈출 {escaped}명 · 갇힘 {trapped}명`, Kind.Collapse)
 
-	-- 갇힌 사람은 잠깐 뒤 허브로 (A가 통로를 막아서 걸어 나올 수 없으므로)
+	-- 갇힌 사람은 잠깐 뒤 허브로. 그동안 A가 붕괴 연출(화면 흔들림·낙석, D-040)을 보여 준다.
+	-- 통로를 실제로 막지는 않으므로, 옮기지 않으면 붕괴 뒤에 걸어 나와 버린다
 	task.delay(Config.trappedTeleportDelay, function()
 		local cf = hubSpawn(mine)
 		if not cf then
