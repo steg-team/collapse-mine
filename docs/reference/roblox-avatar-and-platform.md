@@ -132,7 +132,7 @@
 - 구매 창 띄우기는 서버(`MarketplaceService:PromptPurchase`/`PromptBulkPurchase`)에서, 클라이언트는 RemoteEvent로 부탁만
 
 **붕괴 광산 게임패스 상점에 그대로 쓰기** (C 담당 "패스 상점 화면 없음" 문제)
-- 타일 = 패스 아이콘 `rbxthumb://type=GamePass&id=<passId>&w=150&h=150` + 이름 + `` + 가격 + 초록 Buy
+- 타일 = 패스 아이콘 `rbxthumb://type=GamePass&id=<passId>&w=150&h=150` + 이름 + 로벅스 기호(`utf8.char(0xE002)`) + 가격 + 초록 Buy
 - 가격·이름은 `MarketplaceService:GetProductInfoAsync(passId, Enum.InfoType.GamePass)`로 받아 캐시
 - Buy → `MarketplaceService:PromptGamePassPurchase(player, passId)`, 개발자 상품(서버 부스트)은 `PromptProductPurchase` + 서버 `ProcessReceipt`
 - 이미 가진 패스는 버튼을 "보유 중"(회색)으로
