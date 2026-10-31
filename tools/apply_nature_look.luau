@@ -40,11 +40,10 @@ local ROCK_COUNT = 18
 -- 템플릿 원본 에셋 (로블록스 공식 템플릿 것)
 local MATERIALS = {
 	{ name = "MossGrass", base = Enum.Material.Grass, c = 13703366674, n = 13316888753, r = 13316888800, m = 13280829022 },
-	{ name = "Moss", base = Enum.Material.Ground, c = 13703366674, n = 13316888753, r = 13316888800, m = 13280829022 },
+	{ name = "Moss", base = Enum.Material.Mud, c = 13703366674, n = 13316888753, r = 13316888800, m = 13280829022 },
 	{ name = "MossStones", base = Enum.Material.LeafyGrass, c = 13703391879, n = 13326201011, r = 13326200502, m = 13326199923 },
 	{ name = "Stones", base = Enum.Material.Sand, c = 13326348142, n = 13326227645, r = 13326227505, m = 13326226958 },
 	{ name = "StrataNoisy", base = Enum.Material.Salt, c = 13413097425, n = 13413097894, r = 13413097878 },
-	{ name = "Walkway", base = Enum.Material.Snow, c = 13742044281, n = 13742043635, r = 13742042805, m = 13701714303 },
 }
 -- 지형 재질 → 텍스처 재질. 광산 벽 재질(Ground·Slate·Basalt·Limestone·Rock)·눈 덮인 봉우리(Snow)는 일부러 뺐다
 local OVERRIDES = {
@@ -156,9 +155,9 @@ local function meshTemplate(meshId, saIds)
 	return mp
 end
 
+-- 건물·울타리·포탈 위에는 안 깔리게: 모든 물체에 쏴서 처음 맞은 게 지형일 때만 쓴다
 local groundParams = RaycastParams.new()
-groundParams.FilterType = Enum.RaycastFilterType.Include
-groundParams.FilterDescendantsInstances = { T }
+groundParams.FilterType = Enum.RaycastFilterType.Exclude
 
 local GROW_ON = { [Enum.Material.Grass] = true, [Enum.Material.Mud] = true, [Enum.Material.LeafyGrass] = true }
 
@@ -178,9 +177,11 @@ if RUN.SCATTER then
 			if old then old:Destroy() end
 			local nature = Instance.new("Folder")
 			nature.Name = "Nature"
+			groundParams.FilterDescendantsInstances = { nature }
 			local function ground(x, z)
-				local hit = workspace:Raycast(Vector3.new(x + h.dx, 120, z), Vector3.new(0, -200, 0), groundParams)
-				return hit
+				local hit = workspace:Raycast(Vector3.new(x + h.dx, 150, z), Vector3.new(0, -260, 0), groundParams)
+				if hit and hit.Instance == T then return hit end
+				return nil
 			end
 			-- 풀
 			local placed = 0
