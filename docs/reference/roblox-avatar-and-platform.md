@@ -78,3 +78,33 @@
 - **광부 헬멧·헤드랜턴**: `Hat_Att`에 붙는 단단한 액세서리. 카나리아 Lv2 헤드랜턴(D-045)과 광산 조명 안건에 연결
 - **리버스·랭킹 보상 꾸미기**: `HumanoidDescription`으로 게임 안 전용 모자·옷을 입혀 줌 (마켓 판매 없이도 가능)
 - **수익**: 기획서의 게임패스·부스트(개발자 상품)가 공식 문서상 가장 큰 수입원. 보상형 동영상 광고(예: 보고 나면 붕괴 때 가방 보호)도 후보
+
+## 8. 게임 안 아바타 상점: Homestore 템플릿 뜯어보기
+
+로블록스 공식 **UGC Homestore 템플릿**(2026-10-31 Studio에서 열어서 확인). 마네킹을 보고(Inspect) → 입어 보고(Try on) → 사는(Buy / Buy all) 상점.
+
+**흐름**
+
+```
+마네킹(태그 Mannequin, 속성 accessoryIds·bundleIds)
+  └ 서버 Mannequins: HumanoidDescription에 아이템 적용 → Players:CreateHumanoidModelFromDescriptionAsync(R15) → 받침(Base) 위에 세우고 poseAnimation 재생
+클라이언트 Inspector: 마네킹마다 ProximityPrompt "Inspect"(E) → AvatarEditorService로 아이템 정보 → 타일 목록
+  ├ Try on → Remotes.TryOn(assets, bundles) → 서버 TryOn: 내 원래 모습(GetHumanoidDescriptionFromUserIdAsync) + 아이템 → Humanoid:ApplyDescriptionAsync(…, AssetTypeVerification.Always)
+  ├ Buy → Remotes.Purchase → 서버 MarketplaceService:PromptPurchase / PromptBundlePurchase
+  └ Buy all → Remotes.BulkPurchase → 서버 MarketplaceService:PromptBulkPurchase (서버에서만 됨)
+클라이언트 Shop: 화면 상점 버튼 → AvatarEditorService:SearchCatalogAsync(CatalogSearchParams: 만든 사람 이름·종류·정렬) → 스크롤하면 다음 페이지
+```
+
+**배운 점**
+- **마네킹은 속성 두 줄로 끝**: `accessoryIds="9112474888,8516620262,…"`, `bundleIds="985,924"`. 신발은 좌우가 따로라 번들로 넣는다. 그 밖에 `skinColor`, 몸 크기 6개(`bodyHeightScale` 등), `poseAnimation`
+- **입어 보기는 서버가 함**: 클라이언트는 아이템 id 목록만 보내고, 서버가 개수(최대 15)·타입을 검사한 뒤 적용. `AssetTypeVerification.Always`로 액세서리가 아닌 에셋을 못 넣게 막음. 다시 태어나도(CharacterAdded) 입던 걸 다시 입힘
+- **같은 부위는 바꿔 끼움**: 상의를 입으면 기존 상의를 뺌 (모자는 여러 개 허용). `AvatarEditorService:GetAccessoryType`으로 부위를 알아냄
+- **구매 창은 서버에서만**: `PromptBulkPurchase`는 클라이언트에서 못 부름 → RemoteEvent로 서버에 부탁. `RestrictedItems` 목록으로 무료 배포용 아이템은 이 경로로 못 사게 막음
+- **아이템 정보 캐시**: `GetItemDetails`/`SearchCatalog` 결과를 캐시해서 HTTP 호출을 줄임
+- **상점 자동 채우기**: 게시된 플레이스면 만든 사람의 UGC를 자동으로 불러옴, 아니면 `DEFAULT_CREATOR_NAME`("Roblox")
+- **구조**: 클라이언트 스크립트도 ReplicatedStorage에 두고 `RunContext = Client`로 돌림. UI는 함수형 컴포넌트(ModuleScript가 인스턴스를 만들어 돌려줌). 전부 `--!strict`
+
+**붕괴 광산에 쓴다면 (아이디어)**
+- 허브에 **광부 옷 마네킹**: 헬멧·작업복·부츠 같은 마켓 아이템을 입혀 두고 입어 보기·구매. 우리 코드가 아니라 템플릿 스크립트를 그대로 가져오는 게 빠름 (`Mannequin` 태그 + 속성)
+- **리버스·랭킹 보상 의상**: 같은 `ApplyDescription` 방식으로 게임 안에서만 입히는 보상 (구매 없이)
+- 남의 마켓 아이템을 게임 안에서 팔면 게임도 수수료를 받는다 (비율은 원문 확인 필요)
