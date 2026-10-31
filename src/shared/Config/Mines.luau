@@ -196,6 +196,49 @@ Mines.list = {
 			roomScale = 1.4,
 		},
 	},
+	{
+		id = "lava",
+		hub = "CollapseMine_lava",
+		name = "용암 광산",
+		order = 4,
+		requiredPickaxe = 4, -- 물빛 진주 곡괭이
+		-- 1~3스테이지보다 조금 크게 (T-006): 반경 350 → 420, 바닥 -125 → -150
+		origin = Vector3.new(1800, 0, -900),
+		radius = 420,
+		top = -4,
+		bottom = -150,
+		layers = {
+			{ name = "현무암층", top = -4, bottom = -60, material = Enum.Material.Basalt, hardness = 4 },
+			{ name = "용암 균열층", top = -60, bottom = -150, material = Enum.Material.CrackedLava, hardness = 5 },
+		},
+		-- 4스테이지 "용암 광산" 광물 6종 (T-006). 가치는 D-044 공식(2 × 2.2³ × 등급 배수), 확률·경도와 함께 임시값
+		ores = {
+			{ name = "LavaStone", displayName = "용암석", grade = "일반", value = 21, weight = 50, minDepth = 0, hardness = 1,
+				color = Color3.fromRGB(70, 45, 40), material = Enum.Material.CrackedLava, model = "Stage04/LavaStone" },
+			{ name = "Sulfur", displayName = "유황", grade = "일반", value = 34, weight = 30, minDepth = 0, hardness = 1,
+				color = Color3.fromRGB(235, 210, 60), material = Enum.Material.Sand, model = "Stage04/Sulfur" },
+			{ name = "Obsidian", displayName = "흑요석", grade = "고급", value = 53, weight = 12, minDepth = 18, hardness = 2,
+				color = Color3.fromRGB(30, 22, 40), material = Enum.Material.Glass, model = "Stage04/Obsidian" },
+			{ name = "Uranium", displayName = "우라늄", grade = "희귀", value = 130, weight = 5, minDepth = 42, hardness = 2,
+				color = Color3.fromRGB(110, 255, 80), material = Enum.Material.Neon, model = "Stage04/Uranium" },
+			{ name = "FireRuby", displayName = "화염 루비", grade = "에픽", value = 320, weight = 2.5, minDepth = 72, hardness = 3,
+				color = Color3.fromRGB(230, 30, 40), material = Enum.Material.Glass, model = "Stage04/FireRuby" },
+			{ name = "MeltedHelmet", displayName = "녹은 광부 헬멧", grade = "전설", value = 1100, weight = 0.2, minDepth = 100, hardness = 4,
+				color = Color3.fromRGB(255, 190, 60), material = Enum.Material.Metal, model = "Stage04/MeltedHelmet" },
+		},
+		digFinds = { grades = { "희귀", "에픽", "전설" }, chance = NumberRange.new(0.004, 0.012) }, -- 임시값
+		oreRegrowDelay = 5, -- 임시값 (초)
+		collapse = { interval = NumberRange.new(480, 720), warning = 60, offset = 540 }, -- 기본 광산과 9분 엇갈림, 임시값 (초)
+		cave = {
+			seed = 31,
+			branches = 14,
+			hubRooms = 5,
+			roomSpacing = NumberRange.new(42, 62),
+			subBranchChance = 0.45,
+			tunnelRadius = 7.5,
+			roomScale = 1.5,
+		},
+	},
 } :: { Mine }
 
 -- 캘 때 광물에 붙는 값 (A가 OreMined로 보냄. 판매가 = 기본가 × 무게, 계산은 B). D-025, 압력은 T-001로 없앰. 임시값
@@ -233,7 +276,6 @@ Mines.STAGE_MAP = table.freeze({
 })
 -- 아직 없는 다음 광산 (지도에 잠긴 카드로 미리 보여 줌, 기획서 광산 표 4·5번). 광산을 만들면 Mines.list로 옮긴다
 Mines.UPCOMING = table.freeze({
-	table.freeze({ name = "용암 광산", requiredPickaxe = 4, hint = "붉은 균열, 열기 · 우라늄, 용암석" }),
 	table.freeze({ name = "무너진 고대 도시", requiredPickaxe = 5, hint = "유적, 잔해 · ??? 등급" }),
 })
 

@@ -25,6 +25,7 @@ local MINE_ID = "basic"
 local MOUTH = Vector3.new(0, 0, 38)
 local FACING = 0
 local THEME = "basic"
+local HUB_NAME = "CollapseMine" -- 포탈을 넣을 허브 폴더 (용암 광산은 "CollapseMine_lava")
 local PEAK = 220
 local SEED = 21
 local BUILD_TERRAIN = true
@@ -178,7 +179,7 @@ task.wait()
 end
 
 -- 5) 장식 ---------------------------------------------------------------------
-local hub = workspace.CollapseMine.Hub
+local hub = workspace[HUB_NAME].Hub
 local portals = hub:FindFirstChild("MinePortals") or Instance.new("Folder")
 portals.Name = "MinePortals"; portals.Parent = hub
 local old = portals:FindFirstChild("Portal_" .. MINE_ID)

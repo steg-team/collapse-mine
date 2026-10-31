@@ -60,6 +60,7 @@ MiningSounds.ambience = table.freeze({
 	basic = snd(9120505513, 0.45), -- Water Cave Trickle Very Thin 3 (동굴 물방울)
 	iron = snd(9118747853, 0.35), -- Rumble Ambience Interior Wind (갱도 바람)
 	groundwater = snd(9120505297, 0.55), -- Water Cave Trickle Thin Into Small Puddles 5 (물 흐르는 동굴)
+	lava = snd(9114223352, 0.3), -- Earthquake Deep Subterranean Booms 3 (땅속 울림, 용암 광산 전용 소리를 찾으면 교체). 임시값
 } :: { [string]: Snd })
 MiningSounds.AMBIENCE_FADE = 1.5 -- 배경음이 켜지고 꺼지는 시간(초)
 
