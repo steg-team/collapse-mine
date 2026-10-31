@@ -108,3 +108,31 @@
 - 허브에 **광부 옷 마네킹**: 헬멧·작업복·부츠 같은 마켓 아이템을 입혀 두고 입어 보기·구매. 우리 코드가 아니라 템플릿 스크립트를 그대로 가져오는 게 빠름 (`Mannequin` 태그 + 속성)
 - **리버스·랭킹 보상 의상**: 같은 `ApplyDescription` 방식으로 게임 안에서만 입히는 보상 (구매 없이)
 - 남의 마켓 아이템을 게임 안에서 팔면 게임도 수수료를 받는다 (비율은 원문 확인 필요)
+
+### 8-1. 구매창 UI 상세 (Inspect 창 = 이걸 따라 만들면 됨)
+
+**배치**: 화면 오른쪽 55% 패널(`Size 0.55,0 × 1,0`, `Position 0.45,0`), 배경 `#F2F4F5`, 모서리 8, 안쪽 여백 8. 세로 `UIListLayout`(간격 8): 위 막대 → 타일 격자. 패널이 열리면 **카메라를 옆으로 밀어서**(CameraOffset, 화면 너비의 0.65만큼) 캐릭터가 왼쪽 빈 곳에 보이게 함. 창은 ModalManager가 한 번에 하나만 보이게 쌓음(push/pop).
+
+**위 막대** (가로 리스트, 간격 4, 높이 28): `Try on`(회색 `#C3C5C6`, 글자 `#393B3D` Medium 20) · `Buy all`(초록 `#00B06F`, 흰 글자 Bold 20) · 빈 칸(`UIFlexItem Fill`로 밀어냄) · 장바구니 버튼(아이콘 + 초록 동그라미 개수) · 닫기 `×`(28×28 회색). 버튼 글자 너비는 `AutomaticSize X` + 좌우 여백 8, 모서리 4.
+
+**타일 하나** (기준 100×200, 세로 리스트 간격 4, 위아래로 벌림 `SpaceBetween`)
+1. 아이콘 버튼: 정사각, 회색 `#C3C5C6` 배경, 모서리 4. 그림은 `rbxthumb://type=Asset&id=<id>&w=150&h=150` (번들은 `type=BundleThumbnail`). 누르면 입어 보기 켜고 끄기, 입는 중이면 검은 반투명 막(0.75) + 오른쪽 위 체크 아이콘
+2. 이름: Regular 20, `#393B3D`, 자동 높이, 남는 공간을 채움(`Fill`)
+3. 가격: Bold 20. 로벅스 기호는 `utf8.char(0xE002)` (로블록스 글꼴 전용 글자). 무료면 `PriceStatus`("무료") 글자 그대로
+4. 버튼 줄: `Buy`(초록, 남는 폭 채움) + 장바구니 담기(28×28 초록 정사각, 장바구니 아이콘). 이미 담았으면 아이콘 투명도 0.5
+5. 한정판이면 아이콘 위에 Limited / Limited U 딱지
+
+**격자**: `ResponsiveGrid` = ScrollingFrame + UIGridLayout. 창 너비에서 "최소 100폭 칸이 몇 개 들어가나" 계산한 뒤 남는 폭만큼 칸을 같은 비율로 키움 → 창 크기가 바뀌어도 꽉 참. 스크롤이 90%를 넘으면 다음 페이지를 불러옴.
+
+**장바구니**: 클라이언트만 기억(최대 20개 = `PromptBulkPurchase` 한도). 장바구니 창(폭 256, 높이 80%): 제목 "Cart (n)", 줄마다 빼기 버튼·아이콘·이름·가격(줄 높이 64), 아래 "Total" + 큰 Buy. 구매가 끝나면 `PromptBulkPurchaseFinished`/`PromptPurchaseFinished`를 받아 산 것만 장바구니에서 뺌.
+
+**코드 짜는 방식**
+- UI 견본(`UI.Objects`)을 미리 만들어 두고, 컴포넌트 함수가 `Clone()` → 글자·이벤트를 채워 돌려줌 (`ItemTile(details)`, `CartButton()`)
+- 컴포넌트 밖(장바구니·입어 보기 상태)에 연결한 이벤트는 `Destroying:Once`에서 끊어서 새는 연결이 없게
+- 구매 창 띄우기는 서버(`MarketplaceService:PromptPurchase`/`PromptBulkPurchase`)에서, 클라이언트는 RemoteEvent로 부탁만
+
+**붕괴 광산 게임패스 상점에 그대로 쓰기** (C 담당 "패스 상점 화면 없음" 문제)
+- 타일 = 패스 아이콘 `rbxthumb://type=GamePass&id=<passId>&w=150&h=150` + 이름 + `` + 가격 + 초록 Buy
+- 가격·이름은 `MarketplaceService:GetProductInfoAsync(passId, Enum.InfoType.GamePass)`로 받아 캐시
+- Buy → `MarketplaceService:PromptGamePassPurchase(player, passId)`, 개발자 상품(서버 부스트)은 `PromptProductPurchase` + 서버 `ProcessReceipt`
+- 이미 가진 패스는 버튼을 "보유 중"(회색)으로
