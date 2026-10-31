@@ -10,6 +10,9 @@
 	   - CrackedLava 지형만으로는 낮에 어두운 분홍빛이라 흐르는 느낌이 안 나서 네온을 씀
 	   - 사인파로 구불구불, 아래로 갈수록 가늘고 노랑 → 주황 → 빨강으로 식음
 	   - 12 넘게 뚝 떨어지는 절벽에서 멈추고 끝에 빛나는 덩어리
+	4) 앞면 용암 줄기: 광장에서 보면 앞 절벽에 가려 꼭대기 줄기가 안 보여서, 입구 양옆(FACE_X)에
+	   위쪽 비탈을 따라오다 앞 절벽을 타고 땅까지 흘러내리는 줄기 + 바닥 웅덩이
+	   (절벽은 허브 쪽에서 수평으로 레이를 쏴서 면을 찾고, 띠의 두께 방향을 면의 법선에 맞춤)
 	다시 실행하면 원뿔을 또 깎으니, 줄기만 다시 그릴 때는 STREAMS_ONLY = true.
 ]]
 
@@ -20,6 +23,7 @@ local RIM_Y = 242 -- 분화구 가장자리 높이
 local SLOPE = 1.45 -- 원뿔 기울기 (높이 / 거리)
 local STOP_Y = 64
 local STREAMS_ONLY = false
+local FACE_X = { 1752, 1849, 1716, 1886 } -- 앞면 줄기 x (입구 1777~1823·화로 ±32 피함). 앞 둘은 굵게
 local STREAMS = { -- deg: 0 = +Z(허브 쪽), phase: 구불구불 모양
 	{ deg = -22, width = 5, phase = 0.0 }, { deg = 24, width = 4.4, phase = 1.7 }, { deg = -55, width = 4, phase = 3.1 },
 	{ deg = 80, width = 3.2, phase = 4.4 }, { deg = -96, width = 3.2, phase = 2.2 }, { deg = 150, width = 3, phase = 5.0 },
@@ -193,6 +197,82 @@ for si, st in STREAMS do
 	local l = Instance.new("PointLight")
 	l.Color, l.Range, l.Brightness = LAVA, 18, 1.5
 	l.Parent = tip
+end
+
+-- 4) 앞면 용암 줄기
+for _, q in folder:GetChildren() do
+	if q.Name == "FaceFlow" or q.Name == "FacePool" then q:Destroy() end
+end
+local function faceHit(x: number, y: number): RaycastResult?
+	return workspace:Raycast(Vector3.new(x, y, 140), Vector3.new(0, 0, -260), terrainOnly)
+end
+local function faceSeg(a: Vector3, b: Vector3, n: Vector3, w: number, col: Color3)
+	local s = Instance.new("Part")
+	s.Name = "FaceFlow"
+	s.Size = Vector3.new(w, 0.7, (b - a).Magnitude + 0.9)
+	local mid = (a + b) / 2 + n * 0.35
+	s.CFrame = CFrame.lookAt(mid, mid + (b - a), n) -- 두께 방향 = 면의 법선 (세로 절벽에서도 납작하게 붙음)
+	s.Material = M.Neon
+	s.Color = col
+	s.Anchored, s.CanCollide, s.CanQuery, s.CastShadow = true, false, false, false
+	s.Parent = folder
+end
+for i, X in FACE_X do
+	local w = (i <= 2) and 5 or 4
+	local pts = {}
+	-- 위쪽 비탈: 산 속에서 앞으로 표면을 따라오다 절벽 끝(한 칸에 4 넘게 떨어짐)에서 멈춤
+	local z, last = -20, nil
+	while z < 60 do
+		local h = ground(X + math.sin(z / 9 + i) * 2.5, z)
+		if not h then break end
+		if last and last.Position.Y - h.Position.Y > 4 then break end
+		table.insert(pts, { pos = h.Position, n = h.Normal })
+		last = h
+		z += 1.5
+	end
+	-- 앞 절벽: 수평 레이로 면을 따라 땅까지
+	local y = last and last.Position.Y or 80
+	while y > 0.5 do
+		y -= 1.5
+		local h = faceHit(X + math.sin(y / 7 + i) * 2.5, y)
+		if h then table.insert(pts, { pos = h.Position, n = h.Normal }) end
+	end
+	local topY = pts[1] and pts[1].pos.Y or 100
+	for k = 2, #pts do
+		local a, b = pts[k - 1], pts[k]
+		if (b.pos - a.pos).Magnitude < 8 then
+			local t = math.clamp((topY - b.pos.Y) / topY, 0, 1)
+			local col = LAVA_HOT:Lerp(LAVA, math.min(1, t * 2)):Lerp(LAVA_COOL, math.max(0, t * 2 - 1))
+			faceSeg(a.pos, b.pos, (a.n + b.n).Unit, w * (1 - 0.3 * t) * (0.85 + 0.3 * math.noise(k / 6, i)), col)
+		end
+		if k % 20 == 0 then task.wait() end
+	end
+	local bot = pts[#pts]
+	if bot then
+		local pool = Instance.new("Part")
+		pool.Name = "FacePool"
+		pool.Shape = Enum.PartType.Cylinder
+		pool.Size = Vector3.new(0.6, w * 2.2, w * 2.2)
+		pool.CFrame = CFrame.new(bot.pos.X, 0.4, bot.pos.Z + w * 0.8) * CFrame.Angles(0, 0, math.rad(90))
+		pool.Material = M.Neon
+		pool.Color = LAVA_COOL
+		pool.Anchored, pool.CanCollide = true, false
+		pool.Parent = folder
+		local l = Instance.new("PointLight")
+		l.Color, l.Range, l.Brightness = LAVA, 22, 2
+		l.Parent = pool
+		local e = Instance.new("ParticleEmitter")
+		e.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+		e.EmissionDirection = Enum.NormalId.Right
+		e.Rate = 6
+		e.Lifetime = NumberRange.new(1, 2)
+		e.Speed = NumberRange.new(2, 5)
+		e.SpreadAngle = Vector2.new(30, 30)
+		e.Size = NumberSequence.new(0.5, 0)
+		e.LightEmission = 1
+		e.Color = ColorSequence.new(LAVA_HOT, LAVA)
+		e.Parent = pool
+	end
 end
 
 if rec then CHS:FinishRecording(rec, Enum.FinishRecordingOperation.Commit) end
