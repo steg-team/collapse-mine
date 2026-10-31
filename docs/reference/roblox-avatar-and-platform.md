@@ -1,0 +1,138 @@
+# 로블록스 아바타·플랫폼 정리 (공식 문서 요약)
+
+> 2026-10-31에 공식 문서를 읽고 우리 게임에 쓸 부분 위주로 정리. 숫자·규칙은 바뀔 수 있으니 실제로 쓸 때는 링크 원문을 다시 확인.
+> 원문: [아바타 개요](https://create.roblox.com/docs/ko-kr/avatar) · [플랫폼 개요](https://create.roblox.com/docs/en-us/platform)
+
+## 1. 아바타 = "누구인지" + "무엇을 입는지"
+
+| 축 | 레이어 | Studio 객체 |
+|---|---|---|
+| 누구인지 (몸) | 형태: 메시 바디 파트 15개 | `MeshPart` (Model 아래) |
+| | 리깅: 관절. R15 표준 15개, 고급 리그는 뼈대 최대 37개 추가 | `Bone` |
+| | 애니메이션: 이모트(전신), 얼굴 표정(FACS) | `Animation`, `FaceControls` |
+| | 부착 지점·케이지: 액세서리 붙는 자리, 옷이 맞춰지는 바깥 경계 | `Attachment`, `WrapTarget` |
+| 무엇을 입는지 | 화장: 얼굴 2D | `Decal` |
+| | 단단한 액세서리: 모자·무기·소품, 부착 지점에 그대로 붙음 | `Accessory` |
+| | 레이어드 액세서리: 재킷·셔츠, 몸에 늘어나 맞음 | `Accessory` + `WrapLayer` |
+| | 클래식 의상: 2D 이미지 옷 | `Shirt`, `Pants`, `ShirtGraphic` |
+
+## 2. 몸 사양 (커스텀 캐릭터·NPC 만들 때)
+
+- 바디 파트 15개 이름: `Head_Geo`, `UpperTorso_Geo`, `LowerTorso_Geo`, `Left/RightUpperArm_Geo`, `Left/RightLowerArm_Geo`, `Left/RightHand_Geo`, `Left/RightUpperLeg_Geo`, `Left/RightLowerLeg_Geo`, `Left/RightFoot_Geo`
+- 모델링: +Z 앞, +Y 위, 피벗 0,0,0, 변환 고정, I/A/T 포즈. 구멍·뒷면 없게, 사지 끝은 막아서(캡)
+- 크기 (전체, 스터드): 최소 1.35 × 3.6 × 0.7 / 최대 보통 8.6 × 9.5 × 2.25 (슬렌더 6 × 9.5 × 2, 클래식 8 × 9.1 × 2)
+- 삼각형 예산: 머리 4,000 · 몸통 1,750 · 팔다리 각 1,248 · 합계 10,742. 텍스처 최대 2048²
+- 리그 계층: Root > HumanoidRootNode > LowerTorso > UpperTorso > Head·팔 / LowerTorso > 다리. 정점당 뼈 최대 4개
+- 부착 지점 이름 (`_Att` 접미사여야 자동 인식)
+  - Head: `FaceCenter_Att`, `FaceFront_Att`, `Hat_Att`, `Hair_Att`
+  - UpperTorso: `Neck_Att`, `LeftCollar_Att`, `RightCollar_Att`, `BodyBack_Att`, `BodyFront_Att`
+  - LowerTorso: `Root_Att`, `WaistFront_Att`, `WaistBack_Att`, `WaistCenter_Att`
+  - 팔·손·발: `Left/RightShoulder_Att`, `Left/RightGrip_Att`, `Left/RightFoot_Att`
+- 케이지: 몸은 바깥 케이지(`<파트>_OuterCage`)만, 레이어드 옷은 안·바깥 둘 다. 로블록스 템플릿 케이지를 쓰고 정점·UV는 건드리지 않음
+
+## 3. Avatar Setup 도구 (Studio → 아바타 탭)
+
+블렌더·마야에서 만든 메시(.fbx / .obj / .gltf)를 넣으면 **리그·스킨·얼굴 표정 데이터·케이지·15파트 분할·부착 지점**을 자동으로 만들어 준다.
+- 프리셋: **Development Avatar** = 게임 안 NPC·시작 캐릭터용 (느슨함, 내 인벤토리로) / **Platform Avatar** = 마켓 판매용 (엄격, 수수료·심사)
+- 순서: 가져오기("Upload to Roblox" 끔) → 모델 선택 → 아바타 탭 Avatar Setup → 종류(몸/레이어드/단단한) 지정 → 실행(몇 분) → 걷기·점프·이모트·옷 맞춤 테스트 → 저장
+- 주의: 앞 방향 자동 인식이 틀리면 수동 정렬. TextureID보다 SurfaceAppearance. 큰 수정은 다시 블렌더에서. 가져온 메시는 심사 대기가 있을 수 있음
+
+## 4. 게임 안에서 캐릭터 모습 바꾸기
+
+- 장소 전체: Studio **File > Avatar Settings** (옷·액세서리·몸·충돌·애니메이션을 모든 플레이어에게)
+- 한 명씩: `HumanoidDescription`
+  - 얻기: `Humanoid:GetAppliedDescription()` (지금 모습에서 시작하는 게 안전), `Players:GetHumanoidDescriptionFromUserId()`, `Instance.new`
+  - 고치기: `HatAccessory`, `Face`, `HeadColor` 같은 속성, 여러 개는 `SetAccessories()`
+  - 적용: `Humanoid:ApplyDescription()`, 스폰할 때는 `Player:LoadCharacterWithHumanoidDescription()` (이때 `Players.CharacterAutoLoads = false`)
+  - 조심: 에셋을 직접 바꾸면서 동시에 Description을 적용하면 동작이 꼬일 수 있음. R6에는 몸 크기 값이 안 먹음
+- 커스텀 리그(R15 아님)에 레이어드 옷: 몸에 `WrapTarget`, 옷에 `WrapLayer`, 휴머노이드가 없으면 옷에 `Weld`. 커스텀 케이지는 게임 안 전용 (마켓 판매 불가)
+
+## 5. 돈 버는 방법과 수익률
+
+| 방법 | 내용 | 몫 |
+|---|---|---|
+| [개발자 상품](https://create.roblox.com/docs/en-us/production/monetization/developer-products) | 게임 화폐·부스트·꾸미기를 여러 번 판매. 가장 큰 수입원 | 게임 안 로벅스 판매의 70% |
+| 게임패스 | 한 번 사면 영구 | 70% |
+| [구독](https://create.roblox.com/docs/en-us/production/monetization/subscriptions) | 매달 혜택 (로벅스 또는 현금) | — |
+| [유료 입장](https://create.roblox.com/docs/en-us/production/monetization/paid-access-robux) | 입장료. 팬층이 있을 때 | 현금 판매는 최대 90% |
+| [광고](https://create.roblox.com/docs/en-us/production/promotion/advertise) | 게임 안 광고, [보상형 동영상](https://create.roblox.com/docs/en-us/production/promotion/rewarded-video-ads), 빌보드 | — |
+| [아바타 아이템](https://create.roblox.com/docs/en-us/marketplace/publish-to-marketplace) | 게임 안이나 마켓에서 액세서리·애니메이션 판매 | 마켓 판매의 30% |
+| [크리에이터 리워드](https://create.roblox.com/docs/en-us/creator-rewards) | 플랫폼에 사람을 데려온 만큼 지급 | — |
+
+- 현금 인출(DevEx): 만 13세 이상, 번 로벅스 30,000 이상. 예) 10,000 로벅스 ≈ 38달러
+- 모든 수익은 커뮤니티 규칙을 지켜야 받음
+
+## 6. 플랫폼 전체 지도 (더 볼 곳)
+
+- 엔진 API: https://create.roblox.com/docs/en-us/reference/engine · 만들기 가이드: https://create.roblox.com/docs/en-us/creation
+- 에셋·게시: https://create.roblox.com/docs/en-us/assets · https://create.roblox.com/docs/en-us/projects/assets · 크리에이터 스토어 https://create.roblox.com/store
+- 외부 툴 가져오기(블렌더 등): https://create.roblox.com/docs/en-us/art/overview-dcc
+- 오픈 클라우드(웹 API): https://create.roblox.com/docs/en-us/cloud
+- 확장(모바일·콘솔·VR·다국어): https://create.roblox.com/docs/en-us/scale
+- 3D 아트 자료: https://create.roblox.com/docs/en-us/art · 아바타 참조 파일·마네킹·템플릿: https://create.roblox.com/docs/ko-kr/avatar/resources
+
+## 7. 붕괴 광산에 쓸 만한 것 (아이디어, 결정 아님)
+
+- **광부 NPC** (튜토리얼·판매소 주인): 블렌더 모델 → Avatar Setup **Development Avatar** → 걷기·손짓 애니메이션. 지금 허브 건물을 블렌더로 만드는 흐름(`tools/blender/`)과 같은 길
+- **곡괭이를 등에 메기**: 들고 있지 않을 때 곡괭이 모델을 `BodyBackAttachment`에 단단한 액세서리처럼 붙이면 단계별 곡괭이 모델(T-003)이 눈에 보임
+- **광부 헬멧·헤드랜턴**: `Hat_Att`에 붙는 단단한 액세서리. 카나리아 Lv2 헤드랜턴(D-045)과 광산 조명 안건에 연결
+- **리버스·랭킹 보상 꾸미기**: `HumanoidDescription`으로 게임 안 전용 모자·옷을 입혀 줌 (마켓 판매 없이도 가능)
+- **수익**: 기획서의 게임패스·부스트(개발자 상품)가 공식 문서상 가장 큰 수입원. 보상형 동영상 광고(예: 보고 나면 붕괴 때 가방 보호)도 후보
+
+## 8. 게임 안 아바타 상점: Homestore 템플릿 뜯어보기
+
+로블록스 공식 **UGC Homestore 템플릿**(2026-10-31 Studio에서 열어서 확인). 마네킹을 보고(Inspect) → 입어 보고(Try on) → 사는(Buy / Buy all) 상점.
+
+**흐름**
+
+```
+마네킹(태그 Mannequin, 속성 accessoryIds·bundleIds)
+  └ 서버 Mannequins: HumanoidDescription에 아이템 적용 → Players:CreateHumanoidModelFromDescriptionAsync(R15) → 받침(Base) 위에 세우고 poseAnimation 재생
+클라이언트 Inspector: 마네킹마다 ProximityPrompt "Inspect"(E) → AvatarEditorService로 아이템 정보 → 타일 목록
+  ├ Try on → Remotes.TryOn(assets, bundles) → 서버 TryOn: 내 원래 모습(GetHumanoidDescriptionFromUserIdAsync) + 아이템 → Humanoid:ApplyDescriptionAsync(…, AssetTypeVerification.Always)
+  ├ Buy → Remotes.Purchase → 서버 MarketplaceService:PromptPurchase / PromptBundlePurchase
+  └ Buy all → Remotes.BulkPurchase → 서버 MarketplaceService:PromptBulkPurchase (서버에서만 됨)
+클라이언트 Shop: 화면 상점 버튼 → AvatarEditorService:SearchCatalogAsync(CatalogSearchParams: 만든 사람 이름·종류·정렬) → 스크롤하면 다음 페이지
+```
+
+**배운 점**
+- **마네킹은 속성 두 줄로 끝**: `accessoryIds="9112474888,8516620262,…"`, `bundleIds="985,924"`. 신발은 좌우가 따로라 번들로 넣는다. 그 밖에 `skinColor`, 몸 크기 6개(`bodyHeightScale` 등), `poseAnimation`
+- **입어 보기는 서버가 함**: 클라이언트는 아이템 id 목록만 보내고, 서버가 개수(최대 15)·타입을 검사한 뒤 적용. `AssetTypeVerification.Always`로 액세서리가 아닌 에셋을 못 넣게 막음. 다시 태어나도(CharacterAdded) 입던 걸 다시 입힘
+- **같은 부위는 바꿔 끼움**: 상의를 입으면 기존 상의를 뺌 (모자는 여러 개 허용). `AvatarEditorService:GetAccessoryType`으로 부위를 알아냄
+- **구매 창은 서버에서만**: `PromptBulkPurchase`는 클라이언트에서 못 부름 → RemoteEvent로 서버에 부탁. `RestrictedItems` 목록으로 무료 배포용 아이템은 이 경로로 못 사게 막음
+- **아이템 정보 캐시**: `GetItemDetails`/`SearchCatalog` 결과를 캐시해서 HTTP 호출을 줄임
+- **상점 자동 채우기**: 게시된 플레이스면 만든 사람의 UGC를 자동으로 불러옴, 아니면 `DEFAULT_CREATOR_NAME`("Roblox")
+- **구조**: 클라이언트 스크립트도 ReplicatedStorage에 두고 `RunContext = Client`로 돌림. UI는 함수형 컴포넌트(ModuleScript가 인스턴스를 만들어 돌려줌). 전부 `--!strict`
+
+**붕괴 광산에 쓴다면 (아이디어)**
+- 허브에 **광부 옷 마네킹**: 헬멧·작업복·부츠 같은 마켓 아이템을 입혀 두고 입어 보기·구매. 우리 코드가 아니라 템플릿 스크립트를 그대로 가져오는 게 빠름 (`Mannequin` 태그 + 속성)
+- **리버스·랭킹 보상 의상**: 같은 `ApplyDescription` 방식으로 게임 안에서만 입히는 보상 (구매 없이)
+- 남의 마켓 아이템을 게임 안에서 팔면 게임도 수수료를 받는다 (비율은 원문 확인 필요)
+
+### 8-1. 구매창 UI 상세 (Inspect 창 = 이걸 따라 만들면 됨)
+
+**배치**: 화면 오른쪽 55% 패널(`Size 0.55,0 × 1,0`, `Position 0.45,0`), 배경 `#F2F4F5`, 모서리 8, 안쪽 여백 8. 세로 `UIListLayout`(간격 8): 위 막대 → 타일 격자. 패널이 열리면 **카메라를 옆으로 밀어서**(CameraOffset, 화면 너비의 0.65만큼) 캐릭터가 왼쪽 빈 곳에 보이게 함. 창은 ModalManager가 한 번에 하나만 보이게 쌓음(push/pop).
+
+**위 막대** (가로 리스트, 간격 4, 높이 28): `Try on`(회색 `#C3C5C6`, 글자 `#393B3D` Medium 20) · `Buy all`(초록 `#00B06F`, 흰 글자 Bold 20) · 빈 칸(`UIFlexItem Fill`로 밀어냄) · 장바구니 버튼(아이콘 + 초록 동그라미 개수) · 닫기 `×`(28×28 회색). 버튼 글자 너비는 `AutomaticSize X` + 좌우 여백 8, 모서리 4.
+
+**타일 하나** (기준 100×200, 세로 리스트 간격 4, 위아래로 벌림 `SpaceBetween`)
+1. 아이콘 버튼: 정사각, 회색 `#C3C5C6` 배경, 모서리 4. 그림은 `rbxthumb://type=Asset&id=<id>&w=150&h=150` (번들은 `type=BundleThumbnail`). 누르면 입어 보기 켜고 끄기, 입는 중이면 검은 반투명 막(0.75) + 오른쪽 위 체크 아이콘
+2. 이름: Regular 20, `#393B3D`, 자동 높이, 남는 공간을 채움(`Fill`)
+3. 가격: Bold 20. 로벅스 기호는 `utf8.char(0xE002)` (로블록스 글꼴 전용 글자). 무료면 `PriceStatus`("무료") 글자 그대로
+4. 버튼 줄: `Buy`(초록, 남는 폭 채움) + 장바구니 담기(28×28 초록 정사각, 장바구니 아이콘). 이미 담았으면 아이콘 투명도 0.5
+5. 한정판이면 아이콘 위에 Limited / Limited U 딱지
+
+**격자**: `ResponsiveGrid` = ScrollingFrame + UIGridLayout. 창 너비에서 "최소 100폭 칸이 몇 개 들어가나" 계산한 뒤 남는 폭만큼 칸을 같은 비율로 키움 → 창 크기가 바뀌어도 꽉 참. 스크롤이 90%를 넘으면 다음 페이지를 불러옴.
+
+**장바구니**: 클라이언트만 기억(최대 20개 = `PromptBulkPurchase` 한도). 장바구니 창(폭 256, 높이 80%): 제목 "Cart (n)", 줄마다 빼기 버튼·아이콘·이름·가격(줄 높이 64), 아래 "Total" + 큰 Buy. 구매가 끝나면 `PromptBulkPurchaseFinished`/`PromptPurchaseFinished`를 받아 산 것만 장바구니에서 뺌.
+
+**코드 짜는 방식**
+- UI 견본(`UI.Objects`)을 미리 만들어 두고, 컴포넌트 함수가 `Clone()` → 글자·이벤트를 채워 돌려줌 (`ItemTile(details)`, `CartButton()`)
+- 컴포넌트 밖(장바구니·입어 보기 상태)에 연결한 이벤트는 `Destroying:Once`에서 끊어서 새는 연결이 없게
+- 구매 창 띄우기는 서버(`MarketplaceService:PromptPurchase`/`PromptBulkPurchase`)에서, 클라이언트는 RemoteEvent로 부탁만
+
+**붕괴 광산 게임패스 상점에 그대로 쓰기** (C 담당 "패스 상점 화면 없음" 문제)
+- 타일 = 패스 아이콘 `rbxthumb://type=GamePass&id=<passId>&w=150&h=150` + 이름 + 로벅스 기호(`utf8.char(0xE002)`) + 가격 + 초록 Buy
+- 가격·이름은 `MarketplaceService:GetProductInfoAsync(passId, Enum.InfoType.GamePass)`로 받아 캐시
+- Buy → `MarketplaceService:PromptGamePassPurchase(player, passId)`, 개발자 상품(서버 부스트)은 `PromptProductPurchase` + 서버 `ProcessReceipt`
+- 이미 가진 패스는 버튼을 "보유 중"(회색)으로
