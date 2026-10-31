@@ -10,6 +10,7 @@
 | [`decisions-C.md`](decisions-C.md) | C 담당 결정 (C-) | C만 |
 | [`decisions.md`](decisions.md) | 2026-10-28까지의 결정 D-001~D-045 (보관, 새 항목 안 씀) | — |
 | `handoff-<담당>.md` | 담당별 현재 상태와 붙이는 방법 | 그 담당 |
+| [`reference/`](reference/) | 로블록스 공식 문서 요약 (아바타·플랫폼·수익 등). 결정이 아니라 참고 자료 | 누구나 |
 
 ## 왜 나눴나 (2026-10-29)
 
