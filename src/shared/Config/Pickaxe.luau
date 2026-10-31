@@ -20,6 +20,8 @@ Pickaxe.TIERS = table.freeze({
 	{ power = 1.5, cooldown = 0.32, digBonus = 0.3 },
 	{ power = 2.2, cooldown = 0.29, digBonus = 0.6 },
 	{ power = 3.2, cooldown = 0.26, digBonus = 0.9 },
+	-- 5단계 화염 루비 곡괭이 (T-006, B가 Economy.PICKAXES에 붙이면 쓰임). 임시값
+	{ power = 4.6, cooldown = 0.23, digBonus = 1.2 },
 })
 
 -- 강화 1단계마다: 파워 +10%, 간격 -3% (최대 +5강, B의 ENHANCE_MAX)

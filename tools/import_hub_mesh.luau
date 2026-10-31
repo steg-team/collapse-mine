@@ -148,6 +148,49 @@ local BUILDINGS = {
 	},
 }
 
+-- 창고 (새 건물, 옛 외형 없음): 광장 북서쪽 빈 자리에서 광장 가운데를 본다. 맡기는 기능은 B (이슈 #59) — 여기선 Counter 자리만
+BUILDINGS.Storage = {
+	prefix = "Storage",
+	origin = CFrame.lookAt(Vector3.new(-50, 1, 128), Vector3.new(-14, 1, 98)),
+	keep = {},
+	after = function(model, mesh, origin)
+		-- 맡기는 창구 (블렌더 (5.5, -7.6, 2.3) → Roblox 로컬 (-5.5, 2.3, -7.6))
+		local counter = Instance.new("Part")
+		counter.Name = "Counter"
+		counter.Size = Vector3.new(5, 2.6, 2)
+		counter.CFrame = origin * CFrame.new(-5.5, 2.3, -7.6)
+		counter.Anchored, counter.CanCollide = true, true
+		counter.Transparency = 1
+		counter.Parent = model
+		-- 간판: 문 위 나무판에 글자
+		local sign = Instance.new("Part")
+		sign.Name = "Sign"
+		sign.Size = Vector3.new(8, 2, 0.4)
+		sign.CFrame = origin * CFrame.new(3, 9.2, -7.4)
+		sign.Anchored, sign.CanCollide = true, false
+		sign.Color, sign.Material = Color3.fromRGB(88, 60, 40), Enum.Material.Wood
+		sign.Parent = model
+		local gui = Instance.new("SurfaceGui")
+		gui.Face = Enum.NormalId.Front
+		gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+		gui.PixelsPerStud = 40
+		gui.Parent = sign
+		local label = Instance.new("TextLabel")
+		label.Size = UDim2.fromScale(1, 1)
+		label.BackgroundTransparency = 1
+		label.Text = "📦 창고"
+		label.TextScaled = true
+		label.Font = Enum.Font.GothamBlack
+		label.TextColor3 = Color3.fromRGB(255, 226, 160)
+		label.Parent = gui
+		-- 처마 아래 등불 두 개 (블렌더 x ±8.7)
+		for _, x in { -8.7, 8.7 } do
+			lightAnchor(model, "LanternLight", origin * CFrame.new(x, 8, -8.5), Color3.fromRGB(255, 190, 110), 14, 1.2)
+		end
+		model.PrimaryPart = counter
+	end,
+}
+
 local hub = workspace.CollapseMine.Hub
 local bk = SS:FindFirstChild("OldHubBuildingsBackup") or Instance.new("Folder")
 bk.Name = "OldHubBuildingsBackup"

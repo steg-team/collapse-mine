@@ -141,10 +141,11 @@ docs/        기획서, 결정 기록 (동기화 안 됨)
   - `Lights/` 램프, `Entrance` 도착 지점, `ExitPoint` 출구 발판 (태그 `MineExit`)
 - 이동: 포탈(태그 `MinePortal`, 속성 `MineId`) → 광산 입구, 출구 발판 → 허브 스폰. 플레이어 속성 `PickaxeTier`가 광산의 `requiredPickaxe` 이상이어야 입장.
 - 땅은 Terrain, 굴은 개미굴 모양(입구 방 → 허브 방 → 완만히 내려가며 퍼지는 굴, 옆방·끝방). 수직 구멍은 만들지 않습니다 (걸어서 올라올 수 있어야 함).
-- 현재 광산 (모두 반경 350, 지표 -4 ~ 바닥 -125, 출구는 입구 방에서 +X로 뻗은 비탈 굴 → 풀밭 위 바위 언덕 아가리, `tools/build_mine_exit.luau`)
+- 현재 광산 (1~3번은 반경 350, 지표 -4 ~ 바닥 -125, 출구는 입구 방에서 +X로 뻗은 비탈 굴 → 풀밭 위 바위 언덕 아가리, `tools/build_mine_exit.luau`)
   - `basic` 기본 광산 — 중심 (0, 0, -900), 지층 흙(-4~-50)·바위(-50~-125)
   - `iron` 철광 갱도 — 중심 (-900, 0, -900), 지층 갱도 바위(-4~-55)·철광(-55~-125) (D-017)
   - `groundwater` 지하수 동굴 — 중심 (900, 0, -900), 지층 석회암(-4~-55)·젖은 암반(-55~-125) (D-017)
+  - `lava` 용암 광산 — 중심 (1800, 0, -900), **반경 420, 바닥 -150** (조금 더 크게), 지층 현무암(-4~-60)·용암 균열(-60~-150) (T-006). 허브 `CollapseMine_lava`(x +1800)는 복사본이 아니라 `tools/build_lava_hub.luau`로 새로 지은 더 큰 분지(안쪽 반폭 116×66)
   - 스테이지마다 허브가 따로 있다 (D-019): `basic` → `Workspace.CollapseMine`, `iron` → `CollapseMine_iron`(x -900), `groundwater` → `CollapseMine_groundwater`(x +900). 복사본은 기본 허브와 구조·이름이 같고 x만 옮김 (`tools/copy_stage_hub.luau`). 폴더 속성 `MineId`, Mines 설정 `hub` 칸이 폴더 이름
   - 각 허브의 입구 포탈 → 그 스테이지 광산, 광산 출구 → 그 스테이지 허브의 `MineSpawn`. 스테이지 사이 이동은 화면 왼쪽 🗺️ 광산 지도 (D-042, 광산 안에서는 못 씀, `Remotes.StageTravel`). SpawnLocation은 기본 허브만 켜져 있음
 - 지표(광산 `top` 위)와 허브는 채굴 불가.

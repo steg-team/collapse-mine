@@ -15,6 +15,11 @@
 ]]
 
 local MINE_ID = "basic"
+-- 광산별 겉모습 (지표·언덕 재질). 용암 광산은 지표가 현무암이라 풀 대신 현무암 (T-006)
+local LOOKS = {
+	lava = { ground = Enum.Material.Basalt, hill = Enum.Material.Basalt },
+}
+local LOOK = LOOKS[MINE_ID] or { ground = Enum.Material.Grass, hill = Enum.Material.Rock }
 local EXIT_DIR = Vector3.new(1, 0, 0) -- 출구 굴이 뻗는 방향 (generate_mine이 도착 지점을 입구 방 -X쪽, 옛 출구 발판을 +X쪽에 둠)
 
 local CS = game:GetService("CollectionService")
@@ -94,23 +99,23 @@ local rampLen = math.sqrt(RAMP * RAMP + RISE * RISE) + 4
 
 -- 채우기
 -- (a) 문 위쪽 잔디 칸(top~0): 예전 실행에서 너무 높게 판 자리 메우기
-T:FillBlock(CFrame.new(gateFloor.X, M.top / 2, gateFloor.Z) * rot * CFrame.new(0, 0, -2), Vector3.new(W + 12, -M.top, 22), Enum.Material.Grass)
+T:FillBlock(CFrame.new(gateFloor.X, M.top / 2, gateFloor.Z) * rot * CFrame.new(0, 0, -2), Vector3.new(W + 12, -M.top, 22), LOOK.ground)
 -- (b) 지표 위 바위 언덕 (풀밭에서 솟은 둔덕).
 -- 비탈 천장(바닥 + H)이 지표 위로 올라오는 구간 전체를 덮어야 굴 지붕이 남는다.
 -- 안 덮으면 지붕 없는 도랑이 돼서 풀밭으로 뛰어나갈 수 있다. 언덕 꼭대기 ≈ 지표 + H + 4
 local hillFrom = math.min(0, -(FLAT + RAMP * (RISE - H - 2) / RISE) + 6) -- 천장이 지표에 닿는 z (+여유)
 local mound = L(0, RISE, MOUTH_Z + 3)
 for z = hillFrom, MOUTH_Z + 3, -6 do
-	T:FillBall(L(0, RISE + 3, z).Position, W / 2 + 8, Enum.Material.Rock)
+	T:FillBall(L(0, RISE + 3, z).Position, W / 2 + 8, LOOK.hill)
 end
-T:FillBall(mound.Position, W / 2 + 10, Enum.Material.Rock)
-T:FillBall((mound * CFrame.new(W / 2, 3, 5)).Position, 9, Enum.Material.Rock)
-T:FillBall((mound * CFrame.new(-W / 2, 2, 4)).Position, 9, Enum.Material.Rock)
+T:FillBall(mound.Position, W / 2 + 10, LOOK.hill)
+T:FillBall((mound * CFrame.new(W / 2, 3, 5)).Position, 9, LOOK.hill)
+T:FillBall((mound * CFrame.new(-W / 2, 2, 4)).Position, 9, LOOK.hill)
 -- (c) 굴 바닥: 예전 평평한 굴(바닥 0)을 비탈 아래로 메움
 T:FillBlock(L(0, -2, -(FLAT / 2) + 1), Vector3.new(W + 4, 4, FLAT + 2), floorMat)
 T:FillBlock(onRamp(0, -4, rampMid), Vector3.new(W + 4, 8, rampLen), floorMat)
 -- (d) 아가리 앞 풀밭 바닥 고르기
-T:FillBlock(L(0, RISE - 2, MOUTH_Z - 7), Vector3.new(W + 8, 4, 16), Enum.Material.Grass)
+T:FillBlock(L(0, RISE - 2, MOUTH_Z - 7), Vector3.new(W + 8, 4, 16), LOOK.ground)
 task.wait()
 
 -- 파기

@@ -1,6 +1,6 @@
-# 1~3스테이지 광물 모델 — Roblox AI 생성 버전 (현재 사용 중)
+# 1~4스테이지 광물 모델 — Roblox AI 생성 버전 (현재 사용 중)
 
-광물 틀: `ServerStorage.OreModels.Stage01~03.<키>` (속성 `DisplayName`, `Grade`, `Source=RobloxAI`, 투명 `Hitbox`가 PrimaryPart, 피벗은 바닥 가운데).
+광물 틀: `ServerStorage.OreModels.Stage01~04.<키>` (속성 `DisplayName`, `Grade`, `Source=RobloxAI`, 투명 `Hitbox`가 PrimaryPart, 피벗은 바닥 가운데).
 이전 버전(앞·옆 그림 버전)은 `ServerStorage.OreModels._Backup_TurnVersion`, 직접 모델링 버전은 `Stage01M~03M`.
 
 ## 만든 방법
@@ -34,6 +34,14 @@
 | Malachite | 공작석 | 희귀 | 89097661406032 (세로 2배로 늘림) |
 | WaterPearl | 물빛 진주 | 에픽 | 82088913381295 |
 | WetMap | 젖은 광산 지도 | 전설 | 95299314794229 |
+| LavaStone | 용암석 | 일반 | 98846309308692 |
+| Sulfur | 유황 | 일반 | 112802065087044 |
+| Obsidian | 흑요석 | 고급 | 121745688438230 |
+| Uranium | 우라늄 | 희귀 | 122745790330329 (가로 1.9배로 넓힘) |
+| FireRuby | 화염 루비 | 에픽 | 107506822113236 |
+| MeltedHelmet | 녹은 광부 헬멧 | 전설 | 120285491531323 |
+
+4스테이지(Stage04)는 `tools/import_lava_ores.luau`로 틀을 만든다 (견본 `Workspace.AIOrePreview04`).
 
 ## 남은 일 (A 담당, 레포에서 PR)
 - 광산 생성기(`tools/generate_mine.luau`)가 Part 광석 대신 이 틀을 복사해 벽에 박도록.
