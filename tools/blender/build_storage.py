@@ -17,6 +17,8 @@ try:
 except ImportError:
     pass  # MCP로 실행할 때는 rbx_common 내용을 앞에 붙여서 보낸다
 
+PALETTE.update({"Steel": (0.67, 0.69, 0.73)})  # 함석 지붕 밝은 줄 (import_hub_mesh LOOK의 Steel과 같은 이름)
+
 W, D = 20.0, 14.0
 FLOOR = 1.0
 EAVE = 10.0
